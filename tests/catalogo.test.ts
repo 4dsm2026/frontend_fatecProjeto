@@ -7,7 +7,7 @@ describe("cx", () => {
     expect(cx("a", false, "b", null, undefined, "c")).toBe("a b c");
   });
 });
-
+// ye
 describe("enriquecerCatalogo", () => {
   it("preserva as categorias/serviços vindos da API", () => {
     const apiData = {
