@@ -46,7 +46,7 @@ npm install
 npm run dev
 ```
 
-A aplicação web estará acessível no seu navegador em `http://localhost:3000` (ou na próxima porta disponível informada no terminal, como `3001`).
+A aplicação web estará acessível no seu navegador em `http://localhost:3000` (ou na próxima porta disponível informada no terminal, como `3001`, etc.).
 
 ---
 
