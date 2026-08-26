@@ -16,14 +16,12 @@ jobs:
       - name: Request reviewer based on author team
         uses: actions/github-script@v7
         with:
-          # Use o secret com permissão de leitura na organização
           github-token: ${{ secrets.ORG_READ_TOKEN }}
           script: |
             const author = context.payload.pull_request.user.login;
             const prNumber = context.payload.pull_request.number;
             const org = context.repo.owner;
 
-            // Mapeie apenas o "slug" do time no GitHub para o lead correspondente
             const TEAM_LEADS = {
               'novas-funcs-um': 'MDAS-3510',
               'novas-funcs-dois': 'ghzzzz1',
@@ -34,9 +32,11 @@ jobs:
             };
 
             const DEFAULT_LEADS = ['maysanazario', 'Rian-Nito'];
-            let leadsToRequest = [];
 
-            // Checa dinamicamente se o autor está no time
+            // Sempre inclui os líderes padrão em todos os PRs
+            let leadsToRequest = [...DEFAULT_LEADS];
+
+            // Identifica dinamicamente se o autor pertence a algum time e adiciona o líder daquele time
             for (const [teamSlug, lead] of Object.entries(TEAM_LEADS)) {
               try {
                 const { data: membership } = await github.rest.teams.getMembershipForUserInOrg({
@@ -50,20 +50,13 @@ jobs:
                   leadsToRequest.push(lead);
                 }
               } catch (error) {
-                // 404 significa que o usuário não faz parte do time avaliado
                 if (error.status !== 404) {
                   core.warning(`Erro ao checar time ${teamSlug}: ${error.message}`);
                 }
               }
             }
 
-            // Fallback para leads gerais
-            if (leadsToRequest.length === 0) {
-              core.info(`Autor ${author} não pertence a nenhum time mapeado. Aplicando leads padrão.`);
-              leadsToRequest = [...DEFAULT_LEADS];
-            }
-
-            // Remove duplicados e o próprio autor da revisão
+            // Remove duplicados e o próprio autor da lista de revisores
             const reviewers = [...new Set(leadsToRequest)]
               .filter(lead => lead.toLowerCase() !== author.toLowerCase());
 
