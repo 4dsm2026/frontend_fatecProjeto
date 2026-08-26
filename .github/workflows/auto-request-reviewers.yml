@@ -29,7 +29,8 @@ jobs:
               'novas-funcs-dois': 'ghzzzz1',
               'qa': 'malusouza2212',
               'docs-devops': 'maysanazario',
-              'refatoracao': 'maysanazario'
+              'refatoracao': 'Julianaap02-prog'
+              'ux-ui': 'victoriaheloisaa'
             };
 
             const DEFAULT_LEADS = ['maysanazario', 'Rian-Nito'];
