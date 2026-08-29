@@ -10,6 +10,7 @@ import {
   FileChartColumn,
   Settings,
   MessageSquareText,
+  MessageSquarePlus,
   Building2,
   LogOut,
 } from "lucide-react";
@@ -71,6 +72,7 @@ export default function SidebarAdmin({
       { href: "/admin/alunos", label: "Gerenciar Alunos", icon: <Users className="size-4" />, badge: pendenciasCount || undefined },
       { href: "/admin/funcionarios", label: "Gerenciar Funcionários", icon: <UserPlus className="size-4" /> },
       { href: "/admin/comunicacoes", label: "Comunicações", icon: <MessageSquareText className="size-4" />, badge: notificacoesCount || undefined },
+      { href: "/admin/sugestoes", label: "Caixa de Sugestões", icon: <MessageSquarePlus className="size-4" /> },
       { href: "/admin/relatorios", label: "Relatórios", icon: <FileChartColumn className="size-4" /> },
       { href: "/admin/setores", label: "Setores", icon: <Building2 className="size-4" /> },
       { href: "/admin/configuracoes", label: "Configurações", icon: <Settings className="size-4" /> },

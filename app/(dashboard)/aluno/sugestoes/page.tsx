@@ -1,24 +1,38 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { CheckCircle2, Loader2, MessageSquarePlus, Send } from "lucide-react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronLeft, ChevronRight, Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { cx } from "../../../../utils/cx";
+import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-// TODO: confirmar o limite real de caracteres definido no banco de dados.
-// Usado provisoriamente 1000 (mesmo valor aplicado na validação do backend
-// em src/validators/sugestoes.ts).
 const CONTEUDO_MAX = 1000;
+const PAGE_SIZE = 10;
+
+type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
+
+type SugestaoResumo = {
+  id: string;
+  conteudo: string;
+  status: StatusSugestao;
+  criadoEm: string;
+};
 
 export default function SugestoesPage() {
   const [ra, setRa] = useState("");
+  const [emailContato, setEmailContato] = useState("");
   const [conteudo, setConteudo] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [enviado, setEnviado] = useState(false);
 
-  /* Busca o R.A. do aluno autenticado — não é digitado, apenas exibido */
+  const [sugestoes, setSugestoes] = useState<SugestaoResumo[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+
   useEffect(() => {
     apiFetch(`${API}/auth/me`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -28,10 +42,38 @@ export default function SugestoesPage() {
       .catch(() => {});
   }, []);
 
+  const fetchSugestoes = useCallback(async (targetPage: number) => {
+    try {
+      setLoadingList(true);
+      const res = await apiFetch(
+        `${API}/sugestoes?page=${targetPage}&pageSize=${PAGE_SIZE}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) return;
+      const data = await res.json();
+      setSugestoes(data?.items ?? []);
+      setTotal(data?.total ?? 0);
+    } finally {
+      setLoadingList(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSugestoes(page);
+  }, [page, fetchSugestoes]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
     const texto = conteudo.trim();
+    const email = emailContato.trim();
+
+    if (!email) {
+      toast.error("Informe um e-mail para contato.");
+      return;
+    }
     if (texto.length < 3) {
       toast.error("Escreva sua sugestão antes de enviar.");
       return;
@@ -45,7 +87,7 @@ export default function SugestoesPage() {
     try {
       const res = await apiFetch(`${API}/sugestoes`, {
         method: "POST",
-        body: JSON.stringify({ conteudo: texto }),
+        body: JSON.stringify({ emailContato: email, conteudo: texto }),
       });
 
       if (!res.ok) {
@@ -54,7 +96,9 @@ export default function SugestoesPage() {
 
       toast.success("Sugestão enviada com sucesso!");
       setConteudo("");
-      setEnviado(true);
+      setEmailContato("");
+      setPage(1);
+      fetchSugestoes(1);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Falha ao enviar sugestão.");
     } finally {
@@ -70,7 +114,7 @@ export default function SugestoesPage() {
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
           Envie uma sugestão, elogio ou crítica. Sua mensagem fica vinculada ao
-          seu cadastro.
+          seu cadastro. Depois de enviada, a sugestão não pode ser editada.
         </p>
       </div>
 
@@ -88,6 +132,19 @@ export default function SugestoesPage() {
             <span className="font-medium text-foreground">R.A.:</span> {ra}
           </div>
         )}
+
+        <label className="space-y-1 text-sm block">
+          <span className="font-medium">
+            E-mail <span className="text-destructive">*</span>
+          </span>
+          <input
+            type="email"
+            value={emailContato}
+            onChange={(e) => setEmailContato(e.target.value)}
+            placeholder="Insira e-mail para contato"
+            className="w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          />
+        </label>
 
         <label className="space-y-1 text-sm block">
           <span className="font-medium">
@@ -122,12 +179,75 @@ export default function SugestoesPage() {
         </div>
       </form>
 
-      {enviado && (
-        <div className="rounded-xl border border-[var(--border)] bg-card p-5 flex items-center gap-3 text-sm">
-          <CheckCircle2 className="size-5 text-emerald-500 shrink-0" />
-          Sua sugestão foi registrada. Obrigado pela contribuição!
-        </div>
-      )}
+      <div className="rounded-xl border border-[var(--border)] bg-card p-5 space-y-3">
+        <div className="text-sm font-semibold">Sugestões enviadas</div>
+
+        {loadingList ? (
+          <div className="text-sm text-muted-foreground inline-flex items-center gap-2">
+            <Loader2 className="size-4 animate-spin" /> Carregando…
+          </div>
+        ) : sugestoes.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-center text-sm text-muted-foreground inline-flex items-center gap-2 justify-center w-full">
+            <Info className="size-4" />
+            Você não enviou nenhuma sugestão.
+          </div>
+        ) : (
+          <ul className="divide-y divide-[var(--border)]">
+            {sugestoes.map((s) => (
+              <li key={s.id} className="py-3">
+                <Link
+                  href={`/aluno/sugestoes/${s.id}`}
+                  className="flex items-center justify-between gap-3 hover:underline"
+                >
+                  <span className="line-clamp-1 text-sm">{s.conteudo}</span>
+                  <SugestaoStatusBadge status={s.status} />
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-1 pt-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className={cx(
+                "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
+                page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
+              )}
+            >
+              <ChevronLeft className="size-4" />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                onClick={() => setPage(n)}
+                className={cx(
+                  "h-8 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm",
+                  n === page
+                    ? "bg-primary text-primary-foreground"
+                    : "border border-[var(--border)] hover:bg-[var(--muted)]",
+                )}
+              >
+                {n}
+              </button>
+            ))}
+
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className={cx(
+                "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
+                page === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
+              )}
+            >
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
