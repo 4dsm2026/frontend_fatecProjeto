@@ -11,7 +11,6 @@ import {
   Settings,
   Bell,
   LogOut,
-  MessageSquarePlus,
 } from "lucide-react";
 import Cookies from 'js-cookie';
 
@@ -44,7 +43,6 @@ export default function SidebarAluno({
     { href: "/aluno/catalogo", label: "Catálogo de serviços", icon: <BookOpen className="size-4" /> },
     { href: "/aluno/dados", label: "Meus dados", icon: <User className="size-4" /> },
     { href: "/aluno/notificacoes", label: "Notificações", icon: <Bell className="size-4" /> },
-    { href: "/aluno/sugestoes", label: "Caixa de Sugestões", icon: <MessageSquarePlus className="size-4" /> },
     { href: "/aluno/ajuda", label: "Ajuda / FAQ", icon: <HelpCircle className="size-4" /> },
     { href: "/aluno/configuracoes", label: "Configurações", icon: <Settings className="size-4" /> },
   ];

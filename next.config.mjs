@@ -9,19 +9,17 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  // Proxy API calls to backend when NEXT_PUBLIC_API_BASE_URL is not set at build time.
+  // BACKEND_URL is read at runtime, so set it in the container environment.
   async rewrites() {
     const backend = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL;
-    if (!backend) return { beforeFiles: [], afterFiles: [], fallback: [] };
-    return {
-      beforeFiles: [],
-      afterFiles: [],
-      fallback: [
-        {
-          source: "/:path*",
-          destination: `${backend}/:path*`,
-        },
-      ],
-    };
+    if (!backend) return [];
+    return [
+      {
+        source: "/:path*",
+        destination: `${backend}/:path*`,
+      },
+    ];
   },
 
   async headers() {
