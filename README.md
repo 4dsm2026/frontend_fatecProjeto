@@ -331,3 +331,15 @@ A API estará rodando em `http://localhost:3333`.
 * **Causa:** A origem da requisição do frontend (ex: `http://localhost:3000`) não está listada no `CORS_ORIGIN` do arquivo `.env` do backend.
 * **Solução:** Adicione a URL do frontend na variável `CORS_ORIGIN` no `.env` e reinicie o backend (`npm run dev`).
 ](https://github.com/4dsm2026/backend_fatecProjeto)
+
+---
+
+## 📚 Documentação
+
+Para rodar a documentação do projeto (Docusaurus) localmente:
+
+```bash
+cd docs
+npm install
+npm run start
+```
