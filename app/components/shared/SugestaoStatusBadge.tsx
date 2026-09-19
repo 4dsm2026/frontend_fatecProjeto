@@ -10,7 +10,7 @@ type Props = {
  * Badge padronizado para o status da Caixa de Sugestões.
  * NÃO RESPONDIDO -> vermelho | RESPONDIDO -> verde
  */
-export default function SugestaoStatusBadge({ status }: Props) {
+export default function SugestaoStatusBadge({ status }: Readonly<Props>) {
   const map: Record<StatusSugestao, { label: string; cls: string }> = {
     NAO_RESPONDIDO: {
       label: "Não respondido",
