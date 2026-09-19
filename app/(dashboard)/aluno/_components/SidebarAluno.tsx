@@ -11,8 +11,9 @@ import {
   Settings,
   Bell,
   LogOut,
+  MessageSquarePlus,
 } from "lucide-react";
-import Cookies from 'js-cookie';
+import Cookies from "js-cookie";
 
 type NavItemProps = {
   href: string;
@@ -38,35 +39,71 @@ export default function SidebarAluno({
   const router = useRouter();
 
   const items: NavItemProps[] = [
-    { href: "/aluno/home", label: "Visão Geral", icon: <LayoutDashboard className="size-4" /> },
-    { href: "/aluno/chamados", label: "Minhas solicitações", icon: <Ticket className="size-4" />},
-    { href: "/aluno/catalogo", label: "Catálogo de serviços", icon: <BookOpen className="size-4" /> },
-    { href: "/aluno/dados", label: "Meus dados", icon: <User className="size-4" /> },
-    { href: "/aluno/notificacoes", label: "Notificações", icon: <Bell className="size-4" /> },
-    { href: "/aluno/ajuda", label: "Ajuda / FAQ", icon: <HelpCircle className="size-4" /> },
-    { href: "/aluno/configuracoes", label: "Configurações", icon: <Settings className="size-4" /> },
+    {
+      href: "/aluno/home",
+      label: "Visão Geral",
+      icon: <LayoutDashboard className="size-4" />,
+    },
+    {
+      href: "/aluno/chamados",
+      label: "Minhas solicitações",
+      icon: <Ticket className="size-4" />,
+    },
+    {
+      href: "/aluno/catalogo",
+      label: "Catálogo de serviços",
+      icon: <BookOpen className="size-4" />,
+    },
+    {
+      href: "/aluno/dados",
+      label: "Meus dados",
+      icon: <User className="size-4" />,
+    },
+    {
+      href: "/aluno/notificacoes",
+      label: "Notificações",
+      icon: <Bell className="size-4" />,
+    },
+    {
+      href: "/aluno/sugestoes",
+      label: "Caixa de Sugestões",
+      icon: <MessageSquarePlus className="size-4" />,
+    },
+    {
+      href: "/aluno/ajuda",
+      label: "Ajuda / FAQ",
+      icon: <HelpCircle className="size-4" />,
+    },
+    {
+      href: "/aluno/configuracoes",
+      label: "Configurações",
+      icon: <Settings className="size-4" />,
+    },
   ];
 
   function isActive(href: string) {
-    // marca ativo por prefixo (ex.: /aluno/chamados/123 continua ativo em /aluno/chamados)
-    if (href === "/home/aluno") return pathname === "/home/aluno" || pathname === "/aluno";
+    // Mantém o item ativo também nas páginas de detalhes.
+    if (href === "/home/aluno") {
+      return pathname === "/home/aluno" || pathname === "/aluno";
+    }
+
     return pathname === href || pathname.startsWith(href + "/");
   }
 
   function handleLogout() {
     try {
-      // Limpa os cookies que o middleware lê
+      // Limpa os cookies que o middleware lê.
       Cookies.remove("accessToken");
       Cookies.remove("refreshToken");
 
-      // Limpa o localStorage
+      // Limpa o localStorage.
       localStorage.removeItem("accessToken");
       localStorage.removeItem("refreshToken");
       localStorage.removeItem("userId");
     } catch (e) {
       console.error("Erro ao fazer logout:", e);
     }
-    // Redireciona para o login DEPOIS de limpar
+
     router.push("/login");
     onClose?.();
   }
@@ -80,14 +117,21 @@ export default function SidebarAluno({
             WF
           </div>
           <div>
-            <div className="font-grotesk text-sm font-semibold">Portal do Aluno</div>
-            <div className="text-xs text-muted-foreground">Autoatendimento</div>
+            <div className="font-grotesk text-sm font-semibold">
+              Portal do Aluno
+            </div>
+            <div className="text-xs text-muted-foreground">
+              Autoatendimento
+            </div>
           </div>
         </div>
 
         {/* Navegação */}
         <nav className="space-y-1">
-          <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">Geral</div>
+          <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
+            Geral
+          </div>
+
           {items.map((it) => (
             <Link
               key={it.href}
@@ -101,9 +145,12 @@ export default function SidebarAluno({
               onClick={onClose}
             >
               <span className="flex items-center gap-3">
-                <span className="inline-grid place-items-center size-5 opacity-90">{it.icon}</span>
+                <span className="inline-grid place-items-center size-5 opacity-90">
+                  {it.icon}
+                </span>
                 <span>{it.label}</span>
               </span>
+
               {it.badge != null && (
                 <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
                   {it.badge}
@@ -115,7 +162,10 @@ export default function SidebarAluno({
 
         {/* Indicadores rápidos */}
         <div className="mt-4 rounded-xl border border-[var(--border)] bg-background p-3">
-          <div className="text-xs text-muted-foreground mb-2">Indicadores rápidos</div>
+          <div className="text-xs text-muted-foreground mb-2">
+            Indicadores rápidos
+          </div>
+
           <ul className="space-y-2 text-sm">
             <li className="flex items-center justify-between">
               <span>Aguardando resposta</span>
@@ -128,7 +178,7 @@ export default function SidebarAluno({
           </ul>
         </div>
 
-        {/* Sair (fixo no rodapé do sidebar) */}
+        {/* Sair */}
         <div className="mt-auto pt-3">
           <button
             type="button"
