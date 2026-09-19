@@ -334,4 +334,4 @@ A API estará rodando em `http://localhost:3333`.
 
 ## Contribuidores
 
-[![Contributors](https://contrib.rocks/image?repo=usuario/repositorio)](https://github.com/usuario/repositorio/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=4dsm2026/frontend_fatecProjeto)](https://github.com/4dsm2026/frontend_fatecProjeto/graphs/contributors)
