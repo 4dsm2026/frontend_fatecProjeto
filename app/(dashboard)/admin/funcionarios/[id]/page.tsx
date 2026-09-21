@@ -347,14 +347,14 @@ export default function FuncionarioDetalhePage() {
             </div>
             <form className="p-4 space-y-3" onSubmit={onAddSetor}>
               <div className="space-y-1">
-                <label className="text-sm">ID do setor</label>
-                <input className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                <label htmlFor="func-setor-id" className="text-sm">ID do setor</label>
+                <input id="func-setor-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
                   placeholder="ex.: clx9… (cuid do Setor)"
                   value={novoSetorId} onChange={(e) => setNovoSetorId(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="text-sm">ID do papel (opcional)</label>
-                <input className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                <label htmlFor="func-papel-id" className="text-sm">ID do papel (opcional)</label>
+                <input id="func-papel-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
                   placeholder="PapelCatalogo.id (opcional)"
                   value={novoPapelId} onChange={(e) => setNovoPapelId(e.target.value)} />
               </div>

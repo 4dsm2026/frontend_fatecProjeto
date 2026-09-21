@@ -103,9 +103,10 @@ export default function ConfirmDialog({
         {input && (
           <div className="mt-4">
             {input.label && (
-              <label className="mb-1 block text-sm text-muted-foreground">{input.label}</label>
+              <label htmlFor="confirm-prompt-input" className="mb-1 block text-sm text-muted-foreground">{input.label}</label>
             )}
             <input
+              id="confirm-prompt-input"
               ref={inputRef}
               value={value}
               onChange={(e) => setValue(e.target.value)}
