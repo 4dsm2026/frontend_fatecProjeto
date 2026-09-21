@@ -164,12 +164,12 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
             <p className={sectionCls}>Identificação</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="sm:col-span-2">
-                <label className={labelCls}>Nome completo</label>
-                <input className={inputCls} placeholder="Ex.: Fulano da Silva" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={160} />
+                <label htmlFor="aluno-nome" className={labelCls}>Nome completo</label>
+                <input id="aluno-nome" className={inputCls} placeholder="Ex.: Fulano da Silva" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={160} />
               </div>
               <div>
-                <label className={labelCls}>RA</label>
-                <input className={inputCls} placeholder="Ex.: 1234567890123" value={ra} onChange={(e) => setRa(e.target.value)} maxLength={32} />
+                <label htmlFor="aluno-ra" className={labelCls}>RA</label>
+                <input id="aluno-ra" className={inputCls} placeholder="Ex.: 1234567890123" value={ra} onChange={(e) => setRa(e.target.value)} maxLength={32} />
               </div>
               <div className="flex items-center gap-3 pt-6">
                 <input
@@ -182,12 +182,12 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
                 <label htmlFor="ativo" className="text-sm cursor-pointer">Conta ativa</label>
               </div>
               <div>
-                <label className={labelCls}>E-mail educacional</label>
-                <input type="email" className={inputCls} placeholder="nome@fatec.sp.gov.br" value={emailEducacional} onChange={(e) => setEmailEducacional(e.target.value)} />
+                <label htmlFor="aluno-email-educacional" className={labelCls}>E-mail educacional</label>
+                <input id="aluno-email-educacional" type="email" className={inputCls} placeholder="nome@fatec.sp.gov.br" value={emailEducacional} onChange={(e) => setEmailEducacional(e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>E-mail pessoal</label>
-                <input type="email" className={inputCls} placeholder="nome@gmail.com" value={emailPessoal} onChange={(e) => setEmailPessoal(e.target.value)} />
+                <label htmlFor="aluno-email-pessoal" className={labelCls}>E-mail pessoal</label>
+                <input id="aluno-email-pessoal" type="email" className={inputCls} placeholder="nome@gmail.com" value={emailPessoal} onChange={(e) => setEmailPessoal(e.target.value)} />
               </div>
             </div>
           </section>
@@ -197,24 +197,24 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
             <p className={sectionCls}>Curso</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Nome do curso</label>
-                <input className={inputCls} placeholder="Ex.: Desenvolvimento de Software Multiplataforma" value={cursoNome} onChange={(e) => setCursoNome(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-curso-nome" className={labelCls}>Nome do curso</label>
+                <input id="aluno-curso-nome" className={inputCls} placeholder="Ex.: Desenvolvimento de Software Multiplataforma" value={cursoNome} onChange={(e) => setCursoNome(e.target.value)} maxLength={128} />
               </div>
               <div>
-                <label className={labelCls}>Sigla do curso</label>
-                <input className={inputCls} placeholder="Ex.: DSM" value={cursoSigla} onChange={(e) => setCursoSigla(e.target.value)} maxLength={16} />
+                <label htmlFor="aluno-curso-sigla" className={labelCls}>Sigla do curso</label>
+                <input id="aluno-curso-sigla" className={inputCls} placeholder="Ex.: DSM" value={cursoSigla} onChange={(e) => setCursoSigla(e.target.value)} maxLength={16} />
               </div>
               <div>
-                <label className={labelCls}>Curso (campo livre)</label>
-                <input className={inputCls} placeholder="Denominação oficial" value={curso} onChange={(e) => setCurso(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-curso-livre" className={labelCls}>Curso (campo livre)</label>
+                <input id="aluno-curso-livre" className={inputCls} placeholder="Denominação oficial" value={curso} onChange={(e) => setCurso(e.target.value)} maxLength={128} />
               </div>
               <div>
-                <label className={labelCls}>Eixo tecnológico</label>
-                <input className={inputCls} placeholder="Ex.: Informação e Comunicação" value={eixoTecnologico} onChange={(e) => setEixoTecnologico(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-eixo" className={labelCls}>Eixo tecnológico</label>
+                <input id="aluno-eixo" className={inputCls} placeholder="Ex.: Informação e Comunicação" value={eixoTecnologico} onChange={(e) => setEixoTecnologico(e.target.value)} maxLength={128} />
               </div>
               <div className="sm:col-span-2">
-                <label className={labelCls}>Matriz curricular</label>
-                <input className={inputCls} placeholder="Ex.: 2023" value={matrizCurricular} onChange={(e) => setMatrizCurricular(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-matriz" className={labelCls}>Matriz curricular</label>
+                <input id="aluno-matriz" className={inputCls} placeholder="Ex.: 2023" value={matrizCurricular} onChange={(e) => setMatrizCurricular(e.target.value)} maxLength={128} />
               </div>
             </div>
           </section>
@@ -224,35 +224,35 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
             <p className={sectionCls}>Dados Acadêmicos</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Unidade Fatec</label>
-                <input className={inputCls} placeholder="Ex.: Fatec Cotia" value={unidadeFatec} onChange={(e) => setUnidadeFatec(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-unidade" className={labelCls}>Unidade Fatec</label>
+                <input id="aluno-unidade" className={inputCls} placeholder="Ex.: Fatec Cotia" value={unidadeFatec} onChange={(e) => setUnidadeFatec(e.target.value)} maxLength={128} />
               </div>
               <div>
-                <label className={labelCls}>Turno</label>
-                <select className={inputCls} value={turno} onChange={(e) => setTurno(e.target.value)}>
+                <label htmlFor="aluno-turno" className={labelCls}>Turno</label>
+                <select id="aluno-turno" className={inputCls} value={turno} onChange={(e) => setTurno(e.target.value)}>
                   <option value="">Selecione…</option>
                   {TURNOS.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Turma</label>
-                <input className={inputCls} placeholder="Ex.: DSM-3A" value={turma} onChange={(e) => setTurma(e.target.value)} maxLength={64} />
+                <label htmlFor="aluno-turma" className={labelCls}>Turma</label>
+                <input id="aluno-turma" className={inputCls} placeholder="Ex.: DSM-3A" value={turma} onChange={(e) => setTurma(e.target.value)} maxLength={64} />
               </div>
               <div>
-                <label className={labelCls}>Semestre atual</label>
-                <input className={inputCls} placeholder="Ex.: 3" value={semestreAtual} onChange={(e) => setSemestreAtual(e.target.value)} maxLength={32} />
+                <label htmlFor="aluno-semestre" className={labelCls}>Semestre atual</label>
+                <input id="aluno-semestre" className={inputCls} placeholder="Ex.: 3" value={semestreAtual} onChange={(e) => setSemestreAtual(e.target.value)} maxLength={32} />
               </div>
               <div>
-                <label className={labelCls}>Ano/semestre de ingresso</label>
-                <input className={inputCls} placeholder="Ex.: 2023/1" value={anoSemestreIngresso} onChange={(e) => setAnoSemestreIngresso(e.target.value)} maxLength={32} />
+                <label htmlFor="aluno-ingresso" className={labelCls}>Ano/semestre de ingresso</label>
+                <input id="aluno-ingresso" className={inputCls} placeholder="Ex.: 2023/1" value={anoSemestreIngresso} onChange={(e) => setAnoSemestreIngresso(e.target.value)} maxLength={32} />
               </div>
               <div>
-                <label className={labelCls}>Situação acadêmica</label>
-                <input className={inputCls} placeholder="Ex.: Regular, Trancado…" value={situacaoAcademica} onChange={(e) => setSituacaoAcademica(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-situacao" className={labelCls}>Situação acadêmica</label>
+                <input id="aluno-situacao" className={inputCls} placeholder="Ex.: Regular, Trancado…" value={situacaoAcademica} onChange={(e) => setSituacaoAcademica(e.target.value)} maxLength={128} />
               </div>
               <div className="sm:col-span-2">
-                <label className={labelCls}>Coordenador do curso</label>
-                <input className={inputCls} placeholder="Ex.: Prof. Fulano de Tal" value={coordenadorCurso} onChange={(e) => setCoordenadorCurso(e.target.value)} maxLength={128} />
+                <label htmlFor="aluno-coordenador" className={labelCls}>Coordenador do curso</label>
+                <input id="aluno-coordenador" className={inputCls} placeholder="Ex.: Prof. Fulano de Tal" value={coordenadorCurso} onChange={(e) => setCoordenadorCurso(e.target.value)} maxLength={128} />
               </div>
             </div>
           </section>
@@ -262,23 +262,23 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
             <p className={sectionCls}>Contato</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Telefone celular</label>
-                <input className={inputCls} placeholder="Ex.: (11) 99999-9999" value={telefoneCelular} onChange={(e) => setTelefoneCelular(e.target.value)} maxLength={20} />
+                <label htmlFor="aluno-tel" className={labelCls}>Telefone celular</label>
+                <input id="aluno-tel" className={inputCls} placeholder="Ex.: (11) 99999-9999" value={telefoneCelular} onChange={(e) => setTelefoneCelular(e.target.value)} maxLength={20} />
               </div>
               <div>
-                <label className={labelCls}>WhatsApp</label>
-                <input className={inputCls} placeholder="Ex.: (11) 99999-9999" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} maxLength={20} />
+                <label htmlFor="aluno-whatsapp" className={labelCls}>WhatsApp</label>
+                <input id="aluno-whatsapp" className={inputCls} placeholder="Ex.: (11) 99999-9999" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} maxLength={20} />
               </div>
               <div>
-                <label className={labelCls}>Canal preferencial de contato</label>
-                <select className={inputCls} value={canalPreferencialContato} onChange={(e) => setCanalPreferencialContato(e.target.value)}>
+                <label htmlFor="aluno-canal" className={labelCls}>Canal preferencial de contato</label>
+                <select id="aluno-canal" className={inputCls} value={canalPreferencialContato} onChange={(e) => setCanalPreferencialContato(e.target.value)}>
                   <option value="">Selecione…</option>
                   {CANAIS.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Melhor período para contato</label>
-                <select className={inputCls} value={melhorPeriodoContato} onChange={(e) => setMelhorPeriodoContato(e.target.value)}>
+                <label htmlFor="aluno-periodo" className={labelCls}>Melhor período para contato</label>
+                <select id="aluno-periodo" className={inputCls} value={melhorPeriodoContato} onChange={(e) => setMelhorPeriodoContato(e.target.value)}>
                   <option value="">Selecione…</option>
                   {PERIODOS.map((p) => <option key={p} value={p}>{p}</option>)}
                 </select>
@@ -306,8 +306,9 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
               {necessitaAtendimentoAcessivel && (
                 <>
                   <div>
-                    <label className={labelCls}>Tipo de acessibilidade</label>
+                    <label htmlFor="aluno-tipo-acess" className={labelCls}>Tipo de acessibilidade</label>
                     <input
+                      id="aluno-tipo-acess"
                       className={inputCls}
                       placeholder="Ex.: Auditiva, Visual, Motora…"
                       value={tipoAcessibilidade}
@@ -316,8 +317,9 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
                     />
                   </div>
                   <div>
-                    <label className={labelCls}>Observações de atendimento</label>
+                    <label htmlFor="aluno-obs" className={labelCls}>Observações de atendimento</label>
                     <textarea
+                      id="aluno-obs"
                       className="mt-1 w-full rounded-lg border border-[var(--border)] bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)] min-h-[80px] resize-y"
                       placeholder="Descreva as necessidades específicas…"
                       value={observacoesAtendimento}

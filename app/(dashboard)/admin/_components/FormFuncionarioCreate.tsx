@@ -193,8 +193,9 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         </legend>
 
         <div>
-          <label className={labelCls}>Nome completo *</label>
+          <label htmlFor="func-nome" className={labelCls}>Nome completo *</label>
           <input
+            id="func-nome"
             className={inputCls}
             placeholder="Ex.: Ana Pereira"
             value={nome}
@@ -206,9 +207,10 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         </div>
 
         <div>
-          <label className={labelCls}>E-mail *</label>
+          <label htmlFor="func-email" className={labelCls}>E-mail *</label>
           <div className="relative">
             <input
+              id="func-email"
               type="email"
               className={inputCls + " pr-9"}
               placeholder="nome.sobrenome@fatec.sp.gov.br"
@@ -261,12 +263,13 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         </legend>
 
         <div className="space-y-1.5">
-          <label className={labelCls}>
+          <label htmlFor="func-senha" className={labelCls}>
             Senha{" "}
             <span className="text-muted-foreground/60">(mín. 8 caracteres)</span>
           </label>
           <div className="relative">
             <input
+              id="func-senha"
               type={mostrarSenha ? "text" : "password"}
               className={inputCls + " pr-10 mt-0"}
               placeholder="Digite a senha inicial"
