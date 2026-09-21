@@ -2,13 +2,13 @@ import { NextResponse, NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
 type Papel = 'USUARIO' | 'BACKOFFICE' | 'TECNICO' | 'ADMINISTRADOR'
-const ADMIN_ROLES: Papel[] = ['BACKOFFICE', 'TECNICO', 'ADMINISTRADOR']
+const ADMIN_ROLES: ReadonlySet<Papel> = new Set(['BACKOFFICE', 'TECNICO', 'ADMINISTRADOR'])
 const ALUNO_ROLE: Papel = 'USUARIO'
 const ADMIN_HOME = '/admin/home'
 const ALUNO_HOME = '/aluno/home'
 const LOGIN_PATH = '/login'
 
-const AUTH_PAGES = ['/login', '/primeiro-acesso', '/esqueci-senha', '/reset-senha']
+const AUTH_PAGES: ReadonlySet<string> = new Set(['/login', '/primeiro-acesso', '/esqueci-senha', '/reset-senha'])
 const protectedPrefixes = ['/admin', '/aluno']
 
 async function getJwtPayload(token: string) {
@@ -29,7 +29,7 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
   const sessionToken = req.cookies.get('accessToken')?.value
 
-  const isAuthRoute = AUTH_PAGES.includes(pathname)
+  const isAuthRoute = AUTH_PAGES.has(pathname)
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
 
   if (!sessionToken && isProtectedRoute) {
@@ -55,11 +55,11 @@ export async function middleware(req: NextRequest) {
     const role = payload.role
 
     if (isAuthRoute) {
-      const home = ADMIN_ROLES.includes(role) ? ADMIN_HOME : ALUNO_HOME
+      const home = ADMIN_ROLES.has(role) ? ADMIN_HOME : ALUNO_HOME
       return NextResponse.redirect(new URL(home, req.nextUrl.origin))
     }
 
-    if (pathname.startsWith('/admin') && !ADMIN_ROLES.includes(role)) {
+    if (pathname.startsWith('/admin') && !ADMIN_ROLES.has(role)) {
       return NextResponse.redirect(new URL(ALUNO_HOME, req.nextUrl.origin))
     }
 
