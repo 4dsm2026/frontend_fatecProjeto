@@ -16,8 +16,10 @@ function injectClarity() {
   document.head.appendChild(script);
   // @ts-expect-error — Clarity global bootstrap
   window.clarity = window.clarity || function (...args: unknown[]) {
-    // @ts-expect-error — Clarity queue
-    (window.clarity.q = window.clarity.q || []).push(args);
+    // @ts-expect-error — Clarity queue init
+    if (!window.clarity.q) window.clarity.q = [];
+    // @ts-expect-error — Clarity queue push
+    window.clarity.q.push(args);
   };
 }
 
