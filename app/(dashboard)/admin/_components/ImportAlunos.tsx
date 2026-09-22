@@ -43,10 +43,13 @@ function parseCsv(text: string): string[][] {
         if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
         else if (ch === '"') { inQuote = false; }
         else { cur += ch; }
+      } else if (ch === '"') {
+        inQuote = true;
+      } else if (ch === ',') {
+        cols.push(cur.trim());
+        cur = "";
       } else {
-        if (ch === '"') { inQuote = true; }
-        else if (ch === ',') { cols.push(cur.trim()); cur = ""; }
-        else { cur += ch; }
+        cur += ch;
       }
     }
     cols.push(cur.trim());
