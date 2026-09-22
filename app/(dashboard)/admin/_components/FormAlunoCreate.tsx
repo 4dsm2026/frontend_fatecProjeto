@@ -27,7 +27,7 @@ const COURSES = [
 const TURNOS = ["Manhã", "Tarde", "Noite"] as const;
 
 type Props = {
-  onSuccess?: (createdUser: any) => void;
+  onSuccess?: (createdUser: never) => void;
   onCancel?: () => void;
 };
 
@@ -41,6 +41,145 @@ type SuccessInfo = {
 const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
+
+type PayloadValue = string | boolean | undefined;
+
+function applyOptionalFields(payload: Record<string, PayloadValue>, fields: Record<string, string | undefined>) {
+  for (const [key, value] of Object.entries(fields)) {
+    const v = value?.trim();
+    if (v) payload[key] = v;
+  }
+}
+
+function buildAlunoPayload(data: {
+  nome: string;
+  ra: string;
+  emailEducacional: string;
+  emailPessoal: string;
+  usarSenhaPersonalizada: boolean;
+  senhaInicial: string;
+  cursoNome: string;
+  cursoSigla: string;
+  unidadeFatec: string;
+  turno: string;
+  turma: string;
+  semestreAtual: string;
+  anoSemestreIngresso: string;
+}) {
+  const payload: Record<string, PayloadValue> = {
+    nome: data.nome.trim() || undefined,
+    emailEducacional: data.emailEducacional,
+    emailPessoal: data.emailPessoal.trim() || data.emailEducacional,
+    ra: data.ra.trim(),
+    papel: "USUARIO",
+    ativo: true,
+  };
+
+  if (data.usarSenhaPersonalizada && data.senhaInicial.trim()) {
+    payload.senha = data.senhaInicial.trim();
+  }
+
+  applyOptionalFields(payload, {
+    cursoNome: data.cursoNome,
+    cursoSigla: data.cursoSigla,
+    unidadeFatec: data.unidadeFatec,
+    turno: data.turno,
+    turma: data.turma,
+    semestreAtual: data.semestreAtual,
+    anoSemestreIngresso: data.anoSemestreIngresso,
+  });
+
+  return payload;
+}
+
+function FormAlunoCreateSuccess({
+  info,
+  copied,
+  onCopiar,
+  onReset,
+  onSuccess,
+  onCancel,
+  lastCreated,
+}: {
+  info: SuccessInfo;
+  copied: boolean;
+  onCopiar: (senha: string) => void;
+  onReset: () => void;
+  onSuccess?: Props["onSuccess"];
+  onCancel?: () => void;
+  lastCreated: unknown;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col items-center gap-3 py-4">
+        <CheckCircle2 className="size-10 text-emerald-500" />
+        <div className="text-center">
+          <p className="font-semibold text-base">Aluno cadastrado com sucesso!</p>
+          {info.nome && (
+            <p className="text-sm text-muted-foreground mt-0.5">{info.nome}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">RA</span>
+          <span className="text-sm font-medium flex-1 text-right font-mono">{info.ra}</span>
+        </div>
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">E-mail</span>
+          <span className="text-sm flex-1 text-right truncate">{info.email}</span>
+        </div>
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">Senha inicial</span>
+          {info.senhaUsada ? (
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <span className="text-sm font-medium font-mono bg-[var(--muted)] px-2 py-0.5 rounded">
+                {info.senhaUsada}
+              </span>
+              <button
+                type="button"
+                onClick={() => onCopiar(info.senhaUsada!)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
+                title="Copiar senha"
+              >
+                {copied ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                {copied ? "Copiado!" : "Copiar"}
+              </button>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground flex-1 text-right">
+              Senha padrão do sistema
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground rounded-lg bg-[var(--muted)] px-3 py-2">
+        O aluno deverá trocar a senha no primeiro acesso. Compartilhe as credenciais acima com o aluno.
+      </p>
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
+        >
+          <RotateCcw className="size-3.5" /> Cadastrar outro
+        </button>
+        {(onSuccess || onCancel) && (
+          <button
+            type="button"
+            onClick={() => (onSuccess ? onSuccess(lastCreated as never) : onCancel?.())}
+            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
+          >
+            Concluído
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
   /* ── Identificação ── */
@@ -68,15 +207,21 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
-  const [lastCreated, setLastCreated] = useState<any>(null);
+  const [lastCreated, setLastCreated] = useState<unknown>(null);
   const [copied, setCopied] = useState(false);
 
   function handleCourseChange(val: string) {
     setCourseKey(val);
-    if (!val) { setCursoNome(""); setCursoSigla(""); return; }
-    if (val === "OUTRO") return;
+    if (!val) {
+      setCursoNome("");
+      setCursoSigla("");
+      return;
+    }
     const c = COURSES.find((c) => c.key === val);
-    if (c) { setCursoNome(c.nome); setCursoSigla(c.sigla); }
+    if (c) {
+      setCursoNome(c.nome);
+      setCursoSigla(c.sigla);
+    }
   }
 
   const senhaValida = !usarSenhaPersonalizada || senhaInicial.trim().length >= 8;
@@ -109,26 +254,21 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
     try {
       setSubmitting(true);
 
-      const payload: Record<string, any> = {
-        nome: nome.trim() || undefined,
+      const payload = buildAlunoPayload({
+        nome,
+        ra,
         emailEducacional,
-        emailPessoal: emailPessoal.trim() || emailEducacional,
-        ra: ra.trim(),
-        papel: "USUARIO",
-        ativo: true,
-      };
-
-      if (usarSenhaPersonalizada && senhaInicial.trim()) {
-        payload.senha = senhaInicial.trim();
-      }
-
-      if (cursoNome.trim())           payload.cursoNome           = cursoNome.trim();
-      if (cursoSigla.trim())          payload.cursoSigla          = cursoSigla.trim();
-      if (unidadeFatec.trim())        payload.unidadeFatec        = unidadeFatec.trim();
-      if (turno)                      payload.turno               = turno;
-      if (turma.trim())               payload.turma               = turma.trim();
-      if (semestreAtual.trim())       payload.semestreAtual       = semestreAtual.trim();
-      if (anoSemestreIngresso.trim()) payload.anoSemestreIngresso = anoSemestreIngresso.trim();
+        emailPessoal,
+        usarSenhaPersonalizada,
+        senhaInicial,
+        cursoNome,
+        cursoSigla,
+        unidadeFatec,
+        turno,
+        turma,
+        semestreAtual,
+        anoSemestreIngresso,
+      });
 
       const res = await apiFetch(`${API_URL}/usuarios`, {
         method: "POST",
@@ -149,85 +289,25 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
         email: emailEducacional,
         senhaUsada: usarSenhaPersonalizada && senhaInicial.trim() ? senhaInicial.trim() : null,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err?.message ?? "Erro ao criar aluno");
+      toast.error((err as Error)?.message ?? "Erro ao criar aluno");
     } finally {
       setSubmitting(false);
     }
   }
 
-  /* ── Tela de sucesso ── */
   if (successInfo) {
     return (
-      <div className="space-y-5">
-        <div className="flex flex-col items-center gap-3 py-4">
-          <CheckCircle2 className="size-10 text-emerald-500" />
-          <div className="text-center">
-            <p className="font-semibold text-base">Aluno cadastrado com sucesso!</p>
-            {successInfo.nome && (
-              <p className="text-sm text-muted-foreground mt-0.5">{successInfo.nome}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">RA</span>
-            <span className="text-sm font-medium flex-1 text-right font-mono">{successInfo.ra}</span>
-          </div>
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">E-mail</span>
-            <span className="text-sm flex-1 text-right truncate">{successInfo.email}</span>
-          </div>
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">Senha inicial</span>
-            {successInfo.senhaUsada ? (
-              <div className="flex items-center gap-2 flex-1 justify-end">
-                <span className="text-sm font-medium font-mono bg-[var(--muted)] px-2 py-0.5 rounded">
-                  {successInfo.senhaUsada}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopiarSenha(successInfo.senhaUsada!)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
-                  title="Copiar senha"
-                >
-                  {copied ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                  {copied ? "Copiado!" : "Copiar"}
-                </button>
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground flex-1 text-right">
-                Senha padrão do sistema
-              </span>
-            )}
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground rounded-lg bg-[var(--muted)] px-3 py-2">
-          O aluno deverá trocar a senha no primeiro acesso. Compartilhe as credenciais acima com o aluno.
-        </p>
-
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
-          >
-            <RotateCcw className="size-3.5" /> Cadastrar outro
-          </button>
-          {(onSuccess || onCancel) && (
-            <button
-              type="button"
-              onClick={() => onSuccess ? onSuccess(lastCreated) : onCancel?.()}
-              className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
-            >
-              Concluído
-            </button>
-          )}
-        </div>
-      </div>
+      <FormAlunoCreateSuccess
+        info={successInfo}
+        copied={copied}
+        onCopiar={handleCopiarSenha}
+        onReset={resetForm}
+        onSuccess={onSuccess}
+        onCancel={onCancel}
+        lastCreated={lastCreated}
+      />
     );
   }
 

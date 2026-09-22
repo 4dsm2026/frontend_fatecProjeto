@@ -7,9 +7,119 @@ import { apiFetch } from "../../../../utils/api";
 import { cx } from "../../../../utils/cx";
 
 type Props = {
-  notificationsHref?: string; // default: /sistema/notificacoes
-  pollMs?: number;            // default: 60000
+  notificationsHref?: string;
+  pollMs?: number;
 };
+
+function getInitialTheme(): "light" | "dark" {
+  const stored = localStorage.getItem("theme") as "light" | "dark" | null;
+  return stored === "dark" ? "dark" : "light";
+}
+
+function applyThemeClass(theme: "light" | "dark") {
+  document.documentElement.classList.toggle("dark", theme === "dark");
+}
+
+function getBadgeText(unread: number | null) {
+  if (unread === null) return "";
+  if (unread > 99) return "99+";
+  if (unread > 0) return String(unread);
+  return "";
+}
+
+function UserHeading({
+  loading,
+  nome,
+  email,
+}: {
+  loading: boolean;
+  nome: string | null;
+  email: string | null;
+}) {
+  if (loading) {
+    return (
+      <div className="inline-flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Carregando usuário…
+      </div>
+    );
+  }
+  if (!nome) {
+    return <h1 className="text-muted-foreground">Usuário não identificado</h1>;
+  }
+  return (
+    <>
+      <h1 className="font-grotesk text-2xl sm:text-3xl font-semibold tracking-tight">
+        {nome}
+      </h1>
+      {email && <p className="text-sm text-muted-foreground">{email}</p>}
+    </>
+  );
+}
+
+function ThemeToggleButton({
+  mounted,
+  theme,
+  setTheme,
+}: {
+  mounted: boolean;
+  theme: "light" | "dark";
+  setTheme: React.Dispatch<React.SetStateAction<"light" | "dark">>;
+}) {
+  if (!mounted) {
+    return <div className="h-9 w-9 rounded-lg border border-[var(--border)] bg-background" />;
+  }
+  const isDark = theme === "dark";
+  return (
+    <button
+      aria-label="Alternar tema"
+      onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
+      className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)]"
+      title={isDark ? "Tema claro" : "Tema escuro"}
+    >
+      {isDark ? <Sun className="size-4" /> : <Moon className="size-4" />}
+    </button>
+  );
+}
+
+function NotificationLink({
+  href,
+  unread,
+  loadingUnread,
+  badgeText,
+}: {
+  href: string;
+  unread: number | null;
+  loadingUnread: boolean;
+  badgeText: string;
+}) {
+  const hasUnread = !loadingUnread && !!unread && unread > 0;
+  const titleUnread = !!unread && unread > 0;
+
+  return (
+    <Link
+      href={href}
+      className={cx(
+        "relative inline-flex items-center justify-center h-9 w-9 rounded-lg border bg-background hover:bg-[var(--muted)]",
+        hasUnread
+          ? "border-red-400/70 dark:border-red-700/50"
+          : "border-[var(--border)]",
+      )}
+      aria-label="Notificações"
+      title={titleUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
+    >
+      <Bell className={cx("size-4", hasUnread ? "text-red-500 dark:text-red-400" : "")} />
+      {loadingUnread ? (
+        <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
+          <Loader2 className="size-3 animate-spin" />
+        </span>
+      ) : titleUnread ? (
+        <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
+          {badgeText}
+        </span>
+      ) : null}
+    </Link>
+  );
+}
 
 export default function SistemaTopbar({
   notificationsHref = "/admin/notificacoes",
@@ -28,30 +138,23 @@ export default function SistemaTopbar({
 
   const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  // Montagem: somente no client lemos localStorage e ajustamos <html>
   useEffect(() => {
     setMounted(true);
     try {
-      const stored = (localStorage.getItem("theme") as "light" | "dark") || "light";
+      const stored = getInitialTheme();
       setTheme(stored);
-      const root = document.documentElement;
-      if (stored === "dark") root.classList.add("dark");
-      else root.classList.remove("dark");
+      applyThemeClass(stored);
     } catch {}
   }, []);
 
-  // Aplicar mudanças de tema após montado
   useEffect(() => {
     if (!mounted) return;
     try {
-      const root = document.documentElement;
-      if (theme === "dark") root.classList.add("dark");
-      else root.classList.remove("dark");
+      applyThemeClass(theme);
       localStorage.setItem("theme", theme);
     } catch {}
   }, [theme, mounted]);
 
-  // Carrega usuário (nome/email)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -71,7 +174,6 @@ export default function SistemaTopbar({
     return () => { alive = false; };
   }, [apiBase]);
 
-  // Notificações não lidas
   async function fetchUnread() {
     try {
       setLoadingUnread(true);
@@ -94,69 +196,20 @@ export default function SistemaTopbar({
     return () => clearInterval(t);
   }, [pollMs]);
 
-  const badgeText =
-    unread === null ? "" : unread > 99 ? "99+" : unread > 0 ? String(unread) : "";
-
   return (
     <div className="mb-4 flex items-center justify-between">
       <div>
-        {loadingUser ? (
-          <div className="inline-flex items-center gap-2 text-muted-foreground">
-            <Loader2 className="size-4 animate-spin" /> Carregando usuário…
-          </div>
-        ) : userNome ? (
-          <>
-            <h1 className="font-grotesk text-2xl sm:text-3xl font-semibold tracking-tight">
-              {userNome}
-            </h1>
-            {userEmail && (
-              <p className="text-sm text-muted-foreground">{userEmail}</p>
-            )}
-          </>
-        ) : (
-          <h1 className="text-muted-foreground">Usuário não identificado</h1>
-        )}
+        <UserHeading loading={loadingUser} nome={userNome} email={userEmail} />
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Toggle de tema — evita hidratação até montar */}
-        {mounted ? (
-          <button
-            aria-label="Alternar tema"
-            onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-            className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)]"
-            title={theme === "dark" ? "Tema claro" : "Tema escuro"}
-          >
-            {theme === "dark" ? <Sun className="size-4" /> : <Moon className="size-4" />}
-          </button>
-        ) : (
-          // placeholder estático evita mismatch e layout shift
-          <div className="h-9 w-9 rounded-lg border border-[var(--border)] bg-background" />
-        )}
-
-        {/* Notificações */}
-        <Link
+        <ThemeToggleButton mounted={mounted} theme={theme} setTheme={setTheme} />
+        <NotificationLink
           href={notificationsHref}
-          className={cx(
-            "relative inline-flex items-center justify-center h-9 w-9 rounded-lg border bg-background hover:bg-[var(--muted)]",
-            !loadingUnread && unread && unread > 0
-              ? "border-red-400/70 dark:border-red-700/50"
-              : "border-[var(--border)]",
-          )}
-          aria-label="Notificações"
-          title={unread && unread > 0 ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
-        >
-          <Bell className={cx("size-4", !loadingUnread && unread && unread > 0 ? "text-red-500 dark:text-red-400" : "")} />
-          {loadingUnread ? (
-            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
-              <Loader2 className="size-3 animate-spin" />
-            </span>
-          ) : unread && unread > 0 ? (
-            <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
-              {badgeText}
-            </span>
-          ) : null}
-        </Link>
+          unread={unread}
+          loadingUnread={loadingUnread}
+          badgeText={getBadgeText(unread)}
+        />
       </div>
     </div>
   );
