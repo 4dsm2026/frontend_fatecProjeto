@@ -483,8 +483,9 @@ export default function ComunicacoesPage() {
                 </div>
               </div>
 
-              <label className="text-sm font-medium">Assunto</label>
+              <label htmlFor="comunic-assunto" className="text-sm font-medium">Assunto</label>
               <input
+                id="comunic-assunto"
                 value={current.assunto}
                 onChange={(e) => updateField("assunto", e.target.value)}
                 className="mt-1 mb-3 w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
@@ -492,6 +493,7 @@ export default function ComunicacoesPage() {
 
               {/* <label className="text-sm font-medium">Corpo (suporta variáveis {{`{{chave}}`}})</label> */}
               <textarea
+                aria-label="Corpo do comunicado"
                 value={current.corpo}
                 onChange={(e) => updateField("corpo", e.target.value)}
                 className="mt-1 w-full min-h-[220px] rounded-lg border border-[var(--border)] bg-input p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"

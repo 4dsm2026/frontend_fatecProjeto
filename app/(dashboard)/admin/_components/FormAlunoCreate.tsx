@@ -241,11 +241,12 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>
+            <label htmlFor="novo-aluno-nome" className={labelCls}>
               Nome completo{" "}
               <span className="text-muted-foreground/60">(opcional)</span>
             </label>
             <input
+              id="novo-aluno-nome"
               className={inputCls}
               placeholder="Ex.: Fulano da Silva"
               value={nome}
@@ -254,8 +255,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>RA *</label>
+            <label htmlFor="novo-aluno-ra" className={labelCls}>RA *</label>
             <input
+              id="novo-aluno-ra"
               className={inputCls}
               placeholder="Ex.: 1234567890123"
               value={ra}
@@ -268,9 +270,10 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>E-mail educacional *</label>
+            <label htmlFor="novo-aluno-email-edu" className={labelCls}>E-mail educacional *</label>
             <div className="relative">
               <input
+                id="novo-aluno-email-edu"
                 type="email"
                 className={inputCls + " pr-9"}
                 placeholder="nome.sobrenome@fatec.sp.gov.br"
@@ -285,12 +288,13 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             </p>
           </div>
           <div>
-            <label className={labelCls}>
+            <label htmlFor="novo-aluno-email-pessoal" className={labelCls}>
               E-mail pessoal{" "}
               <span className="text-muted-foreground/60">(opcional)</span>
             </label>
             <div className="relative">
               <input
+                id="novo-aluno-email-pessoal"
                 type="email"
                 className={inputCls + " pr-9"}
                 placeholder="Ex.: nome@gmail.com"
@@ -346,12 +350,13 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
           {/* Campo de senha — visível quando toggle ativo */}
           {usarSenhaPersonalizada && (
             <div className="px-4 py-3 space-y-1.5">
-              <label className={labelCls}>
+              <label htmlFor="novo-aluno-senha" className={labelCls}>
                 Nova senha{" "}
                 <span className="text-muted-foreground/60">(mín. 8 caracteres)</span>
               </label>
               <div className="relative">
                 <input
+                  id="novo-aluno-senha"
                   type={mostrarSenha ? "text" : "password"}
                   className={inputCls + " pr-10 mt-0"}
                   placeholder="Digite a senha inicial"
@@ -387,8 +392,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Curso</label>
+            <label htmlFor="novo-aluno-curso" className={labelCls}>Curso</label>
             <select
+              id="novo-aluno-curso"
               className={inputCls}
               value={courseKey}
               onChange={(e) => handleCourseChange(e.target.value)}
@@ -405,8 +411,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelCls}>Sigla</label>
+              <label htmlFor="novo-aluno-sigla" className={labelCls}>Sigla</label>
               <input
+                id="novo-aluno-sigla"
                 className={inputCls}
                 placeholder="Ex.: DSM"
                 value={cursoSigla}
@@ -416,8 +423,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>Nome do curso</label>
+              <label htmlFor="novo-aluno-curso-nome" className={labelCls}>Nome do curso</label>
               <input
+                id="novo-aluno-curso-nome"
                 className={inputCls}
                 placeholder="Nome completo"
                 value={cursoNome}
@@ -439,8 +447,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Unidade Fatec</label>
+            <label htmlFor="novo-aluno-unidade" className={labelCls}>Unidade Fatec</label>
             <input
+              id="novo-aluno-unidade"
               className={inputCls}
               placeholder="Ex.: Fatec Cotia"
               value={unidadeFatec}
@@ -449,8 +458,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Turno</label>
+            <label htmlFor="novo-aluno-turno" className={labelCls}>Turno</label>
             <select
+              id="novo-aluno-turno"
               className={inputCls}
               value={turno}
               onChange={(e) => setTurno(e.target.value)}
@@ -465,8 +475,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className={labelCls}>Turma</label>
+            <label htmlFor="novo-aluno-turma" className={labelCls}>Turma</label>
             <input
+              id="novo-aluno-turma"
               className={inputCls}
               placeholder="Ex.: DSM-3A"
               value={turma}
@@ -475,8 +486,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Semestre atual</label>
+            <label htmlFor="novo-aluno-semestre" className={labelCls}>Semestre atual</label>
             <input
+              id="novo-aluno-semestre"
               className={inputCls}
               placeholder="Ex.: 3"
               value={semestreAtual}
@@ -485,8 +497,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Ano/semestre de ingresso</label>
+            <label htmlFor="novo-aluno-ingresso" className={labelCls}>Ano/semestre de ingresso</label>
             <input
+              id="novo-aluno-ingresso"
               className={inputCls}
               placeholder="Ex.: 2023/1"
               value={anoSemestreIngresso}
