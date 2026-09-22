@@ -479,7 +479,7 @@ export default function MeusDadosPage() {
 
           <form
             onSubmit={changePassword}
-            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-5"
+            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
           >
             <div className="flex items-center gap-2 mb-1">
               <Shield className="size-4 text-muted-foreground" />
@@ -553,7 +553,7 @@ export default function MeusDadosPage() {
                 type="submit"
                 disabled={!canChangePass || changing}
                 className={cx(
-                  "inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border)] bg-background",
+                  "inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background",
                   !canChangePass || changing ? "opacity-60 cursor-not-allowed" : "hover:bg-[var(--muted)]"
                 )}
               >
