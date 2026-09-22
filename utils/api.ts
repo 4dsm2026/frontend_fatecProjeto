@@ -134,7 +134,7 @@ export async function downloadAnexo(anexoId: string, fileName: string): Promise<
   a.download = fileName;
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
