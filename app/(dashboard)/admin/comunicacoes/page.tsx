@@ -190,6 +190,7 @@ export default function ComunicacoesPage() {
   const [testing, setTesting] = useState(false);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+  const [testEmailOpen, setTestEmailOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   // Versão "limpa" (última salva/carregada) de cada template, para descartar edições.
   const baselineRef = useRef<Map<string, Template>>(new Map(DEFAULT_TEMPLATES.map((t) => [t.id, t])));
@@ -331,10 +332,8 @@ export default function ComunicacoesPage() {
     setDirty((prev) => (prev.has(currentId) ? prev : new Set(prev).add(currentId)));
   }
 
-  async function sendTest() {
+  async function sendTest(to: string) {
     if (!current) return;
-    const to = prompt("Enviar e-mail de teste para qual endereço?");
-    if (!to) return;
     setTesting(true);
     try {
       const res = await apiFetch(`${API_URL}/admin/comunicacoes/teste`, {
@@ -370,7 +369,7 @@ export default function ComunicacoesPage() {
         setTemplates(data);
         setCurrentId(data[0]?.id ?? "");
       } catch (err) {
-        alert("Erro ao importar JSON.");
+        toast.error("Erro ao importar JSON.");
       }
     };
     reader.readAsText(file);
@@ -474,7 +473,7 @@ export default function ComunicacoesPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Editor */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
               <div className="mb-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Chave</div>
                 <div className="inline-flex items-center gap-2 text-sm border border-[var(--border)] bg-background rounded-md px-2 py-1">
@@ -524,15 +523,15 @@ export default function ComunicacoesPage() {
                   </span>
                 )}
                 <button
-                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
-                  onClick={sendTest}
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
+                  onClick={() => setTestEmailOpen(true)}
                   disabled={testing}
                 >
                   <Send className="size-4" /> {testing ? "Enviando…" : "Enviar teste"}
                 </button>
                 <button
                   className={cx(
-                    "inline-flex items-center gap-2 h-10 px-3 rounded-lg text-sm border",
+                    "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm border",
                     current.habilitado
                       ? "border-[var(--success)] text-[var(--success)]"
                       : "border-[var(--border)] text-muted-foreground"
@@ -545,7 +544,7 @@ export default function ComunicacoesPage() {
             </div>
 
             {/* Preview */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-semibold inline-flex items-center gap-2">
                   <Eye className="size-4" /> Pré-visualização
@@ -577,6 +576,20 @@ export default function ComunicacoesPage() {
         variant="danger"
         onConfirm={discardAndSwitch}
         onClose={() => setPendingSwitch(null)}
+      />
+
+      <ConfirmDialog
+        open={testEmailOpen}
+        title="Enviar e-mail de teste"
+        description="Informe o endereço de e-mail para receber o teste."
+        confirmLabel="Enviar"
+        input={{
+          label: "E-mail",
+          placeholder: "exemplo@email.com",
+          required: true,
+        }}
+        onConfirm={(value) => { if (value) sendTest(value); }}
+        onClose={() => setTestEmailOpen(false)}
       />
     </div>
   );

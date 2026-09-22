@@ -9,6 +9,7 @@ import {
 import { apiFetch } from "../../../../utils/api";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { cx } from '../../../../utils/cx';
+import { toast } from "sonner";
 
 /* ========= Tipos ========= */
 type Papel = "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR" | "USUARIO";
@@ -162,7 +163,7 @@ export default function AdminFuncionariosPage() {
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    alert(`Planilha selecionada: ${file.name}`);
+    toast.success(`Planilha selecionada: ${file.name}`);
     e.target.value = "";
   }
 

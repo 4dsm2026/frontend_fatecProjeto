@@ -27,7 +27,7 @@ export type ConfirmDialogProps = {
 
 /**
  * Modal de confirmação reutilizável — substitui window.confirm/prompt nativos.
- * Suporta variante "danger" e um modo prompt (input de texto).
+ * Usa <dialog> nativo para acessibilidade (focus trap, Escape, backdrop, inert).
  */
 export default function ConfirmDialog({
   open,
@@ -43,8 +43,20 @@ export default function ConfirmDialog({
   const [value, setValue] = useState(input?.defaultValue ?? "");
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Reinicia o valor a cada abertura e move o foco para o campo (modo prompt).
+  // Sincroniza abertura/fechamento com o <dialog> nativo.
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      dialog.showModal();
+    } else if (!open && dialog.open) {
+      dialog.close();
+    }
+  }, [open]);
+
+  // Reinicia o valor e foca o input a cada abertura (modo prompt).
   useEffect(() => {
     if (!open) return;
     setValue(input?.defaultValue ?? "");
@@ -54,17 +66,11 @@ export default function ConfirmDialog({
     }
   }, [open, input?.defaultValue]);
 
-  // Fecha no Escape.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !loading) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, loading, onClose]);
-
-  if (!open) return null;
+  // Fecha no cancel (Escape nativo do <dialog>).
+  function handleCancel(e: React.SyntheticEvent<HTMLDialogElement>) {
+    e.preventDefault();
+    if (!loading) onClose();
+  }
 
   const invalid = !!input?.required && value.trim().length === 0;
 
@@ -73,65 +79,64 @@ export default function ConfirmDialog({
     setLoading(true);
     try {
       await onConfirm(input ? value.trim() : undefined);
-      onClose(); // sucesso fecha; em erro o onConfirm deve lançar para manter aberto
+      onClose();
     } catch {
-      setLoading(false); // mantém o modal aberto para nova tentativa
+      setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label={title}>
-      <div
-        className="absolute inset-0 bg-black/40 motion-safe:animate-[cd-fadeIn_120ms_ease-out]"
-        onClick={() => !loading && onClose()}
-      />
-      <div className="absolute left-1/2 top-1/2 w-[92%] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[var(--border)] bg-background p-5 shadow-xl motion-safe:animate-[cd-popIn_140ms_ease-out]">
-        <div className="flex items-start gap-3">
-          {variant === "danger" && (
-            <span className="mt-0.5 inline-grid size-9 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive">
-              <AlertTriangle className="size-5" />
-            </span>
-          )}
-          <div className="min-w-0 flex-1">
-            <h2 className="font-grotesk text-lg font-semibold leading-tight">{title}</h2>
-            {description && (
-              <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-            )}
-          </div>
-        </div>
-
-        {input && (
-          <div className="mt-4">
-            {input.label && (
-              <label htmlFor="confirm-prompt-input" className="mb-1 block text-sm text-muted-foreground">{input.label}</label>
-            )}
-            <input
-              id="confirm-prompt-input"
-              ref={inputRef}
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              placeholder={input.placeholder}
-              onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
-              className="w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-            />
-          </div>
+    <dialog
+      ref={dialogRef}
+      aria-label={title}
+      onCancel={handleCancel}
+      className="w-[92%] max-w-md rounded-2xl border border-[var(--border)] bg-background p-5 shadow-xl backdrop:bg-black/40 backdrop:motion-safe:animate-[cd-fadeIn_120ms_ease-out] motion-safe:animate-[cd-popIn_140ms_ease-out] open:block"
+    >
+      <div className="flex items-start gap-3">
+        {variant === "danger" && (
+          <span className="mt-0.5 inline-grid size-9 shrink-0 place-items-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle className="size-5" />
+          </span>
         )}
-
-        <div className="mt-5 flex items-center justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={loading}>
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={variant === "danger" ? "destructive" : "primary"}
-            onClick={handleConfirm}
-            loading={loading}
-            disabled={invalid}
-            autoFocus={!input}
-          >
-            {confirmLabel}
-          </Button>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-grotesk text-lg font-semibold leading-tight">{title}</h2>
+          {description && (
+            <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+          )}
         </div>
       </div>
-    </div>
+
+      {input && (
+        <div className="mt-4">
+          {input.label && (
+            <label htmlFor="confirm-prompt-input" className="mb-1 block text-sm text-muted-foreground">{input.label}</label>
+          )}
+          <input
+            id="confirm-prompt-input"
+            ref={inputRef}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={input.placeholder}
+            onKeyDown={(e) => { if (e.key === "Enter") handleConfirm(); }}
+            className="w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          />
+        </div>
+      )}
+
+      <div className="mt-5 flex items-center justify-end gap-2">
+        <Button variant="secondary" onClick={onClose} disabled={loading}>
+          {cancelLabel}
+        </Button>
+        <Button
+          variant={variant === "danger" ? "destructive" : "primary"}
+          onClick={handleConfirm}
+          loading={loading}
+          disabled={invalid}
+          autoFocus={!input}
+        >
+          {confirmLabel}
+        </Button>
+      </div>
+    </dialog>
   );
 }
