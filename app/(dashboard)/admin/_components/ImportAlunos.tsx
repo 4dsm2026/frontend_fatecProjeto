@@ -56,6 +56,78 @@ function parseCsv(text: string): string[][] {
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
+function isDuplicateRaRow(r: ResultRow) {
+  return r.status === "ERROR" && r.errorMsg === "RA duplicado no arquivo";
+}
+
+function buildImportPayload(r: ResultRow, ra: string, edu: string) {
+  const nomeFinal =
+    (r.nome?.trim() || "").length >= 2 ? r.nome!.trim() : `Aluno ${ra}`;
+
+  const payload: Record<string, string | boolean> = {
+    emailPessoal: r.emailPessoal?.trim() || edu,
+    emailEducacional: edu,
+    ra,
+    nome: nomeFinal,
+    papel: "USUARIO",
+    ativo: true,
+  };
+
+  const optional: Record<string, string | undefined> = {
+    cursoNome: r.cursoNome,
+    cursoSigla: r.cursoSigla,
+    unidadeFatec: r.unidadeFatec,
+    turno: r.turno,
+    turma: r.turma,
+    semestreAtual: r.semestreAtual,
+    anoSemestreIngresso: r.anoSemestreIngresso,
+  };
+  for (const [key, value] of Object.entries(optional)) {
+    const v = value?.trim();
+    if (v) payload[key] = v;
+  }
+
+  return payload;
+}
+
+function isDuplicateResponse(status: number, text: string) {
+  return (
+    status === 409 ||
+    /RA\s*já está em uso/i.test(text) ||
+    /duplicad/i.test(text) ||
+    /unique/i.test(text) ||
+    /P2002/.test(text)
+  );
+}
+
+async function importRow(r: ResultRow): Promise<ResultRow> {
+  const ra = r.ra?.trim();
+  const edu = r.emailEducacional?.trim();
+
+  if (!ra || !edu) {
+    return { ...r, status: "ERROR", errorMsg: "RA e emailEducacional são obrigatórios." };
+  }
+
+  try {
+    const resp = await apiFetch(`${API_URL}/usuarios`, {
+      method: "POST",
+      body: JSON.stringify(buildImportPayload(r, ra, edu)),
+    });
+
+    if (resp.ok) {
+      return { ...r, status: "OK" };
+    }
+
+    const text = await resp.text().catch(() => "");
+    if (isDuplicateResponse(resp.status, text)) {
+      return { ...r, status: "OK", note: "Já existia" };
+    }
+    return { ...r, status: "ERROR", errorMsg: text || `HTTP ${resp.status}` };
+  } catch (e: unknown) {
+    return { ...r, status: "ERROR", errorMsg: String((e as Error)?.message ?? e) };
+  }
+}
+
 export default function ImportAlunos({
   onClose,
   onDone,
@@ -152,74 +224,21 @@ export default function ImportAlunos({
   }
 
   async function startImport() {
-    if (!rows.length) { toast.error("Selecione um CSV primeiro."); return; }
+    if (!rows.length) {
+      toast.error("Selecione um CSV primeiro.");
+      return;
+    }
     setRunning(true);
     setFinished(false);
 
     const clone = [...rows];
 
     for (let i = 0; i < clone.length; i++) {
-      const r = clone[i];
-
-      if (r.status === "ERROR" && r.errorMsg === "RA duplicado no arquivo") {
+      if (isDuplicateRaRow(clone[i])) {
         setRows([...clone]);
         continue;
       }
-
-      const ra  = r.ra?.trim();
-      const edu = r.emailEducacional?.trim();
-
-      if (!ra || !edu) {
-        clone[i] = { ...r, status: "ERROR", errorMsg: "RA e emailEducacional são obrigatórios." };
-        setRows([...clone]);
-        continue;
-      }
-
-      const nomeFinal =
-        (r.nome?.trim() || "").length >= 2 ? r.nome!.trim() : `Aluno ${ra}`;
-
-      const payload: Record<string, any> = {
-        emailPessoal:    r.emailPessoal?.trim() || edu,
-        emailEducacional: edu,
-        ra,
-        nome: nomeFinal,
-        papel: "USUARIO",
-        ativo: true,
-      };
-
-      if (r.cursoNome?.trim())         payload.cursoNome           = r.cursoNome.trim();
-      if (r.cursoSigla?.trim())        payload.cursoSigla          = r.cursoSigla.trim();
-      if (r.unidadeFatec?.trim())      payload.unidadeFatec        = r.unidadeFatec.trim();
-      if (r.turno?.trim())             payload.turno               = r.turno.trim();
-      if (r.turma?.trim())             payload.turma               = r.turma.trim();
-      if (r.semestreAtual?.trim())     payload.semestreAtual       = r.semestreAtual.trim();
-      if (r.anoSemestreIngresso?.trim()) payload.anoSemestreIngresso = r.anoSemestreIngresso.trim();
-
-      try {
-        const resp = await apiFetch(`${API_URL}/usuarios`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => "");
-          const isDuplicate =
-            resp.status === 409 ||
-            /RA\s*já está em uso/i.test(text) ||
-            /duplicad/i.test(text) ||
-            /unique/i.test(text) ||
-            /P2002/.test(text);
-
-          clone[i] = isDuplicate
-            ? { ...r, status: "OK", note: "Já existia" }
-            : { ...r, status: "ERROR", errorMsg: text || `HTTP ${resp.status}` };
-        } else {
-          clone[i] = { ...r, status: "OK" };
-        }
-      } catch (e: any) {
-        clone[i] = { ...r, status: "ERROR", errorMsg: String(e?.message ?? e) };
-      }
-
+      clone[i] = await importRow(clone[i]);
       setRows([...clone]);
     }
 
