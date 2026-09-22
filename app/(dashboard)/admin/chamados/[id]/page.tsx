@@ -125,7 +125,6 @@ export default function AdminChamadoPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   const [status, setStatus] = useState<Status>("ABERTO");
   const [prioridade, setPrioridade] = useState<Prioridade>("MEDIA");
@@ -179,7 +178,6 @@ export default function AdminChamadoPage() {
     if (!id) return;
     try {
       setLoading(true);
-      setErr(null);
 
       const res = await apiFetch(`${API}/tickets/${id}?include=${encodeURIComponent(include)}`, {
         cache: "no-store",
@@ -200,7 +198,7 @@ export default function AdminChamadoPage() {
 
       fetchAnexos(data.id);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "Falha ao carregar");
+      toast.error(e instanceof Error ? e.message : "Falha ao carregar");
       setTicket(null);
     } finally {
       setLoading(false);
