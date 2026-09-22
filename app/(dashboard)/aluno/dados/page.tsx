@@ -61,7 +61,9 @@ function getErrorMessage(error: unknown) {
 function getResponseErrorMessage(value: unknown) {
   if (typeof value !== "object" || value === null) return undefined;
   const data = value as { error?: unknown; message?: unknown };
-  return typeof data.error === "string" ? data.error : typeof data.message === "string" ? data.message : undefined;
+  if (typeof data.error === "string") return data.error;
+  if (typeof data.message === "string") return data.message;
+  return undefined;
 }
 
 function Field({
@@ -149,18 +151,21 @@ export default function MeusDadosPage() {
 
   const canSave = useMemo(() => {
     if (!user) return false;
-    const changed =
-      nome !== (user.nome ?? "") ||
-      emailPessoal !== (user.emailPessoal ?? "") ||
-      telefoneCelular !== (user.telefoneCelular ?? "") ||
-      whatsapp !== (user.whatsapp ?? "") ||
-      canalPreferencialContato !== (user.canalPreferencialContato ?? "") ||
-      melhorPeriodoContato !== (user.melhorPeriodoContato ?? "") ||
-      necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel) ||
-      tipoAcessibilidade !== (user.tipoAcessibilidade ?? "") ||
-      observacoesAtendimento !== (user.observacoesAtendimento ?? "");
+    const campos = [
+      [nome, user.nome],
+      [emailPessoal, user.emailPessoal],
+      [telefoneCelular, user.telefoneCelular],
+      [whatsapp, user.whatsapp],
+      [canalPreferencialContato, user.canalPreferencialContato],
+      [melhorPeriodoContato, user.melhorPeriodoContato],
+      [tipoAcessibilidade, user.tipoAcessibilidade],
+      [observacoesAtendimento, user.observacoesAtendimento],
+    ] as const;
+    const changed = campos.some(([atual, original]) => atual !== (original ?? ""));
+    const acessivelMudou = necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel);
     const emailOk = !emailPessoal || /\S+@\S+\.\S+/.test(emailPessoal);
-    return changed && nome.trim().length > 0 && emailOk;
+    const nomeOk = nome.trim().length > 0;
+    return (changed || acessivelMudou) && nomeOk && emailOk;
   }, [
     user,
     nome,
@@ -205,12 +210,13 @@ export default function MeusDadosPage() {
     }
   }
 
-  const meetsPolicy =
-    newPass.length >= 8 &&
-    /[A-Z]/.test(newPass) &&
-    /[a-z]/.test(newPass) &&
-    /\d/.test(newPass) &&
-    /[^A-Za-z0-9]/.test(newPass);
+  const meetsPolicy = [
+    newPass.length >= 8,
+    /[A-Z]/.test(newPass),
+    /[a-z]/.test(newPass),
+    /\d/.test(newPass),
+    /[^A-Za-z0-9]/.test(newPass),
+  ].every(Boolean);
 
   const canChangePass = currentPass.length > 0 && meetsPolicy && newPass === newPass2;
 

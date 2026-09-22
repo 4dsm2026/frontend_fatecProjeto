@@ -63,15 +63,18 @@ export default function PrimeiroAcessoContent() {
   const validEmail =
     !personalEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail);
 
-  const meetsPolicy =
-    newPassword.length >= 8 &&
-    /[A-Z]/.test(newPassword) &&
-    /[a-z]/.test(newPassword) &&
-    /\d/.test(newPassword) &&
-    /[^A-Za-z0-9]/.test(newPassword);
+  const meetsPolicy = [
+    newPassword.length >= 8,
+    /[A-Z]/.test(newPassword),
+    /[a-z]/.test(newPassword),
+    /\d/.test(newPassword),
+    /[^A-Za-z0-9]/.test(newPassword),
+  ].every(Boolean);
 
-  const canSubmit =
-    !!token && meetsPolicy && validEmail && newPassword === confirm && !loading;
+  const tokenOk = Boolean(token);
+  const senhasIguais = newPassword === confirm;
+  const podeEnviar = !loading;
+  const canSubmit = tokenOk && meetsPolicy && validEmail && senhasIguais && podeEnviar;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

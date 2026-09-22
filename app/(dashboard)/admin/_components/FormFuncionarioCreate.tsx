@@ -58,7 +58,9 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
     const nomeOk = nome.trim().length >= 2;
     const mailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailPessoal);
     const papelOk = papel !== "";
-    return nomeOk && mailOk && papelOk && senhaValida && !submitting;
+    const senhaOk = senhaValida;
+    const livre = !submitting;
+    return nomeOk && mailOk && papelOk && senhaOk && livre;
   }, [nome, emailPessoal, papel, senhaValida, submitting]);
 
   function handleCopiarSenha(valor: string) {
