@@ -622,9 +622,9 @@ export default function ChamadoDetalhePage() {
                   Nenhuma mensagem por aqui ainda.
                 </div>
               ) : (
-                groups.map((group, gi) => (
+                groups.map((group) => (
                   <div
-                    key={`group-${gi}`}
+                    key={`${group.autorId}-${group.msgs[0]?.id}`}
                     className={`flex flex-col gap-0.5 ${
                       group.isAluno ? "items-end" : "items-start"
                     }`}
