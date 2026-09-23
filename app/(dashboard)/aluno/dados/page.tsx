@@ -66,6 +66,23 @@ function getResponseErrorMessage(value: unknown) {
   return undefined;
 }
 
+function LoadingCard() {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" />
+      Carregando dados…
+    </div>
+  );
+}
+
+function NotLoggedInCard() {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-card p-8 text-center text-muted-foreground">
+      Faça login para visualizar seus dados.
+    </div>
+  );
+}
+
 function Field({
   label,
   children,
@@ -267,27 +284,19 @@ export default function MeusDadosPage() {
     }
   }
 
+  if (loading) return <LoadingCard />;
+  if (!user) return <NotLoggedInCard />;
+
   return (
     <div className="space-y-6">
       <div className="xl:hidden">
         <MobileSidebarTriggerAluno />
       </div>
 
-      {loading ? (
-        <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Carregando dados…
-        </div>
-      ) : !user ? (
-        <div className="rounded-xl border border-[var(--border)] bg-card p-8 text-center text-muted-foreground">
-          Faça login para visualizar seus dados.
-        </div>
-      ) : (
-        <>
-          <form
-            onSubmit={saveProfile}
-            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
-          >
+      <form
+        onSubmit={saveProfile}
+        className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
+      >
             <section className="grid gap-5">
               <div className="flex items-start gap-3">
                 <User className="mt-0.5 size-4 text-muted-foreground" />
@@ -566,10 +575,8 @@ export default function MeusDadosPage() {
                 {changing ? <Loader2 className="size-4 animate-spin" /> : <IdCard className="size-4" />}
                 Alterar senha
               </button>
-            </div>
-          </form>
-        </>
-      )}
+</div>
+        </form>
     </div>
   );
 }
