@@ -2,11 +2,11 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
+import { Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
-import { cx } from "../../../../utils/cx";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
+import SugestoesPaginacao from "../../../components/shared/SugestoesPaginacao";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -45,11 +45,14 @@ export default function SugestoesPage() {
   const fetchSugestoes = useCallback(async (targetPage: number) => {
     try {
       setLoadingList(true);
+
       const res = await apiFetch(
         `${API}/sugestoes?page=${targetPage}&pageSize=${PAGE_SIZE}`,
         { cache: "no-store" },
       );
+
       if (!res.ok) return;
+
       const data = await res.json();
       setSugestoes(data?.items ?? []);
       setTotal(data?.total ?? 0);
@@ -74,24 +77,32 @@ export default function SugestoesPage() {
       toast.error("Informe um e-mail para contato.");
       return;
     }
+
     if (texto.length < 3) {
       toast.error("Escreva sua sugestão antes de enviar.");
       return;
     }
+
     if (texto.length > CONTEUDO_MAX) {
       toast.error(`A sugestão deve ter no máximo ${CONTEUDO_MAX} caracteres.`);
       return;
     }
 
     setSubmitting(true);
+
     try {
       const res = await apiFetch(`${API}/sugestoes`, {
         method: "POST",
-        body: JSON.stringify({ emailContato: email, conteudo: texto }),
+        body: JSON.stringify({
+          emailContato: email,
+          conteudo: texto,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error(await extractApiError(res, "Falha ao enviar sugestão."));
+        throw new Error(
+          await extractApiError(res, "Falha ao enviar sugestão."),
+        );
       }
 
       toast.success("Sugestão enviada com sucesso!");
@@ -100,7 +111,9 @@ export default function SugestoesPage() {
       setPage(1);
       fetchSugestoes(1);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Falha ao enviar sugestão.");
+      toast.error(
+        err instanceof Error ? err.message : "Falha ao enviar sugestão.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +212,9 @@ export default function SugestoesPage() {
                   href={`/aluno/sugestoes/${s.id}`}
                   className="flex items-center justify-between gap-3 hover:underline"
                 >
-                  <span className="line-clamp-1 text-sm">{s.conteudo}</span>
+                  <span className="line-clamp-1 text-sm">
+                    {s.conteudo}
+                  </span>
                   <SugestaoStatusBadge status={s.status} />
                 </Link>
               </li>
@@ -207,46 +222,12 @@ export default function SugestoesPage() {
           </ul>
         )}
 
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-1 pt-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className={cx(
-                "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
-                page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
-              )}
-            >
-              <ChevronLeft className="size-4" />
-            </button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-              <button
-                key={n}
-                onClick={() => setPage(n)}
-                className={cx(
-                  "h-8 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm",
-                  n === page
-                    ? "bg-primary text-primary-foreground"
-                    : "border border-[var(--border)] hover:bg-[var(--muted)]",
-                )}
-              >
-                {n}
-              </button>
-            ))}
-
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className={cx(
-                "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
-                page === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
-              )}
-            >
-              <ChevronRight className="size-4" />
-            </button>
-          </div>
-        )}
+        <SugestoesPaginacao
+          page={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+          className="pt-2"
+        />
       </div>
     </div>
   );
