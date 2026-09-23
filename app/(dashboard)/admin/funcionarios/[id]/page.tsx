@@ -339,7 +339,7 @@ export default function FuncionarioDetalhePage() {
       {/* Dialog: Adicionar a setor */}
       {addOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setAddOpen(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setAddOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="font-semibold">Adicionar funcionário a um setor</div>
@@ -372,7 +372,7 @@ export default function FuncionarioDetalhePage() {
       {/* Dialog: Excluir */}
       {delOpen && func && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center gap-2">
               <Trash2 className="size-4 text-red-600" />

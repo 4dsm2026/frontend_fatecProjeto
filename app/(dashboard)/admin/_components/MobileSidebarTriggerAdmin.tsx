@@ -19,7 +19,9 @@ export default function MobileSidebarTriggerAdmin() {
 
       {open && (
         <div className="fixed inset-0 z-50 xl:hidden">
-          <div
+          <button
+            type="button"
+            aria-label="Fechar menu"
             className="absolute inset-0 bg-black/30"
             onClick={() => setOpen(false)}
           />

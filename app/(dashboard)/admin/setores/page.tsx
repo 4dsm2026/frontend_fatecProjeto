@@ -577,7 +577,7 @@ function AssignDrawer({
 
   return (
     <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-[92%] sm:w-[520px] bg-background shadow-xl p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <div className="font-grotesk font-semibold">Atribuir funcionários — {setor.nome}</div>
