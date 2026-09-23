@@ -51,6 +51,31 @@ type AlunoRow = {
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const ALUNO_DETAIL_PREFIX = "/admin/alunos/";
 
+function extractUsuarios(json: unknown): Usuario[] {
+  if (Array.isArray(json)) return json as Usuario[];
+  const obj = json as { items?: Usuario[]; data?: Usuario[] };
+  return obj?.items ?? obj?.data ?? [];
+}
+
+function extractTotal(json: unknown, fallback: number): number {
+  if (Array.isArray(json)) return fallback;
+  const total = (json as { total?: unknown })?.total;
+  return typeof total === "number" ? total : fallback;
+}
+
+function toAlunoRows(usuarios: Usuario[]): AlunoRow[] {
+  return usuarios
+    .filter((u) => (u.papel ?? "USUARIO") === "USUARIO")
+    .map((u) => ({
+      id: u.id,
+      ra: u.ra ?? "",
+      emailEducacional: u.emailEducacional ?? u.emailPessoal,
+      nome: u.nome,
+      status: u.ativo ? ("ATIVO" as const) : ("INATIVO" as const),
+      criadoEm: u.criadoEm,
+    }));
+}
+
 function StatusBadge({ status }: { status: StatusAtivo }) {
   const map: Record<StatusAtivo, string> = {
     ATIVO: "bg-[var(--success)]/12 text-[var(--success)] border-[var(--success)]/30",
@@ -106,24 +131,9 @@ export default function AdminAlunosPage() {
       }
 
       const json = await res.json();
-      // GET /usuarios retorna { items, page, perPage, total, pages }
-      const usuarios: Usuario[] = Array.isArray(json) ? json : (json.items ?? json.data ?? []);
-      const alunosApenas = usuarios.filter((u) => (u.papel ?? "USUARIO") === "USUARIO");
-
-      const mapped: AlunoRow[] = alunosApenas.map((u) => ({
-        id: u.id,
-        ra: u.ra ?? "",
-        emailEducacional: u.emailEducacional ?? u.emailPessoal,
-        nome: u.nome,
-        status: u.ativo ? "ATIVO" : "INATIVO",
-        criadoEm: u.criadoEm,
-      }));
-
-      const totalCount: number = Array.isArray(json)
-        ? alunosApenas.length
-        : typeof json.total === "number"
-        ? json.total
-        : alunosApenas.length;
+      const usuarios = extractUsuarios(json);
+      const mapped = toAlunoRows(usuarios);
+      const totalCount = extractTotal(json, mapped.length);
 
       setRows(mapped);
       setTotal(totalCount);
@@ -291,7 +301,7 @@ export default function AdminAlunosPage() {
       {/* Modal: Importar CSV */}
       {showImport && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setShowImport(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setShowImport(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[960px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)] p-4">
             <ImportAlunos
               onClose={() => setShowImport(false)}

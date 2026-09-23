@@ -142,7 +142,7 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center">
-      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div className="relative z-10 mt-8 w-[95%] max-w-3xl max-h-[90vh] overflow-y-auto bg-background rounded-xl shadow-xl border border-[var(--border)]">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">

@@ -396,31 +396,35 @@ export default function ComunicacoesPage() {
           <ul className="mt-2 space-y-1">
             {list.map((t) => (
               <li key={t.id}>
-                <button type="button"
+                <div
                   className={cx(
-                    "w-full text-left rounded-lg px-3 py-2 transition flex items-center justify-between",
+                    "w-full rounded-lg px-3 py-2 transition flex items-center justify-between",
                     currentId === t.id ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-[var(--muted)]/70"
                   )}
-                  onClick={() => requestSwitch(t.id)}
                 >
-                  <span className="flex items-center gap-2">
-                    <Mail className="size-4 opacity-80" />
-                    <span className="font-medium">{t.nome}</span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-left min-w-0 flex-1"
+                    onClick={() => requestSwitch(t.id)}
+                  >
+                    <Mail className="size-4 opacity-80 shrink-0" />
+                    <span className="font-medium truncate">{t.nome}</span>
                     {dirty.has(t.id) && (
-                      <span className="size-1.5 rounded-full bg-amber-500" title="Alterações não salvas" />
+                      <span className="size-1.5 rounded-full bg-amber-500 shrink-0" title="Alterações não salvas" />
                     )}
-                  </span>
-                  <span
+                  </button>
+                  <button
+                    type="button"
                     className={cx(
-                      "inline-flex items-center gap-1 text-xs rounded-md border px-1.5 py-0.5",
+                      "inline-flex items-center gap-1 text-xs rounded-md border px-1.5 py-0.5 shrink-0",
                       t.habilitado ? "border-[var(--success)] text-[var(--success)]" : "border-[var(--border)] text-muted-foreground"
                     )}
-                    onClick={(e) => { e.stopPropagation(); toggleEnabled(t.id); }}
+                    onClick={() => toggleEnabled(t.id)}
                     title={t.habilitado ? "Desativar" : "Ativar"}
                   >
                     {t.habilitado ? <><ToggleRight className="size-3" /> Ativo</> : <><ToggleLeft className="size-3" /> Inativo</>}
-                  </span>
-                </button>
+                  </button>
+                </div>
                 <div className="px-3 pb-2 text-xs text-muted-foreground">{t.descricao}</div>
               </li>
             ))}
