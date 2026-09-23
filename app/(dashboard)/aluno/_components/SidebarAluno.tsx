@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Ticket,
@@ -13,18 +11,11 @@ import {
   LogOut,
   MessageSquarePlus,
 } from "lucide-react";
-import Cookies from "js-cookie";
-
-type NavItemProps = {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: string | number;
-};
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
+import { usePathname } from "next/navigation";
+import SidebarNav, {
+  type SidebarNavItemData,
+} from "../../../components/shared/SidebarNav";
+import { useSidebarLogout } from "../../../components/shared/useSidebarLogout";
 
 export default function SidebarAluno({
   aguardandoCount = 0,
@@ -36,9 +27,9 @@ export default function SidebarAluno({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const handleLogout = useSidebarLogout(onClose);
 
-  const items: NavItemProps[] = [
+  const items: SidebarNavItemData[] = [
     {
       href: "/aluno/home",
       label: "Visão Geral",
@@ -90,24 +81,6 @@ export default function SidebarAluno({
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  function handleLogout() {
-    try {
-      // Limpa os cookies que o middleware lê.
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      // Limpa o localStorage.
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-    } catch (e) {
-      console.error("Erro ao fazer logout:", e);
-    }
-
-    router.push("/login");
-    onClose?.();
-  }
-
   return (
     <aside className="xl:sticky xl:top-4 xl:self-start w-full xl:w-[260px]">
       <div className="rounded-2xl border border-[var(--border)] bg-card p-3 flex flex-col min-h-[520px]">
@@ -127,38 +100,12 @@ export default function SidebarAluno({
         </div>
 
         {/* Navegação */}
-        <nav className="space-y-1">
-          <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-            Geral
-          </div>
-
-          {items.map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cx(
-                "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
-                isActive(it.href)
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "hover:bg-[var(--muted)]/70"
-              )}
-              onClick={onClose}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-grid place-items-center size-5 opacity-90">
-                  {it.icon}
-                </span>
-                <span>{it.label}</span>
-              </span>
-
-              {it.badge != null && (
-                <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
-                  {it.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav
+          items={items}
+          sectionLabel="Geral"
+          isActive={isActive}
+          onClose={onClose}
+        />
 
         {/* Indicadores rápidos */}
         <div className="mt-4 rounded-xl border border-[var(--border)] bg-background p-3">

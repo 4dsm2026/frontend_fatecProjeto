@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Loader2, MessageSquareText } from "lucide-react";
+import { Loader2, MessageSquareText } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
-import { cx } from "../../../../utils/cx";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
+import Pagination from "../../../components/shared/Pagination";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const PAGE_SIZE = 10;
@@ -109,46 +109,7 @@ export default function AdminSugestoesPage() {
         )}
       </div>
 
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className={cx(
-              "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
-              page === 1 ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
-            )}
-          >
-            <ChevronLeft className="size-4" />
-          </button>
-
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((n) => (
-            <button
-              key={n}
-              onClick={() => setPage(n)}
-              className={cx(
-                "h-8 min-w-8 px-2 inline-flex items-center justify-center rounded-md text-sm",
-                n === page
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-[var(--border)] hover:bg-[var(--muted)]",
-              )}
-            >
-              {n}
-            </button>
-          ))}
-
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className={cx(
-              "h-8 w-8 inline-flex items-center justify-center rounded-md border border-[var(--border)]",
-              page === totalPages ? "opacity-50 cursor-not-allowed" : "hover:bg-[var(--muted)]",
-            )}
-          >
-            <ChevronRight className="size-4" />
-          </button>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
     </div>
   );
 }
