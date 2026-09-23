@@ -291,7 +291,7 @@ export default function AdminAlunosPage() {
       {/* Modal: Importar CSV */}
       {showImport && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setShowImport(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setShowImport(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[960px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)] p-4">
             <ImportAlunos
               onClose={() => setShowImport(false)}
