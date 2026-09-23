@@ -48,14 +48,30 @@ const STOP_WORDS = new Set([
 ]);
 
 /* ─── Keyword matching ─── */
-function sugerirServicos(descricao: string, catalog: CatalogResponse): Sugestao[] {
-  const tokens = descricao
+function tokenize(texto: string): string[] {
+  return texto
     .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .split(/\W+/)
     .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
+}
 
+function scoreServico(tokens: string[], ...campos: string[]): number {
+  const haystack = campos
+    .join(" ")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+
+  return tokens.reduce(
+    (score, token) => score + (haystack.includes(token) ? (token.length >= 6 ? 2 : 1) : 0),
+    0,
+  );
+}
+
+function sugerirServicos(descricao: string, catalog: CatalogResponse): Sugestao[] {
+  const tokens = tokenize(descricao);
   if (tokens.length === 0) return [];
 
   const resultados: Sugestao[] = [];
@@ -63,26 +79,7 @@ function sugerirServicos(descricao: string, catalog: CatalogResponse): Sugestao[
   for (const cat of catalog.categorias) {
     for (const svc of cat.servicos) {
       if (!svc.ativo) continue;
-
-      const haystack = [
-        svc.nome,
-        svc.descricao,
-        cat.nome,
-        ...svc.palavrasChave,
-        ...cat.palavrasChave,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[̀-ͯ]/g, "");
-
-      let score = 0;
-      for (const token of tokens) {
-        if (haystack.includes(token)) {
-          score += token.length >= 6 ? 2 : 1;
-        }
-      }
-
+      const score = scoreServico(tokens, svc.nome, svc.descricao, cat.nome, ...svc.palavrasChave, ...cat.palavrasChave);
       if (score > 0) {
         resultados.push({
           servico: { ...svc, categoriaNome: cat.nome, categoriaId: cat.id },
@@ -166,9 +163,6 @@ export default function OutrosPage() {
         catalogoServicoId: "outros-solicitacao-geral",
         catalogoCategoriaId: "outros",
         catalogoCategoriaNome: "Outra solicitação",
-        // Sem serviço de catálogo, o chamado nasceria sem setor e ficaria órfão
-        // (ninguém notificado, invisível em filtros por setor). Roteia para a
-        // Secretaria, que faz a triagem e redireciona se necessário.
         setorProvavel: "Secretaria",
         dadosAcademicos,
         camposEspecificos: { descricao: descricao.trim() },

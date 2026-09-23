@@ -42,6 +42,8 @@ const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 type PayloadValue = string | boolean | undefined;
 
 function applyOptionalFields(payload: Record<string, PayloadValue>, fields: Record<string, string | undefined>) {
@@ -228,7 +230,7 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
   const canSubmit = useMemo(() => {
     const raOk = ra.trim().length > 0;
-    const mailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEducacional);
+    const mailOk = EMAIL_REGEX.test(emailEducacional);
     return raOk && mailOk && senhaValida && !submitting;
   }, [ra, emailEducacional, senhaValida, submitting]);
 
