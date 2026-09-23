@@ -6,7 +6,7 @@ import { Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
-import SugestoesPaginacao from "../../../components/shared/SugestoesPaginacao";
+import Pagination from "../../../components/shared/Pagination";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -222,12 +222,15 @@ export default function SugestoesPage() {
           </ul>
         )}
 
-        <SugestoesPaginacao
-          page={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-          className="pt-2"
-        />
+              {totalPages > 1 && (
+          <div className="pt-2">
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

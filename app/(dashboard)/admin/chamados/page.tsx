@@ -283,7 +283,7 @@ function Lista({ dados, sortDesc, setSortDesc }: {
               <th className="text-left font-medium px-4 py-3">Prioridade</th>
               <th className="text-left font-medium px-4 py-3">Status</th>
               <th className="text-left font-medium px-4 py-3 hidden lg:table-cell">
-                <button
+                <button type="button"
                   className="inline-flex items-center gap-1 hover:underline"
                   onClick={() => setSortDesc(!sortDesc)}
                   title="Ordenar por criado em"

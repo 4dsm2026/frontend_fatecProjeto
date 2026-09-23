@@ -36,9 +36,7 @@ export default function AlunoTopbar({
   }, []);
 
   useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") root.classList.add("dark");
-    else root.classList.remove("dark");
+    document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem("theme", theme);
   }, [theme]);
 
@@ -97,6 +95,7 @@ export default function AlunoTopbar({
 
   const badgeText =
     unread === null ? "" : unread > 99 ? "99+" : unread > 0 ? String(unread) : "";
+  const hasUnread = !loadingUnread && !!unread && unread > 0;
 
   return (
     <div className="mb-2 flex items-center justify-between">
@@ -117,7 +116,7 @@ export default function AlunoTopbar({
 
       <div className="flex items-center gap-2">
         {/* Dark mode toggle */}
-        <button
+        <button type="button"
           aria-label="Alternar tema"
           onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
           className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)]"
@@ -131,19 +130,17 @@ export default function AlunoTopbar({
           href={notificationsHref}
           className={cx(
             "relative inline-flex items-center justify-center h-9 w-9 rounded-lg border bg-background hover:bg-[var(--muted)]",
-            !loadingUnread && unread && unread > 0
-              ? "border-red-400/70 dark:border-red-700/50"
-              : "border-[var(--border)]",
+            hasUnread ? "border-red-400/70 dark:border-red-700/50" : "border-[var(--border)]",
           )}
           aria-label="Notificações"
-          title={unread && unread > 0 ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
+          title={hasUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
         >
-          <Bell className={cx("size-4", !loadingUnread && unread && unread > 0 ? "text-red-500 dark:text-red-400" : "")} />
+          <Bell className={cx("size-4", hasUnread && "text-red-500 dark:text-red-400")} />
           {loadingUnread ? (
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
               <Loader2 className="size-3 animate-spin" />
             </span>
-          ) : unread && unread > 0 ? (
+          ) : hasUnread ? (
             <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
               {badgeText}
             </span>

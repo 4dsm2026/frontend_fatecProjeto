@@ -61,7 +61,26 @@ function getErrorMessage(error: unknown) {
 function getResponseErrorMessage(value: unknown) {
   if (typeof value !== "object" || value === null) return undefined;
   const data = value as { error?: unknown; message?: unknown };
-  return typeof data.error === "string" ? data.error : typeof data.message === "string" ? data.message : undefined;
+  if (typeof data.error === "string") return data.error;
+  if (typeof data.message === "string") return data.message;
+  return undefined;
+}
+
+function LoadingCard() {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
+      <Loader2 className="size-4 animate-spin" />
+      Carregando dados…
+    </div>
+  );
+}
+
+function NotLoggedInCard() {
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-card p-8 text-center text-muted-foreground">
+      Faça login para visualizar seus dados.
+    </div>
+  );
 }
 
 function Field({
@@ -149,18 +168,21 @@ export default function MeusDadosPage() {
 
   const canSave = useMemo(() => {
     if (!user) return false;
-    const changed =
-      nome !== (user.nome ?? "") ||
-      emailPessoal !== (user.emailPessoal ?? "") ||
-      telefoneCelular !== (user.telefoneCelular ?? "") ||
-      whatsapp !== (user.whatsapp ?? "") ||
-      canalPreferencialContato !== (user.canalPreferencialContato ?? "") ||
-      melhorPeriodoContato !== (user.melhorPeriodoContato ?? "") ||
-      necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel) ||
-      tipoAcessibilidade !== (user.tipoAcessibilidade ?? "") ||
-      observacoesAtendimento !== (user.observacoesAtendimento ?? "");
+    const campos = [
+      [nome, user.nome],
+      [emailPessoal, user.emailPessoal],
+      [telefoneCelular, user.telefoneCelular],
+      [whatsapp, user.whatsapp],
+      [canalPreferencialContato, user.canalPreferencialContato],
+      [melhorPeriodoContato, user.melhorPeriodoContato],
+      [tipoAcessibilidade, user.tipoAcessibilidade],
+      [observacoesAtendimento, user.observacoesAtendimento],
+    ] as const;
+    const changed = campos.some(([atual, original]) => atual !== (original ?? ""));
+    const acessivelMudou = necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel);
     const emailOk = !emailPessoal || /\S+@\S+\.\S+/.test(emailPessoal);
-    return changed && nome.trim().length > 0 && emailOk;
+    const nomeOk = nome.trim().length > 0;
+    return (changed || acessivelMudou) && nomeOk && emailOk;
   }, [
     user,
     nome,
@@ -205,12 +227,13 @@ export default function MeusDadosPage() {
     }
   }
 
-  const meetsPolicy =
-    newPass.length >= 8 &&
-    /[A-Z]/.test(newPass) &&
-    /[a-z]/.test(newPass) &&
-    /\d/.test(newPass) &&
-    /[^A-Za-z0-9]/.test(newPass);
+  const meetsPolicy = [
+    newPass.length >= 8,
+    /[A-Z]/.test(newPass),
+    /[a-z]/.test(newPass),
+    /\d/.test(newPass),
+    /[^A-Za-z0-9]/.test(newPass),
+  ].every(Boolean);
 
   const canChangePass = currentPass.length > 0 && meetsPolicy && newPass === newPass2;
 
@@ -261,27 +284,19 @@ export default function MeusDadosPage() {
     }
   }
 
+  if (loading) return <LoadingCard />;
+  if (!user) return <NotLoggedInCard />;
+
   return (
     <div className="space-y-6">
       <div className="xl:hidden">
         <MobileSidebarTriggerAluno />
       </div>
 
-      {loading ? (
-        <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          Carregando dados…
-        </div>
-      ) : !user ? (
-        <div className="rounded-xl border border-[var(--border)] bg-card p-8 text-center text-muted-foreground">
-          Faça login para visualizar seus dados.
-        </div>
-      ) : (
-        <>
-          <form
-            onSubmit={saveProfile}
-            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
-          >
+      <form
+        onSubmit={saveProfile}
+        className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
+      >
             <section className="grid gap-5">
               <div className="flex items-start gap-3">
                 <User className="mt-0.5 size-4 text-muted-foreground" />
@@ -479,7 +494,7 @@ export default function MeusDadosPage() {
 
           <form
             onSubmit={changePassword}
-            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-5"
+            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
           >
             <div className="flex items-center gap-2 mb-1">
               <Shield className="size-4 text-muted-foreground" />
@@ -553,17 +568,15 @@ export default function MeusDadosPage() {
                 type="submit"
                 disabled={!canChangePass || changing}
                 className={cx(
-                  "inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border)] bg-background",
+                  "inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background",
                   !canChangePass || changing ? "opacity-60 cursor-not-allowed" : "hover:bg-[var(--muted)]"
                 )}
               >
                 {changing ? <Loader2 className="size-4 animate-spin" /> : <IdCard className="size-4" />}
                 Alterar senha
               </button>
-            </div>
-          </form>
-        </>
-      )}
+</div>
+        </form>
     </div>
   );
 }

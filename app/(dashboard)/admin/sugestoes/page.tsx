@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, MessageSquareText } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
-import SugestoesPaginacao from "../../../components/shared/SugestoesPaginacao";
+import Pagination from "../../../components/shared/Pagination";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const PAGE_SIZE = 10;
@@ -125,10 +125,10 @@ export default function AdminSugestoesPage() {
         )}
       </div>
 
-      <SugestoesPaginacao
+      <Pagination
         page={page}
         totalPages={totalPages}
-        onPageChange={setPage}
+        onChange={setPage}
       />
     </div>
   );

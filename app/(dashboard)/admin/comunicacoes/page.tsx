@@ -190,6 +190,7 @@ export default function ComunicacoesPage() {
   const [testing, setTesting] = useState(false);
   const [dirty, setDirty] = useState<Set<string>>(new Set());
   const [pendingSwitch, setPendingSwitch] = useState<string | null>(null);
+  const [testEmailOpen, setTestEmailOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement | null>(null);
   // Versão "limpa" (última salva/carregada) de cada template, para descartar edições.
   const baselineRef = useRef<Map<string, Template>>(new Map(DEFAULT_TEMPLATES.map((t) => [t.id, t])));
@@ -331,10 +332,8 @@ export default function ComunicacoesPage() {
     setDirty((prev) => (prev.has(currentId) ? prev : new Set(prev).add(currentId)));
   }
 
-  async function sendTest() {
+  async function sendTest(to: string) {
     if (!current) return;
-    const to = prompt("Enviar e-mail de teste para qual endereço?");
-    if (!to) return;
     setTesting(true);
     try {
       const res = await apiFetch(`${API_URL}/admin/comunicacoes/teste`, {
@@ -370,7 +369,7 @@ export default function ComunicacoesPage() {
         setTemplates(data);
         setCurrentId(data[0]?.id ?? "");
       } catch (err) {
-        alert("Erro ao importar JSON.");
+        toast.error("Erro ao importar JSON.");
       }
     };
     reader.readAsText(file);
@@ -397,31 +396,35 @@ export default function ComunicacoesPage() {
           <ul className="mt-2 space-y-1">
             {list.map((t) => (
               <li key={t.id}>
-                <button
+                <div
                   className={cx(
-                    "w-full text-left rounded-lg px-3 py-2 transition flex items-center justify-between",
+                    "w-full rounded-lg px-3 py-2 transition flex items-center justify-between",
                     currentId === t.id ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-[var(--muted)]/70"
                   )}
-                  onClick={() => requestSwitch(t.id)}
                 >
-                  <span className="flex items-center gap-2">
-                    <Mail className="size-4 opacity-80" />
-                    <span className="font-medium">{t.nome}</span>
+                  <button
+                    type="button"
+                    className="flex items-center gap-2 text-left min-w-0 flex-1"
+                    onClick={() => requestSwitch(t.id)}
+                  >
+                    <Mail className="size-4 opacity-80 shrink-0" />
+                    <span className="font-medium truncate">{t.nome}</span>
                     {dirty.has(t.id) && (
-                      <span className="size-1.5 rounded-full bg-amber-500" title="Alterações não salvas" />
+                      <span className="size-1.5 rounded-full bg-amber-500 shrink-0" title="Alterações não salvas" />
                     )}
-                  </span>
-                  <span
+                  </button>
+                  <button
+                    type="button"
                     className={cx(
-                      "inline-flex items-center gap-1 text-xs rounded-md border px-1.5 py-0.5",
+                      "inline-flex items-center gap-1 text-xs rounded-md border px-1.5 py-0.5 shrink-0",
                       t.habilitado ? "border-[var(--success)] text-[var(--success)]" : "border-[var(--border)] text-muted-foreground"
                     )}
-                    onClick={(e) => { e.stopPropagation(); toggleEnabled(t.id); }}
+                    onClick={() => toggleEnabled(t.id)}
                     title={t.habilitado ? "Desativar" : "Ativar"}
                   >
                     {t.habilitado ? <><ToggleRight className="size-3" /> Ativo</> : <><ToggleLeft className="size-3" /> Inativo</>}
-                  </span>
-                </button>
+                  </button>
+                </div>
                 <div className="px-3 pb-2 text-xs text-muted-foreground">{t.descricao}</div>
               </li>
             ))}
@@ -434,7 +437,7 @@ export default function ComunicacoesPage() {
 
           {/* Import/Export */}
           <div className="mt-3 flex items-center justify-between px-2">
-            <button
+            <button type="button"
               onClick={exportJSON}
               className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
             >
@@ -442,7 +445,7 @@ export default function ComunicacoesPage() {
             </button>
             <div>
               <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importJSON} />
-              <button
+              <button type="button"
                 onClick={() => fileRef.current?.click()}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
               >
@@ -474,7 +477,7 @@ export default function ComunicacoesPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Editor */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
               <div className="mb-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Chave</div>
                 <div className="inline-flex items-center gap-2 text-sm border border-[var(--border)] bg-background rounded-md px-2 py-1">
@@ -483,8 +486,9 @@ export default function ComunicacoesPage() {
                 </div>
               </div>
 
-              <label className="text-sm font-medium">Assunto</label>
+              <label htmlFor="comunic-assunto" className="text-sm font-medium">Assunto</label>
               <input
+                id="comunic-assunto"
                 value={current.assunto}
                 onChange={(e) => updateField("assunto", e.target.value)}
                 className="mt-1 mb-3 w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
@@ -492,6 +496,7 @@ export default function ComunicacoesPage() {
 
               {/* <label className="text-sm font-medium">Corpo (suporta variáveis {{`{{chave}}`}})</label> */}
               <textarea
+                aria-label="Corpo do comunicado"
                 value={current.corpo}
                 onChange={(e) => updateField("corpo", e.target.value)}
                 className="mt-1 w-full min-h-[220px] rounded-lg border border-[var(--border)] bg-input p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
@@ -508,7 +513,7 @@ export default function ComunicacoesPage() {
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <button
+                <button type="button"
                   className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-60"
                   onClick={salvarTemplate}
                   disabled={saving || !dirty.has(current.id)}
@@ -521,16 +526,16 @@ export default function ComunicacoesPage() {
                     Alterações não salvas
                   </span>
                 )}
-                <button
-                  className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
-                  onClick={sendTest}
+                <button type="button"
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
+                  onClick={() => setTestEmailOpen(true)}
                   disabled={testing}
                 >
                   <Send className="size-4" /> {testing ? "Enviando…" : "Enviar teste"}
                 </button>
-                <button
+                <button type="button"
                   className={cx(
-                    "inline-flex items-center gap-2 h-10 px-3 rounded-lg text-sm border",
+                    "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm border",
                     current.habilitado
                       ? "border-[var(--success)] text-[var(--success)]"
                       : "border-[var(--border)] text-muted-foreground"
@@ -543,7 +548,7 @@ export default function ComunicacoesPage() {
             </div>
 
             {/* Preview */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-semibold inline-flex items-center gap-2">
                   <Eye className="size-4" /> Pré-visualização
@@ -575,6 +580,20 @@ export default function ComunicacoesPage() {
         variant="danger"
         onConfirm={discardAndSwitch}
         onClose={() => setPendingSwitch(null)}
+      />
+
+      <ConfirmDialog
+        open={testEmailOpen}
+        title="Enviar e-mail de teste"
+        description="Informe o endereço de e-mail para receber o teste."
+        confirmLabel="Enviar"
+        input={{
+          label: "E-mail",
+          placeholder: "exemplo@email.com",
+          required: true,
+        }}
+        onConfirm={(value) => { if (value) sendTest(value); }}
+        onClose={() => setTestEmailOpen(false)}
       />
     </div>
   );

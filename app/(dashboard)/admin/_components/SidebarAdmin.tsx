@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Ticket,
@@ -15,21 +13,14 @@ import {
   LogOut,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import Cookies from "js-cookie";
+import { usePathname } from "next/navigation";
 import { apiFetch } from "../../../../utils/api";
+import SidebarNav, {
+  type SidebarNavItemData,
+} from "../../../components/shared/SidebarNav";
+import { useSidebarLogout } from "../../../components/shared/useSidebarLogout";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-type NavItemProps = {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  badge?: string | number;
-};
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function SidebarAdmin({
   chamadosAbertosCount = 0,
@@ -45,7 +36,7 @@ export default function SidebarAdmin({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const handleLogout = useSidebarLogout(onClose);
 
   const [slaMedioDias, setSlaMedioDias] = useState<number | null>(null);
   const [pctResolvidos, setPctResolvidos] = useState<number | null>(null);
@@ -68,7 +59,7 @@ export default function SidebarAdmin({
 
   const chamadosBadge = chamadosAbertosReal ?? chamadosAbertosCount;
 
-  const items: NavItemProps[] = useMemo(
+  const items: SidebarNavItemData[] = useMemo(
     () => [
       {
         href: "/admin/home",
@@ -128,22 +119,6 @@ export default function SidebarAdmin({
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  function handleLogout() {
-    try {
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-    } catch (e) {
-      console.error("Erro ao fazer logout:", e);
-    }
-
-    router.push("/login");
-    onClose?.();
-  }
-
   return (
     <aside className="xl:sticky xl:top-4 xl:self-start w-full xl:w-[260px]">
       <div className="rounded-2xl border border-[var(--border)] bg-card p-3 flex flex-col min-h-[520px]">
@@ -163,38 +138,12 @@ export default function SidebarAdmin({
         </div>
 
         {/* Navegação */}
-        <nav className="space-y-1">
-          <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-            Visão Geral
-          </div>
-
-          {items.map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cx(
-                "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
-                isActive(it.href)
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "hover:bg-[var(--muted)]/70"
-              )}
-              onClick={onClose}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-grid place-items-center size-5 opacity-90">
-                  {it.icon}
-                </span>
-                <span>{it.label}</span>
-              </span>
-
-              {it.badge != null && (
-                <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
-                  {it.badge}
-                </span>
-              )}
-            </Link>
-          ))}
-        </nav>
+        <SidebarNav
+          items={items}
+          sectionLabel="Visão Geral"
+          isActive={isActive}
+          onClose={onClose}
+        />
 
         {/* Indicadores rápidos */}
         <div className="mt-4 rounded-xl border border-[var(--border)] bg-background p-3">

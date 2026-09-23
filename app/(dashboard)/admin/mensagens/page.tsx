@@ -53,7 +53,6 @@ export default function AdminMensagensPage() {
   const API = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   const [me, setMe] = useState<Me | null>(null);
-  const [loadingMe, setLoadingMe] = useState(true);
 
   const [loadingList, setLoadingList] = useState(true);
   const [conversas, setConversas] = useState<ChamadoSummary[]>([]);
@@ -82,8 +81,6 @@ export default function AdminMensagensPage() {
         setMe({ id: d?.id, nome: d?.nome });
       } catch {
         setMe(null);
-      } finally {
-        if (alive) setLoadingMe(false);
       }
     })();
     return () => { alive = false; };
@@ -294,7 +291,7 @@ export default function AdminMensagensPage() {
                 const active = currentId === c.id;
                 return (
                   <li key={c.id}>
-                    <button
+                    <button type="button"
                       onClick={() => setCurrentId(c.id)}
                       className={cx(
                         "w-full text-left px-3 py-3 hover:bg-[var(--muted)]/60 transition",

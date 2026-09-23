@@ -3,7 +3,7 @@ import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import SugestoesPaginacao from "../app/components/shared/SugestoesPaginacao";
+import Pagination from "../app/components/shared/Pagination";
 
 afterEach(cleanup);
 
@@ -11,22 +11,28 @@ function ExemploComTresPaginas() {
   const [page, setPage] = useState(1);
 
   return (
-    <SugestoesPaginacao
-      page={page}
-      totalPages={3}
-      onPageChange={setPage}
-    />
+    <>
+      <p>Página atual: {page}</p>
+      <Pagination page={page} totalPages={3} onChange={setPage} />
+    </>
   );
 }
 
-describe("SugestoesPaginacao", () => {
+// As setas do componente atual não têm nome acessível.
+// A primeira é "anterior" e a última é "próxima".
+function obterSetas() {
+  const botoes = screen.getAllByRole("button");
+
+  return {
+    anterior: botoes[0],
+    proxima: botoes[botoes.length - 1],
+  };
+}
+
+describe("Pagination", () => {
   it("não mostra botões quando há apenas uma página", () => {
     const { container } = render(
-      <SugestoesPaginacao
-        page={1}
-        totalPages={1}
-        onPageChange={vi.fn()}
-      />,
+      <Pagination page={1} totalPages={1} onChange={vi.fn()} />,
     );
 
     expect(container).toBeEmptyDOMElement();
@@ -36,34 +42,20 @@ describe("SugestoesPaginacao", () => {
     const user = userEvent.setup();
     render(<ExemploComTresPaginas />);
 
-    const anterior = screen.getByRole("button", {
-      name: "Página anterior",
-    });
-    const proxima = screen.getByRole("button", {
-      name: "Próxima página",
-    });
+    const { anterior, proxima } = obterSetas();
 
     expect(anterior).toBeDisabled();
 
     await user.click(proxima);
-
-    expect(
-      screen.getByRole("button", { name: "Página 2" }),
-    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Página atual: 2")).toBeInTheDocument();
     expect(anterior).toBeEnabled();
 
     await user.click(proxima);
-
-    expect(
-      screen.getByRole("button", { name: "Página 3" }),
-    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Página atual: 3")).toBeInTheDocument();
     expect(proxima).toBeDisabled();
 
     await user.click(anterior);
-
-    expect(
-      screen.getByRole("button", { name: "Página 2" }),
-    ).toHaveAttribute("aria-current", "page");
+    expect(screen.getByText("Página atual: 2")).toBeInTheDocument();
     expect(proxima).toBeEnabled();
   });
 
@@ -71,46 +63,29 @@ describe("SugestoesPaginacao", () => {
     const user = userEvent.setup();
     render(<ExemploComTresPaginas />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Página 3" }),
-    );
+    await user.click(screen.getByRole("button", { name: "3" }));
+    expect(screen.getByText("Página atual: 3")).toBeInTheDocument();
 
-    expect(
-      screen.getByRole("button", { name: "Página 3" }),
-    ).toHaveAttribute("aria-current", "page");
-    expect(
-      screen.getByRole("button", { name: "Página 1" }),
-    ).not.toHaveAttribute("aria-current");
+    await user.click(screen.getByRole("button", { name: "1" }));
+    expect(screen.getByText("Página atual: 1")).toBeInTheDocument();
   });
 
   it("não solicita páginas fora dos limites pelos botões desabilitados", async () => {
     const user = userEvent.setup();
-    const onPageChange = vi.fn();
+    const onChange = vi.fn();
 
     const { rerender } = render(
-      <SugestoesPaginacao
-        page={1}
-        totalPages={3}
-        onPageChange={onPageChange}
-      />,
+      <Pagination page={1} totalPages={3} onChange={onChange} />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "Página anterior" }),
-    );
-    expect(onPageChange).not.toHaveBeenCalled();
+    await user.click(obterSetas().anterior);
+    expect(onChange).not.toHaveBeenCalled();
 
     rerender(
-      <SugestoesPaginacao
-        page={3}
-        totalPages={3}
-        onPageChange={onPageChange}
-      />,
+      <Pagination page={3} totalPages={3} onChange={onChange} />,
     );
 
-    await user.click(
-      screen.getByRole("button", { name: "Próxima página" }),
-    );
-    expect(onPageChange).not.toHaveBeenCalled();
+    await user.click(obterSetas().proxima);
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
