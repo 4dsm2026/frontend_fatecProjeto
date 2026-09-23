@@ -70,7 +70,7 @@ function ThemeToggleButton({
   }
   const isDark = theme === "dark";
   return (
-    <button
+    <button type="button"
       aria-label="Alternar tema"
       onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
       className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)]"

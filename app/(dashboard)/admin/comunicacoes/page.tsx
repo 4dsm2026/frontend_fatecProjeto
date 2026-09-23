@@ -396,7 +396,7 @@ export default function ComunicacoesPage() {
           <ul className="mt-2 space-y-1">
             {list.map((t) => (
               <li key={t.id}>
-                <button
+                <button type="button"
                   className={cx(
                     "w-full text-left rounded-lg px-3 py-2 transition flex items-center justify-between",
                     currentId === t.id ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-[var(--muted)]/70"
@@ -433,7 +433,7 @@ export default function ComunicacoesPage() {
 
           {/* Import/Export */}
           <div className="mt-3 flex items-center justify-between px-2">
-            <button
+            <button type="button"
               onClick={exportJSON}
               className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
             >
@@ -441,7 +441,7 @@ export default function ComunicacoesPage() {
             </button>
             <div>
               <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={importJSON} />
-              <button
+              <button type="button"
                 onClick={() => fileRef.current?.click()}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
               >
@@ -509,7 +509,7 @@ export default function ComunicacoesPage() {
               </div>
 
               <div className="mt-4 flex items-center gap-2">
-                <button
+                <button type="button"
                   className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-60"
                   onClick={salvarTemplate}
                   disabled={saving || !dirty.has(current.id)}
@@ -522,14 +522,14 @@ export default function ComunicacoesPage() {
                     Alterações não salvas
                   </span>
                 )}
-                <button
+                <button type="button"
                   className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
                   onClick={() => setTestEmailOpen(true)}
                   disabled={testing}
                 >
                   <Send className="size-4" /> {testing ? "Enviando…" : "Enviar teste"}
                 </button>
-                <button
+                <button type="button"
                   className={cx(
                     "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm border",
                     current.habilitado

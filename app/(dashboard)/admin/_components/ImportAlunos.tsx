@@ -263,7 +263,7 @@ export default function ImportAlunos({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Importar alunos (CSV)</h3>
-        <button
+        <button type="button"
           onClick={onClose}
           className="inline-grid place-items-center size-8 rounded-md hover:bg-[var(--muted)]"
         >
@@ -282,7 +282,7 @@ export default function ImportAlunos({
 
       {/* Seletor de arquivo */}
       <div className="flex items-center gap-2">
-        <button
+        <button type="button"
           onClick={() => fileRef.current?.click()}
           className="h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
           disabled={running}
@@ -359,7 +359,7 @@ export default function ImportAlunos({
 
       {/* Footer / ações */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
+        <button type="button"
           onClick={startImport}
           disabled={!canStart}
           className={cx(
@@ -372,7 +372,7 @@ export default function ImportAlunos({
           {running ? "Processando..." : rows.length ? "Processar importação" : "Selecionar CSV"}
         </button>
 
-        <button
+        <button type="button"
           onClick={resetImport}
           disabled={running || rows.length === 0}
           className={cx(
@@ -385,7 +385,7 @@ export default function ImportAlunos({
 
         <div className="ml-auto" />
 
-        <button
+        <button type="button"
           onClick={() => { if (finished) onDone(); else onClose(); }}
           className="h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
         >

@@ -257,19 +257,19 @@ export default function PageAlunoDetalhe() {
           <span className="font-medium truncate max-w-[60vw]">{aluno.nome ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={() => setEditOpen(true)}
           >
             <Pencil className="size-4" /> Editar
           </button>
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={onResetSenha}
           >
             <KeyRound className="size-4" /> Resetar senha
           </button>
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm"
             onClick={() => setDelOpen(true)}
           >
@@ -502,13 +502,13 @@ export default function PageAlunoDetalhe() {
               />
             </div>
             <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-2">
-              <button
+              <button type="button"
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
                 onClick={() => setDelOpen(false)}
               >
                 <X className="size-4" /> Cancelar
               </button>
-              <button
+              <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (aluno.emailEducacional ?? aluno.emailPessoal)

@@ -170,7 +170,7 @@ export default function NotificacoesAlunoPage() {
           )}
         </div>
         {unread > 0 && (
-          <button
+          <button type="button"
             onClick={markAllAsRead}
             disabled={markingAll}
             className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)] text-sm disabled:opacity-50 shrink-0"
@@ -318,7 +318,7 @@ function NotifItem({
       </div>
 
       {!n.lidaEm && (
-        <button
+        <button type="button"
           onClick={() => onMark(n.id)}
           disabled={marking === n.id}
           title="Marcar como lida"

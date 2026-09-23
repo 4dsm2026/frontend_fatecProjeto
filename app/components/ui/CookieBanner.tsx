@@ -81,13 +81,13 @@ export default function CookieBanner() {
       </div>
 
       <div className="flex gap-2 justify-end">
-        <button
+        <button type="button"
           onClick={essential}
           className="h-8 px-3 rounded-lg border border-[var(--border)] text-xs font-medium text-muted-foreground hover:bg-[var(--muted)] transition"
         >
           Somente essenciais
         </button>
-        <button
+        <button type="button"
           onClick={accept}
           className="h-8 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition"
         >

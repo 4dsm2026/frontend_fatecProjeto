@@ -139,7 +139,7 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
 
       {/* Botão de "Marcar todas como lidas" */}
       <div className="mb-4">
-        <button
+        <button type="button"
           onClick={markAllAsRead}
           className="bg-[#D91F2B] text-white px-4 py-2 rounded hover:bg-[#B11D22]" // Vermelho mais escuro
 
@@ -212,7 +212,7 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
                     </div>
                   </div>
 
-                  <button
+                  <button type="button"
                     onClick={() => markAsRead(n.id)}
                     disabled={!!n.lidaEm || marking === n.id}
                     title="Marcar como lida"
