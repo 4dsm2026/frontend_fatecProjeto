@@ -299,18 +299,18 @@ export default function Home() {
           <div>
             <p className="font-medium mb-3">Recursos</p>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:underline">GitHub</a></li>
-              <li><a href="#" className="hover:underline">Documentação</a></li>
-              <li><a href="#" className="hover:underline">Manual do Usuário</a></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">GitHub</button></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">Documentação</button></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">Manual do Usuário</button></li>
             </ul>
           </div>
 
           <div>
             <p className="font-medium mb-3">Instituição</p>
             <ul className="space-y-2 text-sm">
-              <li><a href="#" className="hover:underline">FATEC Cotia</a></li>
-              <li><a href="#" className="hover:underline">Curso DSM</a></li>
-              <li><a href="#" className="hover:underline">Sobre a FATEC</a></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">FATEC Cotia</button></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">Curso DSM</button></li>
+              <li><button type="button" disabled className="hover:underline text-muted-foreground cursor-not-allowed">Sobre a FATEC</button></li>
             </ul>
           </div>
 
