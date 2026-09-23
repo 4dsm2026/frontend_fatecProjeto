@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Ticket,
@@ -13,7 +11,9 @@ import {
   LogOut,
   MessageSquarePlus,
 } from "lucide-react";
-import Cookies from "js-cookie";
+import { usePathname } from "next/navigation";
+import SidebarNavItem from "../../../components/shared/SidebarNavItem";
+import { useSidebarLogout } from "../../../components/shared/useSidebarLogout";
 
 type NavItemProps = {
   href: string;
@@ -21,10 +21,6 @@ type NavItemProps = {
   icon: React.ReactNode;
   badge?: string | number;
 };
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function SidebarAluno({
   aguardandoCount = 0,
@@ -36,7 +32,7 @@ export default function SidebarAluno({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const handleLogout = useSidebarLogout(onClose);
 
   const items: NavItemProps[] = [
     {
@@ -90,24 +86,6 @@ export default function SidebarAluno({
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  function handleLogout() {
-    try {
-      // Limpa os cookies que o middleware lê.
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      // Limpa o localStorage.
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-    } catch (e) {
-      console.error("Erro ao fazer logout:", e);
-    }
-
-    router.push("/login");
-    onClose?.();
-  }
-
   return (
     <aside className="xl:sticky xl:top-4 xl:self-start w-full xl:w-[260px]">
       <div className="rounded-2xl border border-[var(--border)] bg-card p-3 flex flex-col min-h-[520px]">
@@ -133,30 +111,15 @@ export default function SidebarAluno({
           </div>
 
           {items.map((it) => (
-            <Link
+            <SidebarNavItem
               key={it.href}
               href={it.href}
-              className={cx(
-                "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
-                isActive(it.href)
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "hover:bg-[var(--muted)]/70"
-              )}
+              label={it.label}
+              icon={it.icon}
+              badge={it.badge}
+              isActive={isActive(it.href)}
               onClick={onClose}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-grid place-items-center size-5 opacity-90">
-                  {it.icon}
-                </span>
-                <span>{it.label}</span>
-              </span>
-
-              {it.badge != null && (
-                <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
-                  {it.badge}
-                </span>
-              )}
-            </Link>
+            />
           ))}
         </nav>
 

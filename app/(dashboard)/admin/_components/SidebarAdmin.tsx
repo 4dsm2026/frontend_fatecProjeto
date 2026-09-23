@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Ticket,
@@ -15,8 +13,10 @@ import {
   LogOut,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import Cookies from "js-cookie";
+import { usePathname } from "next/navigation";
 import { apiFetch } from "../../../../utils/api";
+import SidebarNavItem from "../../../components/shared/SidebarNavItem";
+import { useSidebarLogout } from "../../../components/shared/useSidebarLogout";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -26,10 +26,6 @@ type NavItemProps = {
   icon: React.ReactNode;
   badge?: string | number;
 };
-
-function cx(...xs: Array<string | false | null | undefined>) {
-  return xs.filter(Boolean).join(" ");
-}
 
 export default function SidebarAdmin({
   chamadosAbertosCount = 0,
@@ -45,7 +41,7 @@ export default function SidebarAdmin({
   onClose?: () => void;
 }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const handleLogout = useSidebarLogout(onClose);
 
   const [slaMedioDias, setSlaMedioDias] = useState<number | null>(null);
   const [pctResolvidos, setPctResolvidos] = useState<number | null>(null);
@@ -128,22 +124,6 @@ export default function SidebarAdmin({
     return pathname === href || pathname.startsWith(href + "/");
   }
 
-  function handleLogout() {
-    try {
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-    } catch (e) {
-      console.error("Erro ao fazer logout:", e);
-    }
-
-    router.push("/login");
-    onClose?.();
-  }
-
   return (
     <aside className="xl:sticky xl:top-4 xl:self-start w-full xl:w-[260px]">
       <div className="rounded-2xl border border-[var(--border)] bg-card p-3 flex flex-col min-h-[520px]">
@@ -169,30 +149,15 @@ export default function SidebarAdmin({
           </div>
 
           {items.map((it) => (
-            <Link
+            <SidebarNavItem
               key={it.href}
               href={it.href}
-              className={cx(
-                "flex items-center justify-between rounded-lg px-3 py-2 text-sm font-medium transition",
-                isActive(it.href)
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "hover:bg-[var(--muted)]/70"
-              )}
+              label={it.label}
+              icon={it.icon}
+              badge={it.badge}
+              isActive={isActive(it.href)}
               onClick={onClose}
-            >
-              <span className="flex items-center gap-3">
-                <span className="inline-grid place-items-center size-5 opacity-90">
-                  {it.icon}
-                </span>
-                <span>{it.label}</span>
-              </span>
-
-              {it.badge != null && (
-                <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
-                  {it.badge}
-                </span>
-              )}
-            </Link>
+            />
           ))}
         </nav>
 
