@@ -1,4 +1,5 @@
 "use client";
+
 import { apiFetch } from "../../../../utils/api";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -297,286 +298,286 @@ export default function MeusDadosPage() {
         onSubmit={saveProfile}
         className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
       >
-            <section className="grid gap-5">
-              <div className="flex items-start gap-3">
-                <User className="mt-0.5 size-4 text-muted-foreground" />
-                <div>
-                  <h2 className="text-base font-semibold">Informações pessoais</h2>
-                  <p className="text-sm text-muted-foreground">
-                    O nome é editável pelo aluno; RA e e-mail educacional vêm do sistema acadêmico.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Nome completo" required>
-                  <input
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={nome}
-                    onChange={(e) => setNome(e.target.value)}
-                  />
-                </Field>
-
-                <ReadOnlyField label="RA" value={user.ra} />
-
-                <Field label="E-mail pessoal">
-                  <div className="relative">
-                    <Mail className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="email"
-                      className="h-10 w-full rounded-lg border border-[var(--border)] bg-input pl-9 pr-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                      value={emailPessoal}
-                      onChange={(e) => setEmailPessoal(e.target.value)}
-                      placeholder="voce@email.com"
-                    />
-                  </div>
-                </Field>
-
-                <ReadOnlyField label="E-mail educacional" value={user.emailEducacional} />
-              </div>
-            </section>
-
-            <section className="grid gap-5 border-t border-[var(--border)] pt-5">
-              <div className="flex items-start gap-3">
-                <GraduationCap className="mt-0.5 size-4 text-muted-foreground" />
-                <div>
-                  <h2 className="text-base font-semibold">Dados acadêmicos Fatec</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Campos somente leitura sincronizados a partir do sistema acadêmico.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                <ReadOnlyField label="Unidade Fatec" value={user.unidadeFatec} />
-                <ReadOnlyField label="Curso" value={user.curso} />
-                <ReadOnlyField label="Eixo tecnológico" value={user.eixoTecnologico} />
-                <ReadOnlyField label="Turno" value={user.turno} />
-                <ReadOnlyField label="Turma" value={user.turma} />
-                <ReadOnlyField label="Semestre atual" value={user.semestreAtual} />
-                <ReadOnlyField label="Matriz curricular" value={user.matrizCurricular} />
-                <ReadOnlyField label="Situação acadêmica" value={user.situacaoAcademica} />
-                <ReadOnlyField label="Ano/semestre de ingresso" value={user.anoSemestreIngresso} />
-                <ReadOnlyField label="Coordenador do curso" value={user.coordenadorCurso} />
-              </div>
-            </section>
-
-            <section className="grid gap-5 border-t border-[var(--border)] pt-5">
-              <div className="flex items-start gap-3">
-                <Phone className="mt-0.5 size-4 text-muted-foreground" />
-                <div>
-                  <h2 className="text-base font-semibold">Contato e atendimento</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Campos editáveis pelo aluno. Dados de acessibilidade devem ser usados apenas para viabilizar atendimento adequado.
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Telefone celular">
-                  <input
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={telefoneCelular}
-                    onChange={(e) => setTelefoneCelular(e.target.value)}
-                    placeholder="(00) 00000-0000"
-                  />
-                </Field>
-
-                <Field label="WhatsApp">
-                  <input
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={whatsapp}
-                    onChange={(e) => setWhatsapp(e.target.value)}
-                    placeholder="(00) 00000-0000"
-                  />
-                </Field>
-
-                <Field label="Canal preferencial de contato">
-                  <select
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={canalPreferencialContato}
-                    onChange={(e) => setCanalPreferencialContato(e.target.value)}
-                  >
-                    <option value="">Não informado</option>
-                    {CANAIS_CONTATO.map((canal) => (
-                      <option key={canal} value={canal}>
-                        {canal}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-
-                <Field label="Melhor período para contato">
-                  <select
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={melhorPeriodoContato}
-                    onChange={(e) => setMelhorPeriodoContato(e.target.value)}
-                  >
-                    <option value="">Não informado</option>
-                    {PERIODOS_CONTATO.map((periodo) => (
-                      <option key={periodo} value={periodo}>
-                        {periodo}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-
-              <div className="rounded-lg border border-[var(--border)] bg-background/60 p-4 grid gap-4">
-                <div className="flex items-start gap-3">
-                  <Accessibility className="mt-0.5 size-4 text-muted-foreground" />
-                  <div className="grid gap-1">
-                    <label className="inline-flex items-center gap-2 text-sm font-medium">
-                      <input
-                        type="checkbox"
-                        className="size-4 rounded border-[var(--border)]"
-                        checked={necessitaAtendimentoAcessivel}
-                        onChange={(e) => setNecessitaAtendimentoAcessivel(e.target.checked)}
-                      />
-                      Necessito de atendimento acessível
-                    </label>
-                    <p className="text-xs text-muted-foreground">
-                      Opcional e sujeito à regra de privacidade: preencha apenas se desejar registrar necessidades para atendimento.
-                    </p>
-                  </div>
-                </div>
-
-                {necessitaAtendimentoAcessivel && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Field label="Tipo de acessibilidade">
-                      <input
-                        className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                        value={tipoAcessibilidade}
-                        onChange={(e) => setTipoAcessibilidade(e.target.value)}
-                        placeholder="Ex.: Libras, mobilidade, leitor de tela"
-                      />
-                    </Field>
-
-                    <Field label="Observações de atendimento">
-                      <textarea
-                        className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                        value={observacoesAtendimento}
-                        onChange={(e) => setObservacoesAtendimento(e.target.value)}
-                        placeholder="Informe orientações úteis para a equipe de atendimento"
-                      />
-                    </Field>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="submit"
-                disabled={!canSave || saving}
-                className={cx(
-                  "inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground font-medium",
-                  !canSave || saving ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"
-                )}
-              >
-                {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                Salvar alterações
-              </button>
+        <section className="grid gap-5">
+          <div className="flex items-start gap-3">
+            <User className="mt-0.5 size-4 text-muted-foreground" />
+            <div>
+              <h2 className="text-base font-semibold">Informações pessoais</h2>
+              <p className="text-sm text-muted-foreground">
+                O nome é editável pelo aluno; RA e e-mail educacional vêm do sistema acadêmico.
+              </p>
             </div>
-          </form>
+          </div>
 
-          <section className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Nome completo" required>
+              <input
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={nome}
+                onChange={(e) => setNome(e.target.value)}
+              />
+            </Field>
+
+            <ReadOnlyField label="RA" value={user.ra} />
+
+            <Field label="E-mail pessoal">
+              <div className="relative">
+                <Mail className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="email"
+                  className="h-10 w-full rounded-lg border border-[var(--border)] bg-input pl-9 pr-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                  value={emailPessoal}
+                  onChange={(e) => setEmailPessoal(e.target.value)}
+                  placeholder="voce@email.com"
+                />
+              </div>
+            </Field>
+
+            <ReadOnlyField label="E-mail educacional" value={user.emailEducacional} />
+          </div>
+        </section>
+
+        <section className="grid gap-5 border-t border-[var(--border)] pt-5">
+          <div className="flex items-start gap-3">
+            <GraduationCap className="mt-0.5 size-4 text-muted-foreground" />
+            <div>
+              <h2 className="text-base font-semibold">Dados acadêmicos Fatec</h2>
+              <p className="text-sm text-muted-foreground">
+                Campos somente leitura sincronizados a partir do sistema acadêmico.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            <ReadOnlyField label="Unidade Fatec" value={user.unidadeFatec} />
+            <ReadOnlyField label="Curso" value={user.curso} />
+            <ReadOnlyField label="Eixo tecnológico" value={user.eixoTecnologico} />
+            <ReadOnlyField label="Turno" value={user.turno} />
+            <ReadOnlyField label="Turma" value={user.turma} />
+            <ReadOnlyField label="Semestre atual" value={user.semestreAtual} />
+            <ReadOnlyField label="Matriz curricular" value={user.matrizCurricular} />
+            <ReadOnlyField label="Situação acadêmica" value={user.situacaoAcademica} />
+            <ReadOnlyField label="Ano/semestre de ingresso" value={user.anoSemestreIngresso} />
+            <ReadOnlyField label="Coordenador do curso" value={user.coordenadorCurso} />
+          </div>
+        </section>
+
+        <section className="grid gap-5 border-t border-[var(--border)] pt-5">
+          <div className="flex items-start gap-3">
+            <Phone className="mt-0.5 size-4 text-muted-foreground" />
+            <div>
+              <h2 className="text-base font-semibold">Contato e atendimento</h2>
+              <p className="text-sm text-muted-foreground">
+                Campos editáveis pelo aluno. Dados de acessibilidade devem ser usados apenas para viabilizar atendimento adequado.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Telefone celular">
+              <input
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={telefoneCelular}
+                onChange={(e) => setTelefoneCelular(e.target.value)}
+                placeholder="(00) 00000-0000"
+              />
+            </Field>
+
+            <Field label="WhatsApp">
+              <input
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="(00) 00000-0000"
+              />
+            </Field>
+
+            <Field label="Canal preferencial de contato">
+              <select
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={canalPreferencialContato}
+                onChange={(e) => setCanalPreferencialContato(e.target.value)}
+              >
+                <option value="">Não informado</option>
+                {CANAIS_CONTATO.map((canal) => (
+                  <option key={canal} value={canal}>
+                    {canal}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Melhor período para contato">
+              <select
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={melhorPeriodoContato}
+                onChange={(e) => setMelhorPeriodoContato(e.target.value)}
+              >
+                <option value="">Não informado</option>
+                {PERIODOS_CONTATO.map((periodo) => (
+                  <option key={periodo} value={periodo}>
+                    {periodo}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+
+          <div className="rounded-lg border border-[var(--border)] bg-background/60 p-4 grid gap-4">
             <div className="flex items-start gap-3">
-              <Building2 className="mt-0.5 size-4 text-muted-foreground" />
-              <div>
-                <h2 className="text-base font-semibold">Regra de edição dos dados</h2>
-                <p className="text-sm text-muted-foreground">
-                  Dados pessoais de contato e atendimento são editáveis pelo aluno; dados acadêmicos Fatec são somente leitura e devem ser alterados no sistema acadêmico de origem.
+              <Accessibility className="mt-0.5 size-4 text-muted-foreground" />
+              <div className="grid gap-1">
+                <label className="inline-flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-[var(--border)]"
+                    checked={necessitaAtendimentoAcessivel}
+                    onChange={(e) => setNecessitaAtendimentoAcessivel(e.target.checked)}
+                  />
+                  Necessito de atendimento acessível
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  Opcional e sujeito à regra de privacidade: preencha apenas se desejar registrar necessidades para atendimento.
                 </p>
               </div>
             </div>
-          </section>
 
-          <form
-            onSubmit={changePassword}
-            className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
+            {necessitaAtendimentoAcessivel && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Tipo de acessibilidade">
+                  <input
+                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                    value={tipoAcessibilidade}
+                    onChange={(e) => setTipoAcessibilidade(e.target.value)}
+                    placeholder="Ex.: Libras, mobilidade, leitor de tela"
+                  />
+                </Field>
+
+                <Field label="Observações de atendimento">
+                  <textarea
+                    className="min-h-20 w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                    value={observacoesAtendimento}
+                    onChange={(e) => setObservacoesAtendimento(e.target.value)}
+                    placeholder="Informe orientações úteis para a equipe de atendimento"
+                  />
+                </Field>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="flex items-center justify-end">
+          <button
+            type="submit"
+            disabled={!canSave || saving}
+            className={cx(
+              "inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-primary text-primary-foreground font-medium",
+              !canSave || saving ? "opacity-60 cursor-not-allowed" : "hover:opacity-90"
+            )}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <Shield className="size-4 text-muted-foreground" />
-              <h2 className="text-base font-semibold">Segurança</h2>
-            </div>
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+            Salvar alterações
+          </button>
+        </div>
+      </form>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <Field label="Senha atual">
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={currentPass}
-                    onChange={(e) => setCurrentPass(e.target.value)}
-                    minLength={6}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
-                  >
-                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </Field>
+      <section className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6">
+        <div className="flex items-start gap-3">
+          <Building2 className="mt-0.5 size-4 text-muted-foreground" />
+          <div>
+            <h2 className="text-base font-semibold">Regra de edição dos dados</h2>
+            <p className="text-sm text-muted-foreground">
+              Dados pessoais de contato e atendimento são editáveis pelo aluno; dados acadêmicos Fatec são somente leitura e devem ser alterados no sistema acadêmico de origem.
+            </p>
+          </div>
+        </div>
+      </section>
 
-              <Field label="Nova senha">
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={newPass}
-                    onChange={(e) => setNewPass(e.target.value)}
-                    minLength={6}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
-                  >
-                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </Field>
+      <form
+        onSubmit={changePassword}
+        className="rounded-xl border border-[var(--border)] bg-card p-5 sm:p-6 grid gap-6"
+      >
+        <div className="flex items-center gap-2 mb-1">
+          <Shield className="size-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold">Segurança</h2>
+        </div>
 
-              <Field label="Confirmar nova senha">
-                <div className="relative">
-                  <input
-                    type={showPass ? "text" : "password"}
-                    className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
-                    value={newPass2}
-                    onChange={(e) => setNewPass2(e.target.value)}
-                    minLength={6}
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPass((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
-                  >
-                    {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-                  </button>
-                </div>
-              </Field>
-            </div>
-
-            <div className="flex items-center justify-end">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <Field label="Senha atual">
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={currentPass}
+                onChange={(e) => setCurrentPass(e.target.value)}
+                minLength={6}
+                placeholder="••••••••"
+              />
               <button
-                type="submit"
-                disabled={!canChangePass || changing}
-                className={cx(
-                  "inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background",
-                  !canChangePass || changing ? "opacity-60 cursor-not-allowed" : "hover:bg-[var(--muted)]"
-                )}
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
               >
-                {changing ? <Loader2 className="size-4 animate-spin" /> : <IdCard className="size-4" />}
-                Alterar senha
+                {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
               </button>
-</div>
-        </form>
+            </div>
+          </Field>
+
+          <Field label="Nova senha">
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={newPass}
+                onChange={(e) => setNewPass(e.target.value)}
+                minLength={6}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
+              >
+                {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </Field>
+
+          <Field label="Confirmar nova senha">
+            <div className="relative">
+              <input
+                type={showPass ? "text" : "password"}
+                className="h-10 w-full rounded-lg border border-[var(--border)] bg-input px-3 pr-10 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                value={newPass2}
+                onChange={(e) => setNewPass2(e.target.value)}
+                minLength={6}
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-[var(--muted)]/60"
+              >
+                {showPass ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </button>
+            </div>
+          </Field>
+        </div>
+
+        <div className="flex items-center justify-end">
+          <button
+            type="submit"
+            disabled={!canChangePass || changing}
+            className={cx(
+              "inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background",
+              !canChangePass || changing ? "opacity-60 cursor-not-allowed" : "hover:bg-[var(--muted)]"
+            )}
+          >
+            {changing ? <Loader2 className="size-4 animate-spin" /> : <IdCard className="size-4" />}
+            Alterar senha
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
