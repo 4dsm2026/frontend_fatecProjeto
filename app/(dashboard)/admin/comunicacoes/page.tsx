@@ -6,7 +6,7 @@ import {
   Filter, ToggleLeft, ToggleRight, FileText, TriangleAlert
 } from "lucide-react";
 import { toast } from "sonner";
-import { cx } from '../../../../utils/cx'
+import { cx } from "../../../../utils/cx";
 import { apiFetch } from "../../../../utils/api";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 
@@ -32,7 +32,6 @@ type Template = {
   corpo: string; // HTML simples ou text; aqui editamos como texto com variáveis
   variaveis: string[]; // lista de chaves disponíveis {{...}}
 };
-
 
 /** ---- Mock inicial (você vai carregar do backend futuramente) ---- */
 const DEFAULT_TEMPLATES: Template[] = [
@@ -248,7 +247,10 @@ export default function ComunicacoesPage() {
   // Troca de template pedindo confirmação se houver edições não salvas.
   function requestSwitch(id: string) {
     if (id === currentId) return;
-    if (dirty.has(currentId)) { setPendingSwitch(id); return; }
+    if (dirty.has(currentId)) {
+      setPendingSwitch(id);
+      return;
+    }
     setCurrentId(id);
   }
 
@@ -354,12 +356,16 @@ export default function ComunicacoesPage() {
   function exportJSON() {
     const blob = new Blob([JSON.stringify(templates, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = "templates_comunicacoes.json"; a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "templates_comunicacoes.json";
+    a.click();
     URL.revokeObjectURL(url);
   }
 
   function importJSON(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]; if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -453,8 +459,7 @@ export default function ComunicacoesPage() {
               </button>
             </div>
           </div>
-        </div>
-
+          </div>
 
         {/* <div className="mt-4 rounded-xl border border-[var(--border)] bg-card p-4 text-sm">
           <div className="font-semibold mb-1">Sugestões (schema)</div>
@@ -477,7 +482,7 @@ export default function ComunicacoesPage() {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Editor */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
               <div className="mb-3">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Chave</div>
                 <div className="inline-flex items-center gap-2 text-sm border border-[var(--border)] bg-background rounded-md px-2 py-1">
@@ -548,7 +553,7 @@ export default function ComunicacoesPage() {
             </div>
 
             {/* Preview */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-5">
+            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
               <div className="mb-2 flex items-center justify-between">
                 <div className="text-sm font-semibold inline-flex items-center gap-2">
                   <Eye className="size-4" /> Pré-visualização
