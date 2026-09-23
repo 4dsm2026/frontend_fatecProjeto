@@ -562,7 +562,7 @@ export default function AdminChamadoPage() {
                   className="flex-1 max-h-32 rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
                   disabled={sending}
                 />
-                <button
+                <button type="button"
                   onClick={sendMessage}
                   disabled={sending || !msg.trim()}
                   className="h-[56px] px-3 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center shrink-0"
@@ -717,7 +717,7 @@ export default function AdminChamadoPage() {
               </div>
 
               {selectedFile && (
-                <button
+                <button type="button"
                   onClick={handleUpload}
                   disabled={!selectedFile || uploading}
                   className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"
@@ -792,19 +792,19 @@ export default function AdminChamadoPage() {
               </label>
 
               <div className="flex flex-col gap-2 pt-2">
-                <button
+                <button type="button"
                   onClick={() => saveEdits("RESOLVIDO")}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
                 >
                   <CheckCircle2 className="size-4" /> Marcar como resolvido
                 </button>
-                <button
+                <button type="button"
                   onClick={() => saveEdits("ABERTO")}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
                 >
                   <RotateCcw className="size-4" /> Reabrir
                 </button>
-                <button
+                <button type="button"
                   onClick={() => saveEdits()}
                   disabled={saving}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 text-sm"

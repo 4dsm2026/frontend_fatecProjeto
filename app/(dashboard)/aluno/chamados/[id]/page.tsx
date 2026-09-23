@@ -517,13 +517,13 @@ export default function ChamadoDetalhePage() {
               <b>não poderá ser reaberta</b>.
             </p>
             <div className="mt-3 flex justify-end gap-2">
-              <button
+              <button type="button"
                 onClick={() => toast.dismiss(t)}
                 className="px-3 py-1.5 rounded-md text-sm border border-[var(--border)] hover:bg-muted transition"
               >
                 Cancelar
               </button>
-              <button
+              <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
                   const ok = await atualizarStatus("ENCERRADO");
@@ -557,13 +557,13 @@ export default function ChamadoDetalhePage() {
               atualizada novamente.
             </p>
             <div className="mt-3 flex justify-end gap-2">
-              <button
+              <button type="button"
                 onClick={() => toast.dismiss(t)}
                 className="px-3 py-1.5 rounded-md text-sm border border-[var(--border)] hover:bg-muted transition"
               >
                 Cancelar
               </button>
-              <button
+              <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
                   const ok = await atualizarStatus("EM_ATENDIMENTO");
@@ -698,13 +698,13 @@ export default function ChamadoDetalhePage() {
       {/* Botões de ação */}
       {chamado.status === "RESOLVIDO" && (
         <div className="flex gap-3">
-          <button
+          <button type="button"
             onClick={confirmarEncerramento}
             className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
           >
             Finalizar atendimento
           </button>
-          <button
+          <button type="button"
             onClick={confirmarReabertura}
             className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
           >
@@ -760,7 +760,7 @@ export default function ChamadoDetalhePage() {
                 }}
                 disabled={msgSending}
               />
-              <button
+              <button type="button"
                 onClick={sendMensagem}
                 disabled={msgSending || msgText.trim().length === 0}
                 className="h-[90px] px-4 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center gap-2"
@@ -812,7 +812,7 @@ export default function ChamadoDetalhePage() {
               )}
             </div>
             {selectedFile && (
-              <button
+              <button type="button"
                 onClick={handleUpload}
                 disabled={uploading}
                 className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"

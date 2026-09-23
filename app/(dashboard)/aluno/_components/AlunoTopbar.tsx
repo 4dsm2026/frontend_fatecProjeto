@@ -116,7 +116,7 @@ export default function AlunoTopbar({
 
       <div className="flex items-center gap-2">
         {/* Dark mode toggle */}
-        <button
+        <button type="button"
           aria-label="Alternar tema"
           onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
           className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border)] bg-background hover:bg-[var(--muted)]"

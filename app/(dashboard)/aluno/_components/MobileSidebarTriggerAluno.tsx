@@ -21,7 +21,7 @@ export default function MobileSidebarTriggerAluno() {
           <div className="absolute left-0 top-0 h-full w-[86%] max-w-[320px] bg-background shadow-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="font-grotesk font-semibold">Portal do Aluno</div>
-              <button
+              <button type="button"
                 className="inline-grid place-items-center size-9 rounded-md hover:bg-[var(--muted)]"
                 onClick={() => setOpen(false)}
               >

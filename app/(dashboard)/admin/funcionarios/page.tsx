@@ -315,9 +315,9 @@ export default function AdminFuncionariosPage() {
               : <>Mostrando {visibleRows.length}{visibleRows.length === perPage ? "+" : ""}</>}
           </div>
           <div className="inline-flex items-center gap-1">
-            <button className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
+            <button type="button" className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
               disabled={!prevEnabled} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
-            <button className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
+            <button type="button" className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
               disabled={!nextEnabled} onClick={() => setPage((p) => p + 1)}>Próximo</button>
           </div>
         </div>

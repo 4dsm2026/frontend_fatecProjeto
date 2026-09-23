@@ -291,7 +291,7 @@ export default function AdminMensagensPage() {
                 const active = currentId === c.id;
                 return (
                   <li key={c.id}>
-                    <button
+                    <button type="button"
                       onClick={() => setCurrentId(c.id)}
                       className={cx(
                         "w-full text-left px-3 py-3 hover:bg-[var(--muted)]/60 transition",

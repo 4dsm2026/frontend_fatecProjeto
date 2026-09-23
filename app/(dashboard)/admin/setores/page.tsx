@@ -339,7 +339,7 @@ export default function SetoresPage() {
             <ul className="mt-2 space-y-1">
               {setoresFiltrados.map((s) => (
                 <li key={s.id}>
-                  <button
+                  <button type="button"
                     className={cx(
                       "w-full text-left rounded-lg px-3 py-2 transition flex items-center justify-between",
                       currentSetorId === s.id ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-[var(--muted)]/70"
@@ -366,7 +366,7 @@ export default function SetoresPage() {
 
           {/* Ações do catálogo */}
           <div className="mt-3 flex items-center justify-between px-2">
-            <button
+            <button type="button"
               onClick={criarSetor}
               disabled={busy}
               className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"
@@ -374,14 +374,14 @@ export default function SetoresPage() {
               <Plus className="size-4" /> Novo setor
             </button>
             <div className="flex items-center gap-2">
-              <button
+              <button type="button"
                 onClick={renomearSetor}
                 disabled={!currentSetor || busy}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 <Pencil className="size-4" /> Renomear
               </button>
-              <button
+              <button type="button"
                 onClick={removerSetor}
                 disabled={!currentSetor || busy}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
@@ -414,7 +414,7 @@ export default function SetoresPage() {
                 <p className="text-sm text-muted-foreground">Gerencie membros e papéis neste setor.</p>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                <button type="button"
                   onClick={() => setDrawerOpen(true)}
                   disabled={busy}
                   className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"
@@ -476,7 +476,7 @@ export default function SetoresPage() {
                                 <option key={p.id} value={p.id}>{p.nome}</option>
                               ))}
                             </select>
-                            <button
+                            <button type="button"
                               className="h-9 px-3 rounded-md hover:bg-[var(--muted)] disabled:opacity-50"
                               onClick={() => removerMembro(m.id)}
                               disabled={busy}
@@ -581,7 +581,7 @@ function AssignDrawer({
       <div className="absolute right-0 top-0 h-full w-[92%] sm:w-[520px] bg-background shadow-xl p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-2">
           <div className="font-grotesk font-semibold">Atribuir funcionários — {setor.nome}</div>
-          <button
+          <button type="button"
             className="inline-grid place-items-center size-9 rounded-md hover:bg-[var(--muted)]"
             onClick={onClose}
           >
@@ -659,13 +659,13 @@ function AssignDrawer({
           <div className="flex items-center justify-between">
             <div className="text-xs text-muted-foreground">{selected.size} selecionado(s)</div>
             <div className="flex items-center gap-2">
-              <button
+              <button type="button"
                 onClick={onClose}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
               >
                 Cancelar
               </button>
-              <button
+              <button type="button"
                 onClick={() => onAssign(Array.from(selected), papelId || null)}
                 disabled={selected.size === 0 || busy}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"

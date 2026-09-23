@@ -147,7 +147,7 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h2 className="font-semibold text-base">Editar aluno</h2>
-          <button onClick={onClose} className="inline-grid place-items-center size-8 rounded-md hover:bg-[var(--muted)]">
+          <button type="button" onClick={onClose} className="inline-grid place-items-center size-8 rounded-md hover:bg-[var(--muted)]">
             <X className="size-4" />
           </button>
         </div>

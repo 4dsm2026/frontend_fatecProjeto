@@ -260,10 +260,10 @@ export default function FuncionarioDetalhePage() {
         <div className="flex items-center gap-2">
           <Link prefetch={false} href={`${FUNC_LIST}/${func.id}/editar`}
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm">Editar</Link>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
             Resetar senha
           </button>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
             <Trash2 className="size-4" /> Excluir
           </button>
         </div>
@@ -301,7 +301,7 @@ export default function FuncionarioDetalhePage() {
       <div className="rounded-xl border border-[var(--border)] bg-card">
         <div className="p-4 flex items-center justify-between">
           <div className="font-semibold">Setores do funcionário</div>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
             <Plus className="size-4" /> Adicionar a setor
           </button>
         </div>
@@ -323,7 +323,7 @@ export default function FuncionarioDetalhePage() {
                       )}
                     </div>
                   </div>
-                  <button
+                  <button type="button"
                     className="inline-flex items-center gap-2 h-8 px-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-xs"
                     onClick={() => onRemoverSetor(s.usuarioSetorId)}
                   >
@@ -343,7 +343,7 @@ export default function FuncionarioDetalhePage() {
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="font-semibold">Adicionar funcionário a um setor</div>
-              <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-[var(--muted)]" onClick={() => setAddOpen(false)}><X className="size-4" /></button>
+              <button type="button" className="h-8 w-8 grid place-items-center rounded-md hover:bg-[var(--muted)]" onClick={() => setAddOpen(false)}><X className="size-4" /></button>
             </div>
             <form className="p-4 space-y-3" onSubmit={onAddSetor}>
               <div className="space-y-1">
@@ -389,10 +389,10 @@ export default function FuncionarioDetalhePage() {
                 value={delConfirmText} onChange={(e) => setDelConfirmText(e.target.value)} />
             </div>
             <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-2">
-              <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setDelOpen(false)}>
+              <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setDelOpen(false)}>
                 <X className="size-4" /> Cancelar
               </button>
-              <button
+              <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (func.emailEducacional ?? func.emailPessoal ?? "")

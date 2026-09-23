@@ -65,7 +65,7 @@ function FAQItem({ f }: { f: FAQ }) {
   const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-[var(--border)] bg-card">
-      <button
+      <button type="button"
         className="w-full text-left px-4 py-3 sm:px-5 sm:py-4 flex items-start justify-between gap-3"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -140,7 +140,7 @@ export default function AjudaAlunoPage() {
             />
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
+            <button type="button"
               className={cx(
                 "h-9 px-3 rounded-lg border text-sm",
                 cat === "ALL"
@@ -152,7 +152,7 @@ export default function AjudaAlunoPage() {
               Todas
             </button>
             {categorias.map((c) => (
-              <button
+              <button type="button"
                 key={c}
                 className={cx(
                   "h-9 px-3 rounded-lg border text-sm",

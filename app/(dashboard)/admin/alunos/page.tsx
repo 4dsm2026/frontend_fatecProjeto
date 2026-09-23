@@ -316,7 +316,7 @@ export default function AdminAlunosPage() {
         <div className="rounded-xl border border-[var(--border)] bg-card p-4">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold">Cadastrar novo aluno</h2>
-            <button
+            <button type="button"
               onClick={() => setShowForm(false)}
               className="text-sm border px-3 h-8 rounded-md hover:bg-[var(--muted)]"
             >
@@ -334,7 +334,7 @@ export default function AdminAlunosPage() {
           <div className="rounded-xl border border-[var(--border)] bg-card p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
-                <button
+                <button type="button"
                   onClick={() => setShowForm(true)}
                   className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
                 >
@@ -505,14 +505,14 @@ export default function AdminAlunosPage() {
                 )}
               </div>
               <div className="inline-flex items-center gap-1">
-                <button
+                <button type="button"
                   className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
                   disabled={!prevEnabled}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Anterior
                 </button>
-                <button
+                <button type="button"
                   className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
                   disabled={!nextEnabled}
                   onClick={() => setPage((p) => p + 1)}
