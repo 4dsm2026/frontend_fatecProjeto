@@ -343,3 +343,7 @@ cd docs
 npm install
 npm run start
 ```
+
+## Contribuidores
+
+[![Contributors](https://contrib.rocks/image?repo=4dsm2026/frontend_fatecProjeto)](https://github.com/4dsm2026/frontend_fatecProjeto/graphs/contributors)
