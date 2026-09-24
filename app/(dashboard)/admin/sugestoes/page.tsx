@@ -27,22 +27,33 @@ export default function AdminSugestoesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
-  const fetchSugestoes = useCallback(async (status: "" | StatusSugestao, targetPage: number) => {
-    try {
-      setLoading(true);
-      const qs = new URLSearchParams({ page: String(targetPage), pageSize: String(PAGE_SIZE) });
-      if (status) qs.set("status", status);
-      const res = await apiFetch(`${API}/sugestoes?${qs.toString()}`, {
-        cache: "no-store",
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setSugestoes(data?.items ?? []);
-      setTotal(data?.total ?? 0);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const fetchSugestoes = useCallback(
+    async (status: "" | StatusSugestao, targetPage: number) => {
+      try {
+        setLoading(true);
+
+        const qs = new URLSearchParams({
+          page: String(targetPage),
+          pageSize: String(PAGE_SIZE),
+        });
+
+        if (status) qs.set("status", status);
+
+        const res = await apiFetch(`${API}/sugestoes?${qs.toString()}`, {
+          cache: "no-store",
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setSugestoes(data?.items ?? []);
+        setTotal(data?.total ?? 0);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     fetchSugestoes(filtro, page);
@@ -63,6 +74,7 @@ export default function AdminSugestoesPage() {
         </div>
 
         <select
+          aria-label="Filtrar sugestões por status"
           value={filtro}
           onChange={(e) => {
             setFiltro(e.target.value as "" | StatusSugestao);
@@ -97,10 +109,14 @@ export default function AdminSugestoesPage() {
                 >
                   <div className="min-w-0">
                     <div className="text-xs text-muted-foreground">
-                      {s.usuario?.nome ?? "Aluno"} {s.usuario?.ra ? `· R.A. ${s.usuario.ra}` : ""}
+                      {s.usuario?.nome ?? "Aluno"}{" "}
+                      {s.usuario?.ra ? `· R.A. ${s.usuario.ra}` : ""}
                     </div>
-                    <div className="text-sm line-clamp-1">{s.conteudo}</div>
+                    <div className="text-sm line-clamp-1">
+                      {s.conteudo}
+                    </div>
                   </div>
+
                   <SugestaoStatusBadge status={s.status} />
                 </Link>
               </li>
@@ -109,7 +125,11 @@ export default function AdminSugestoesPage() {
         )}
       </div>
 
-      <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      <Pagination
+        page={page}
+        totalPages={totalPages}
+        onChange={setPage}
+      />
     </div>
   );
 }

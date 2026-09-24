@@ -45,11 +45,14 @@ export default function SugestoesPage() {
   const fetchSugestoes = useCallback(async (targetPage: number) => {
     try {
       setLoadingList(true);
+
       const res = await apiFetch(
         `${API}/sugestoes?page=${targetPage}&pageSize=${PAGE_SIZE}`,
         { cache: "no-store" },
       );
+
       if (!res.ok) return;
+
       const data = await res.json();
       setSugestoes(data?.items ?? []);
       setTotal(data?.total ?? 0);
@@ -74,24 +77,32 @@ export default function SugestoesPage() {
       toast.error("Informe um e-mail para contato.");
       return;
     }
+
     if (texto.length < 3) {
       toast.error("Escreva sua sugestão antes de enviar.");
       return;
     }
+
     if (texto.length > CONTEUDO_MAX) {
       toast.error(`A sugestão deve ter no máximo ${CONTEUDO_MAX} caracteres.`);
       return;
     }
 
     setSubmitting(true);
+
     try {
       const res = await apiFetch(`${API}/sugestoes`, {
         method: "POST",
-        body: JSON.stringify({ emailContato: email, conteudo: texto }),
+        body: JSON.stringify({
+          emailContato: email,
+          conteudo: texto,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error(await extractApiError(res, "Falha ao enviar sugestão."));
+        throw new Error(
+          await extractApiError(res, "Falha ao enviar sugestão."),
+        );
       }
 
       toast.success("Sugestão enviada com sucesso!");
@@ -100,7 +111,9 @@ export default function SugestoesPage() {
       setPage(1);
       fetchSugestoes(1);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Falha ao enviar sugestão.");
+      toast.error(
+        err instanceof Error ? err.message : "Falha ao enviar sugestão.",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -199,7 +212,9 @@ export default function SugestoesPage() {
                   href={`/aluno/sugestoes/${s.id}`}
                   className="flex items-center justify-between gap-3 hover:underline"
                 >
-                  <span className="line-clamp-1 text-sm">{s.conteudo}</span>
+                  <span className="line-clamp-1 text-sm">
+                    {s.conteudo}
+                  </span>
                   <SugestaoStatusBadge status={s.status} />
                 </Link>
               </li>
@@ -207,9 +222,13 @@ export default function SugestoesPage() {
           </ul>
         )}
 
-        {totalPages > 1 && (
+              {totalPages > 1 && (
           <div className="pt-2">
-            <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              onChange={setPage}
+            />
           </div>
         )}
       </div>
