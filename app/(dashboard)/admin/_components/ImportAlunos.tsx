@@ -43,10 +43,13 @@ function parseCsv(text: string): string[][] {
         if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
         else if (ch === '"') { inQuote = false; }
         else { cur += ch; }
+      } else if (ch === '"') {
+        inQuote = true;
+      } else if (ch === ',') {
+        cols.push(cur.trim());
+        cur = "";
       } else {
-        if (ch === '"') { inQuote = true; }
-        else if (ch === ',') { cols.push(cur.trim()); cur = ""; }
-        else { cur += ch; }
+        cur += ch;
       }
     }
     cols.push(cur.trim());
@@ -55,6 +58,78 @@ function parseCsv(text: string): string[][] {
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+function isDuplicateRaRow(r: ResultRow) {
+  return r.status === "ERROR" && r.errorMsg === "RA duplicado no arquivo";
+}
+
+function buildImportPayload(r: ResultRow, ra: string, edu: string) {
+  const nomeFinal =
+    (r.nome?.trim() || "").length >= 2 ? r.nome!.trim() : `Aluno ${ra}`;
+
+  const payload: Record<string, string | boolean> = {
+    emailPessoal: r.emailPessoal?.trim() || edu,
+    emailEducacional: edu,
+    ra,
+    nome: nomeFinal,
+    papel: "USUARIO",
+    ativo: true,
+  };
+
+  const optional: Record<string, string | undefined> = {
+    cursoNome: r.cursoNome,
+    cursoSigla: r.cursoSigla,
+    unidadeFatec: r.unidadeFatec,
+    turno: r.turno,
+    turma: r.turma,
+    semestreAtual: r.semestreAtual,
+    anoSemestreIngresso: r.anoSemestreIngresso,
+  };
+  for (const [key, value] of Object.entries(optional)) {
+    const v = value?.trim();
+    if (v) payload[key] = v;
+  }
+
+  return payload;
+}
+
+function isDuplicateResponse(status: number, text: string) {
+  return (
+    status === 409 ||
+    /RA\s*já está em uso/i.test(text) ||
+    /duplicad/i.test(text) ||
+    /unique/i.test(text) ||
+    /P2002/.test(text)
+  );
+}
+
+async function importRow(r: ResultRow): Promise<ResultRow> {
+  const ra = r.ra?.trim();
+  const edu = r.emailEducacional?.trim();
+
+  if (!ra || !edu) {
+    return { ...r, status: "ERROR", errorMsg: "RA e emailEducacional são obrigatórios." };
+  }
+
+  try {
+    const resp = await apiFetch(`${API_URL}/usuarios`, {
+      method: "POST",
+      body: JSON.stringify(buildImportPayload(r, ra, edu)),
+    });
+
+    if (resp.ok) {
+      return { ...r, status: "OK" };
+    }
+
+    const text = await resp.text().catch(() => "");
+    if (isDuplicateResponse(resp.status, text)) {
+      return { ...r, status: "OK", note: "Já existia" };
+    }
+    return { ...r, status: "ERROR", errorMsg: text || `HTTP ${resp.status}` };
+  } catch (e: unknown) {
+    return { ...r, status: "ERROR", errorMsg: String((e as Error)?.message ?? e) };
+  }
+}
 
 export default function ImportAlunos({
   onClose,
@@ -152,74 +227,21 @@ export default function ImportAlunos({
   }
 
   async function startImport() {
-    if (!rows.length) { toast.error("Selecione um CSV primeiro."); return; }
+    if (!rows.length) {
+      toast.error("Selecione um CSV primeiro.");
+      return;
+    }
     setRunning(true);
     setFinished(false);
 
     const clone = [...rows];
 
     for (let i = 0; i < clone.length; i++) {
-      const r = clone[i];
-
-      if (r.status === "ERROR" && r.errorMsg === "RA duplicado no arquivo") {
+      if (isDuplicateRaRow(clone[i])) {
         setRows([...clone]);
         continue;
       }
-
-      const ra  = r.ra?.trim();
-      const edu = r.emailEducacional?.trim();
-
-      if (!ra || !edu) {
-        clone[i] = { ...r, status: "ERROR", errorMsg: "RA e emailEducacional são obrigatórios." };
-        setRows([...clone]);
-        continue;
-      }
-
-      const nomeFinal =
-        (r.nome?.trim() || "").length >= 2 ? r.nome!.trim() : `Aluno ${ra}`;
-
-      const payload: Record<string, any> = {
-        emailPessoal:    r.emailPessoal?.trim() || edu,
-        emailEducacional: edu,
-        ra,
-        nome: nomeFinal,
-        papel: "USUARIO",
-        ativo: true,
-      };
-
-      if (r.cursoNome?.trim())         payload.cursoNome           = r.cursoNome.trim();
-      if (r.cursoSigla?.trim())        payload.cursoSigla          = r.cursoSigla.trim();
-      if (r.unidadeFatec?.trim())      payload.unidadeFatec        = r.unidadeFatec.trim();
-      if (r.turno?.trim())             payload.turno               = r.turno.trim();
-      if (r.turma?.trim())             payload.turma               = r.turma.trim();
-      if (r.semestreAtual?.trim())     payload.semestreAtual       = r.semestreAtual.trim();
-      if (r.anoSemestreIngresso?.trim()) payload.anoSemestreIngresso = r.anoSemestreIngresso.trim();
-
-      try {
-        const resp = await apiFetch(`${API_URL}/usuarios`, {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-
-        if (!resp.ok) {
-          const text = await resp.text().catch(() => "");
-          const isDuplicate =
-            resp.status === 409 ||
-            /RA\s*já está em uso/i.test(text) ||
-            /duplicad/i.test(text) ||
-            /unique/i.test(text) ||
-            /P2002/.test(text);
-
-          clone[i] = isDuplicate
-            ? { ...r, status: "OK", note: "Já existia" }
-            : { ...r, status: "ERROR", errorMsg: text || `HTTP ${resp.status}` };
-        } else {
-          clone[i] = { ...r, status: "OK" };
-        }
-      } catch (e: any) {
-        clone[i] = { ...r, status: "ERROR", errorMsg: String(e?.message ?? e) };
-      }
-
+      clone[i] = await importRow(clone[i]);
       setRows([...clone]);
     }
 
@@ -241,7 +263,7 @@ export default function ImportAlunos({
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-lg font-semibold">Importar alunos (CSV)</h3>
-        <button
+        <button type="button"
           onClick={onClose}
           className="inline-grid place-items-center size-8 rounded-md hover:bg-[var(--muted)]"
         >
@@ -260,7 +282,7 @@ export default function ImportAlunos({
 
       {/* Seletor de arquivo */}
       <div className="flex items-center gap-2">
-        <button
+        <button type="button"
           onClick={() => fileRef.current?.click()}
           className="h-9 px-3 rounded-md border border-[var(--border)] hover:bg-[var(--muted)] text-sm"
           disabled={running}
@@ -337,7 +359,7 @@ export default function ImportAlunos({
 
       {/* Footer / ações */}
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
+        <button type="button"
           onClick={startImport}
           disabled={!canStart}
           className={cx(
@@ -350,7 +372,7 @@ export default function ImportAlunos({
           {running ? "Processando..." : rows.length ? "Processar importação" : "Selecionar CSV"}
         </button>
 
-        <button
+        <button type="button"
           onClick={resetImport}
           disabled={running || rows.length === 0}
           className={cx(
@@ -363,7 +385,7 @@ export default function ImportAlunos({
 
         <div className="ml-auto" />
 
-        <button
+        <button type="button"
           onClick={() => { if (finished) onDone(); else onClose(); }}
           className="h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
         >
