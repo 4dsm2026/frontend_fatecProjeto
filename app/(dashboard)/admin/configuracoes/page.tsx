@@ -188,7 +188,7 @@ export default function ConfiguracoesPermissoesPage() {
       </div>
 
       {/* Filtro */}
-      <div className="rounded-xl border border-[var(--border)] bg-card p-3">
+      <div className="rounded-xl border border-[var(--border)] bg-card p-4">
         <input
           placeholder="Filtrar por recurso ou rota (ex.: chamado, /usuarios...)"
           className="w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"

@@ -9,17 +9,24 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
-  // Proxy API calls to backend when NEXT_PUBLIC_API_BASE_URL is not set at build time.
-  // BACKEND_URL is read at runtime, so set it in the container environment.
+  // Encaminha ao backend somente após tentar as páginas do frontend.
   async rewrites() {
-    const backend = process.env.BACKEND_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL;
+    const backend =
+      process.env.BACKEND_URL ??
+      process.env.NEXT_PUBLIC_API_BASE_URL;
+
     if (!backend) return [];
-    return [
-      {
-        source: "/:path*",
-        destination: `${backend}/:path*`,
-      },
-    ];
+
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [
+        {
+          source: "/:path*",
+          destination: `${backend}/:path*`,
+        },
+      ],
+    };
   },
 
   async headers() {
@@ -29,7 +36,10 @@ const nextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          {
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
+          },
           { key: "X-DNS-Prefetch-Control", value: "on" },
           {
             key: "Strict-Transport-Security",

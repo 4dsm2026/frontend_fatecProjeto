@@ -27,7 +27,7 @@ const COURSES = [
 const TURNOS = ["Manhã", "Tarde", "Noite"] as const;
 
 type Props = {
-  onSuccess?: (createdUser: any) => void;
+  onSuccess?: (createdUser: never) => void;
   onCancel?: () => void;
 };
 
@@ -41,6 +41,147 @@ type SuccessInfo = {
 const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+type PayloadValue = string | boolean | undefined;
+
+function applyOptionalFields(payload: Record<string, PayloadValue>, fields: Record<string, string | undefined>) {
+  for (const [key, value] of Object.entries(fields)) {
+    const v = value?.trim();
+    if (v) payload[key] = v;
+  }
+}
+
+function buildAlunoPayload(data: {
+  nome: string;
+  ra: string;
+  emailEducacional: string;
+  emailPessoal: string;
+  usarSenhaPersonalizada: boolean;
+  senhaInicial: string;
+  cursoNome: string;
+  cursoSigla: string;
+  unidadeFatec: string;
+  turno: string;
+  turma: string;
+  semestreAtual: string;
+  anoSemestreIngresso: string;
+}) {
+  const payload: Record<string, PayloadValue> = {
+    nome: data.nome.trim() || undefined,
+    emailEducacional: data.emailEducacional,
+    emailPessoal: data.emailPessoal.trim() || data.emailEducacional,
+    ra: data.ra.trim(),
+    papel: "USUARIO",
+    ativo: true,
+  };
+
+  if (data.usarSenhaPersonalizada && data.senhaInicial.trim()) {
+    payload.senha = data.senhaInicial.trim();
+  }
+
+  applyOptionalFields(payload, {
+    cursoNome: data.cursoNome,
+    cursoSigla: data.cursoSigla,
+    unidadeFatec: data.unidadeFatec,
+    turno: data.turno,
+    turma: data.turma,
+    semestreAtual: data.semestreAtual,
+    anoSemestreIngresso: data.anoSemestreIngresso,
+  });
+
+  return payload;
+}
+
+function FormAlunoCreateSuccess({
+  info,
+  copied,
+  onCopiar,
+  onReset,
+  onSuccess,
+  onCancel,
+  lastCreated,
+}: {
+  info: SuccessInfo;
+  copied: boolean;
+  onCopiar: (senha: string) => void;
+  onReset: () => void;
+  onSuccess?: Props["onSuccess"];
+  onCancel?: () => void;
+  lastCreated: unknown;
+}) {
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col items-center gap-3 py-4">
+        <CheckCircle2 className="size-10 text-emerald-500" />
+        <div className="text-center">
+          <p className="font-semibold text-base">Aluno cadastrado com sucesso!</p>
+          {info.nome && (
+            <p className="text-sm text-muted-foreground mt-0.5">{info.nome}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">RA</span>
+          <span className="text-sm font-medium flex-1 text-right font-mono">{info.ra}</span>
+        </div>
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">E-mail</span>
+          <span className="text-sm flex-1 text-right truncate">{info.email}</span>
+        </div>
+        <div className="px-4 py-2.5 flex items-center justify-between gap-4">
+          <span className="text-xs text-muted-foreground w-24 shrink-0">Senha inicial</span>
+          {info.senhaUsada ? (
+            <div className="flex items-center gap-2 flex-1 justify-end">
+              <span className="text-sm font-medium font-mono bg-[var(--muted)] px-2 py-0.5 rounded">
+                {info.senhaUsada}
+              </span>
+              <button
+                type="button"
+                onClick={() => onCopiar(info.senhaUsada!)}
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
+                title="Copiar senha"
+              >
+                {copied ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
+                {copied ? "Copiado!" : "Copiar"}
+              </button>
+            </div>
+          ) : (
+            <span className="text-sm text-muted-foreground flex-1 text-right">
+              Senha padrão do sistema
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="text-xs text-muted-foreground rounded-lg bg-[var(--muted)] px-3 py-2">
+        O aluno deverá trocar a senha no primeiro acesso. Compartilhe as credenciais acima com o aluno.
+      </p>
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
+        >
+          <RotateCcw className="size-3.5" /> Cadastrar outro
+        </button>
+        {(onSuccess || onCancel) && (
+          <button
+            type="button"
+            onClick={() => (onSuccess ? onSuccess(lastCreated as never) : onCancel?.())}
+            className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
+          >
+            Concluído
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
   /* ── Identificação ── */
@@ -68,22 +209,28 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
-  const [lastCreated, setLastCreated] = useState<any>(null);
+  const [lastCreated, setLastCreated] = useState<unknown>(null);
   const [copied, setCopied] = useState(false);
 
   function handleCourseChange(val: string) {
     setCourseKey(val);
-    if (!val) { setCursoNome(""); setCursoSigla(""); return; }
-    if (val === "OUTRO") return;
+    if (!val) {
+      setCursoNome("");
+      setCursoSigla("");
+      return;
+    }
     const c = COURSES.find((c) => c.key === val);
-    if (c) { setCursoNome(c.nome); setCursoSigla(c.sigla); }
+    if (c) {
+      setCursoNome(c.nome);
+      setCursoSigla(c.sigla);
+    }
   }
 
   const senhaValida = !usarSenhaPersonalizada || senhaInicial.trim().length >= 8;
 
   const canSubmit = useMemo(() => {
     const raOk = ra.trim().length > 0;
-    const mailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailEducacional);
+    const mailOk = EMAIL_REGEX.test(emailEducacional);
     return raOk && mailOk && senhaValida && !submitting;
   }, [ra, emailEducacional, senhaValida, submitting]);
 
@@ -109,26 +256,21 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
     try {
       setSubmitting(true);
 
-      const payload: Record<string, any> = {
-        nome: nome.trim() || undefined,
+      const payload = buildAlunoPayload({
+        nome,
+        ra,
         emailEducacional,
-        emailPessoal: emailPessoal.trim() || emailEducacional,
-        ra: ra.trim(),
-        papel: "USUARIO",
-        ativo: true,
-      };
-
-      if (usarSenhaPersonalizada && senhaInicial.trim()) {
-        payload.senha = senhaInicial.trim();
-      }
-
-      if (cursoNome.trim())           payload.cursoNome           = cursoNome.trim();
-      if (cursoSigla.trim())          payload.cursoSigla          = cursoSigla.trim();
-      if (unidadeFatec.trim())        payload.unidadeFatec        = unidadeFatec.trim();
-      if (turno)                      payload.turno               = turno;
-      if (turma.trim())               payload.turma               = turma.trim();
-      if (semestreAtual.trim())       payload.semestreAtual       = semestreAtual.trim();
-      if (anoSemestreIngresso.trim()) payload.anoSemestreIngresso = anoSemestreIngresso.trim();
+        emailPessoal,
+        usarSenhaPersonalizada,
+        senhaInicial,
+        cursoNome,
+        cursoSigla,
+        unidadeFatec,
+        turno,
+        turma,
+        semestreAtual,
+        anoSemestreIngresso,
+      });
 
       const res = await apiFetch(`${API_URL}/usuarios`, {
         method: "POST",
@@ -149,85 +291,25 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
         email: emailEducacional,
         senhaUsada: usarSenhaPersonalizada && senhaInicial.trim() ? senhaInicial.trim() : null,
       });
-    } catch (err: any) {
+    } catch (err) {
       console.error(err);
-      toast.error(err?.message ?? "Erro ao criar aluno");
+      toast.error((err as Error)?.message ?? "Erro ao criar aluno");
     } finally {
       setSubmitting(false);
     }
   }
 
-  /* ── Tela de sucesso ── */
   if (successInfo) {
     return (
-      <div className="space-y-5">
-        <div className="flex flex-col items-center gap-3 py-4">
-          <CheckCircle2 className="size-10 text-emerald-500" />
-          <div className="text-center">
-            <p className="font-semibold text-base">Aluno cadastrado com sucesso!</p>
-            {successInfo.nome && (
-              <p className="text-sm text-muted-foreground mt-0.5">{successInfo.nome}</p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">RA</span>
-            <span className="text-sm font-medium flex-1 text-right font-mono">{successInfo.ra}</span>
-          </div>
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">E-mail</span>
-            <span className="text-sm flex-1 text-right truncate">{successInfo.email}</span>
-          </div>
-          <div className="px-4 py-2.5 flex items-center justify-between gap-4">
-            <span className="text-xs text-muted-foreground w-24 shrink-0">Senha inicial</span>
-            {successInfo.senhaUsada ? (
-              <div className="flex items-center gap-2 flex-1 justify-end">
-                <span className="text-sm font-medium font-mono bg-[var(--muted)] px-2 py-0.5 rounded">
-                  {successInfo.senhaUsada}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => handleCopiarSenha(successInfo.senhaUsada!)}
-                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition"
-                  title="Copiar senha"
-                >
-                  {copied ? <CheckCircle2 className="size-3.5 text-emerald-500" /> : <Copy className="size-3.5" />}
-                  {copied ? "Copiado!" : "Copiar"}
-                </button>
-              </div>
-            ) : (
-              <span className="text-sm text-muted-foreground flex-1 text-right">
-                Senha padrão do sistema
-              </span>
-            )}
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground rounded-lg bg-[var(--muted)] px-3 py-2">
-          O aluno deverá trocar a senha no primeiro acesso. Compartilhe as credenciais acima com o aluno.
-        </p>
-
-        <div className="flex items-center justify-end gap-2 pt-1">
-          <button
-            type="button"
-            onClick={resetForm}
-            className="inline-flex items-center gap-2 h-9 px-4 rounded-lg border border-[var(--border)] text-sm hover:bg-[var(--muted)]"
-          >
-            <RotateCcw className="size-3.5" /> Cadastrar outro
-          </button>
-          {(onSuccess || onCancel) && (
-            <button
-              type="button"
-              onClick={() => onSuccess ? onSuccess(lastCreated) : onCancel?.()}
-              className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
-            >
-              Concluído
-            </button>
-          )}
-        </div>
-      </div>
+      <FormAlunoCreateSuccess
+        info={successInfo}
+        copied={copied}
+        onCopiar={handleCopiarSenha}
+        onReset={resetForm}
+        onSuccess={onSuccess}
+        onCancel={onCancel}
+        lastCreated={lastCreated}
+      />
     );
   }
 
@@ -241,11 +323,12 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>
+            <label htmlFor="novo-aluno-nome" className={labelCls}>
               Nome completo{" "}
               <span className="text-muted-foreground/60">(opcional)</span>
             </label>
             <input
+              id="novo-aluno-nome"
               className={inputCls}
               placeholder="Ex.: Fulano da Silva"
               value={nome}
@@ -254,8 +337,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>RA *</label>
+            <label htmlFor="novo-aluno-ra" className={labelCls}>RA *</label>
             <input
+              id="novo-aluno-ra"
               className={inputCls}
               placeholder="Ex.: 1234567890123"
               value={ra}
@@ -268,9 +352,10 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>E-mail educacional *</label>
+            <label htmlFor="novo-aluno-email-edu" className={labelCls}>E-mail educacional *</label>
             <div className="relative">
               <input
+                id="novo-aluno-email-edu"
                 type="email"
                 className={inputCls + " pr-9"}
                 placeholder="nome.sobrenome@fatec.sp.gov.br"
@@ -285,12 +370,13 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             </p>
           </div>
           <div>
-            <label className={labelCls}>
+            <label htmlFor="novo-aluno-email-pessoal" className={labelCls}>
               E-mail pessoal{" "}
               <span className="text-muted-foreground/60">(opcional)</span>
             </label>
             <div className="relative">
               <input
+                id="novo-aluno-email-pessoal"
                 type="email"
                 className={inputCls + " pr-9"}
                 placeholder="Ex.: nome@gmail.com"
@@ -346,12 +432,13 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
           {/* Campo de senha — visível quando toggle ativo */}
           {usarSenhaPersonalizada && (
             <div className="px-4 py-3 space-y-1.5">
-              <label className={labelCls}>
+              <label htmlFor="novo-aluno-senha" className={labelCls}>
                 Nova senha{" "}
                 <span className="text-muted-foreground/60">(mín. 8 caracteres)</span>
               </label>
               <div className="relative">
                 <input
+                  id="novo-aluno-senha"
                   type={mostrarSenha ? "text" : "password"}
                   className={inputCls + " pr-10 mt-0"}
                   placeholder="Digite a senha inicial"
@@ -387,8 +474,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Curso</label>
+            <label htmlFor="novo-aluno-curso" className={labelCls}>Curso</label>
             <select
+              id="novo-aluno-curso"
               className={inputCls}
               value={courseKey}
               onChange={(e) => handleCourseChange(e.target.value)}
@@ -405,8 +493,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={labelCls}>Sigla</label>
+              <label htmlFor="novo-aluno-sigla" className={labelCls}>Sigla</label>
               <input
+                id="novo-aluno-sigla"
                 className={inputCls}
                 placeholder="Ex.: DSM"
                 value={cursoSigla}
@@ -416,8 +505,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
               />
             </div>
             <div>
-              <label className={labelCls}>Nome do curso</label>
+              <label htmlFor="novo-aluno-curso-nome" className={labelCls}>Nome do curso</label>
               <input
+                id="novo-aluno-curso-nome"
                 className={inputCls}
                 placeholder="Nome completo"
                 value={cursoNome}
@@ -439,8 +529,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Unidade Fatec</label>
+            <label htmlFor="novo-aluno-unidade" className={labelCls}>Unidade Fatec</label>
             <input
+              id="novo-aluno-unidade"
               className={inputCls}
               placeholder="Ex.: Fatec Cotia"
               value={unidadeFatec}
@@ -449,8 +540,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Turno</label>
+            <label htmlFor="novo-aluno-turno" className={labelCls}>Turno</label>
             <select
+              id="novo-aluno-turno"
               className={inputCls}
               value={turno}
               onChange={(e) => setTurno(e.target.value)}
@@ -465,8 +557,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className={labelCls}>Turma</label>
+            <label htmlFor="novo-aluno-turma" className={labelCls}>Turma</label>
             <input
+              id="novo-aluno-turma"
               className={inputCls}
               placeholder="Ex.: DSM-3A"
               value={turma}
@@ -475,8 +568,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Semestre atual</label>
+            <label htmlFor="novo-aluno-semestre" className={labelCls}>Semestre atual</label>
             <input
+              id="novo-aluno-semestre"
               className={inputCls}
               placeholder="Ex.: 3"
               value={semestreAtual}
@@ -485,8 +579,9 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
             />
           </div>
           <div>
-            <label className={labelCls}>Ano/semestre de ingresso</label>
+            <label htmlFor="novo-aluno-ingresso" className={labelCls}>Ano/semestre de ingresso</label>
             <input
+              id="novo-aluno-ingresso"
               className={inputCls}
               placeholder="Ex.: 2023/1"
               value={anoSemestreIngresso}

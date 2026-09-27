@@ -21,7 +21,7 @@ export default function GlobalError({
       <p className="mt-2 text-muted-foreground">
         Algo deu errado. Tente novamente.
       </p>
-      <button
+      <button type="button"
         onClick={reset}
         className="mt-6 inline-flex h-10 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground shadow hover:opacity-90"
       >

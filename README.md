@@ -332,6 +332,16 @@ A API estará rodando em `http://localhost:3333`.
 * **Solução:** Adicione a URL do frontend na variável `CORS_ORIGIN` no `.env` e reinicie o backend (`npm run dev`).
 ](https://github.com/4dsm2026/backend_fatecProjeto)
 
+## 📚 Documentação
+
+Para rodar a documentação do projeto (Docusaurus) localmente:
+
+```bash
+cd docs
+npm install
+npm run start
+```
+
 ## Contribuidores
 
 [![Contributors](https://contrib.rocks/image?repo=4dsm2026/frontend_fatecProjeto)](https://github.com/4dsm2026/frontend_fatecProjeto/graphs/contributors)

@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { cx } from "../../../utils/cx";
 
 type Props = {
@@ -16,27 +17,32 @@ export function Skeleton({ className }: Props) {
 }
 
 export function SkeletonCard({ rows = 2 }: { rows?: number }) {
+  const uid = useId();
+  const rowKeys = Array.from({ length: rows }, (_, i) => `${uid}-row-${i}`);
   return (
     <div className="rounded-xl border border-[var(--border)] bg-card p-4 space-y-3">
       <Skeleton className="h-4 w-1/3" />
-      {Array.from({ length: rows }).map((_, i) => (
-        <Skeleton key={i} className="h-3 w-full" />
+      {rowKeys.map((key) => (
+        <Skeleton key={key} className="h-3 w-full" />
       ))}
     </div>
   );
 }
 
 export function SkeletonTable({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
+  const uid = useId();
+  const rowKeys = Array.from({ length: rows }, (_, r) => `${uid}-row-${r}`);
+  const colKeys = Array.from({ length: cols }, (_, c) => `${uid}-col-${c}`);
   return (
     <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-card">
       <div className="bg-[var(--muted)] px-4 py-3">
         <Skeleton className="h-3 w-48" />
       </div>
       <div className="divide-y divide-[var(--border)]">
-        {Array.from({ length: rows }).map((_, r) => (
-          <div key={r} className="flex gap-6 px-4 py-3">
-            {Array.from({ length: cols }).map((_, c) => (
-              <Skeleton key={c} className="h-3 flex-1" />
+        {rowKeys.map((rowKey) => (
+          <div key={rowKey} className="flex gap-6 px-4 py-3">
+            {colKeys.map((colKey) => (
+              <Skeleton key={`${rowKey}-${colKey}`} className="h-3 flex-1" />
             ))}
           </div>
         ))}

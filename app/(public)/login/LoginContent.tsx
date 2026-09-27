@@ -61,12 +61,11 @@ export default function LoginContent() {
 
   const isValid = useMemo(() => {
     const id = identifier.trim();
-    return (
-      password.trim().length >= 8 &&
-      (mode === "email"
-        ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)
-        : raRegex.test(id))
-    );
+    const senhaOk = password.trim().length >= 8;
+    const idOk = mode === "email"
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)
+      : raRegex.test(id);
+    return senhaOk && idOk;
   }, [identifier, password, mode]);
 
   function handleIdentifierChange(v: string) {

@@ -9,6 +9,7 @@ import {
 import { apiFetch } from "../../../../utils/api";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { cx } from '../../../../utils/cx';
+import { toast } from "sonner";
 
 /* ========= Tipos ========= */
 type Papel = "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR" | "USUARIO";
@@ -162,7 +163,7 @@ export default function AdminFuncionariosPage() {
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    alert(`Planilha selecionada: ${file.name}`);
+    toast.success(`Planilha selecionada: ${file.name}`);
     e.target.value = "";
   }
 
@@ -314,9 +315,9 @@ export default function AdminFuncionariosPage() {
               : <>Mostrando {visibleRows.length}{visibleRows.length === perPage ? "+" : ""}</>}
           </div>
           <div className="inline-flex items-center gap-1">
-            <button className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
+            <button type="button" className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
               disabled={!prevEnabled} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
-            <button className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
+            <button type="button" className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
               disabled={!nextEnabled} onClick={() => setPage((p) => p + 1)}>Próximo</button>
           </div>
         </div>

@@ -131,6 +131,131 @@ function groupMensagens(msgs: Mensagem[], criadoPorId?: string): MensagemGroup[]
   return groups;
 }
 
+function ChatMessages({
+  msgLoading,
+  msgs,
+  groups,
+}: {
+  msgLoading: boolean;
+  msgs: Mensagem[];
+  groups: MensagemGroup[];
+}) {
+  if (msgLoading) {
+    return (
+      <div className="flex items-center gap-2 text-muted-foreground text-sm">
+        <Loader2 className="size-4 animate-spin" />
+        Carregando mensagens...
+      </div>
+    );
+  }
+
+  if (msgs.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background text-center">
+        Nenhuma mensagem por aqui ainda.
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div
+          key={`${group.autorId}-${group.msgs[0]?.id}`}
+          className={`flex flex-col gap-0.5 ${group.isAluno ? "items-end" : "items-start"}`}
+        >
+          <span className="text-[11px] text-muted-foreground px-1 mb-0.5">
+            {group.nomeAutor}
+          </span>
+
+          {group.msgs.map((m, mi) => {
+            const isLast = mi === group.msgs.length - 1;
+            return (
+              <div
+                key={`${m.id}-${m.criadoEm}`}
+                className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${
+                  group.isAluno
+                    ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
+                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
+                }`}
+              >
+                <div className="whitespace-pre-wrap break-words">{m.conteudo}</div>
+                {isLast && (
+                  <div
+                    className="text-[10px] opacity-60 mt-1 text-right"
+                    title={new Date(m.criadoEm).toLocaleString("pt-BR")}
+                  >
+                    {relativeTime(m.criadoEm)}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function AnexoList({
+  loadingAnexos,
+  anexos,
+}: {
+  loadingAnexos: boolean;
+  anexos: AnexoInfo[];
+}) {
+  if (loadingAnexos) {
+    return (
+      <div className="text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin inline mr-1" /> Carregando anexos...
+      </div>
+    );
+  }
+
+  if (anexos.length === 0) {
+    return (
+      <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background">
+        Nenhum anexo encontrado.
+      </div>
+    );
+  }
+
+  return (
+    <ul className="space-y-3 mb-4">
+      {anexos.map((a) => (
+        <li key={a.id} className="border rounded-md bg-background overflow-hidden">
+          {a.mimeType.startsWith("image/") && (
+            <AnexoImagem anexoId={a.id} alt={a.nomeArquivo} />
+          )}
+          <div className="flex items-center justify-between gap-2 p-2 text-sm">
+            <div className="min-w-0">
+              <span className="font-medium truncate block">{a.nomeArquivo}</span>
+              <span className="text-xs text-muted-foreground">
+                {(a.tamanhoBytes / 1024).toFixed(1)} KB ·{" "}
+                {new Date(a.enviadoEm).toLocaleDateString("pt-BR")}
+                {a.enviadoPor?.nome ? ` · ${a.enviadoPor.nome}` : ""}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  await downloadAnexo(a.id, a.nomeArquivo);
+                } catch {
+                  toast.error("Não foi possível baixar o arquivo.");
+                }
+              }}
+              className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
+            >
+              <Download className="size-3.5" /> Baixar
+            </button>
+          </div>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /* ================ Página ================ */
 export default function ChamadoDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -392,13 +517,13 @@ export default function ChamadoDetalhePage() {
               <b>não poderá ser reaberta</b>.
             </p>
             <div className="mt-3 flex justify-end gap-2">
-              <button
+              <button type="button"
                 onClick={() => toast.dismiss(t)}
                 className="px-3 py-1.5 rounded-md text-sm border border-[var(--border)] hover:bg-muted transition"
               >
                 Cancelar
               </button>
-              <button
+              <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
                   const ok = await atualizarStatus("ENCERRADO");
@@ -432,13 +557,13 @@ export default function ChamadoDetalhePage() {
               atualizada novamente.
             </p>
             <div className="mt-3 flex justify-end gap-2">
-              <button
+              <button type="button"
                 onClick={() => toast.dismiss(t)}
                 className="px-3 py-1.5 rounded-md text-sm border border-[var(--border)] hover:bg-muted transition"
               >
                 Cancelar
               </button>
-              <button
+              <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
                   const ok = await atualizarStatus("EM_ATENDIMENTO");
@@ -573,13 +698,13 @@ export default function ChamadoDetalhePage() {
       {/* Botões de ação */}
       {chamado.status === "RESOLVIDO" && (
         <div className="flex gap-3">
-          <button
+          <button type="button"
             onClick={confirmarEncerramento}
             className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
           >
             Finalizar atendimento
           </button>
-          <button
+          <button type="button"
             onClick={confirmarReabertura}
             className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
           >
@@ -612,53 +737,7 @@ export default function ChamadoDetalhePage() {
 
           {!isDragging && (
             <>
-              {msgLoading ? (
-                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                  <Loader2 className="size-4 animate-spin" />
-                  Carregando mensagens...
-                </div>
-              ) : msgs.length === 0 ? (
-                <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background text-center">
-                  Nenhuma mensagem por aqui ainda.
-                </div>
-              ) : (
-                groups.map((group, gi) => (
-                  <div
-                    key={`group-${gi}`}
-                    className={`flex flex-col gap-0.5 ${
-                      group.isAluno ? "items-end" : "items-start"
-                    }`}
-                  >
-                    <span className="text-[11px] text-muted-foreground px-1 mb-0.5">
-                      {group.nomeAutor}
-                    </span>
-
-                    {group.msgs.map((m, mi) => {
-                      const isLast = mi === group.msgs.length - 1;
-                      return (
-                        <div
-                          key={`${m.id}-${m.criadoEm}`}
-                          className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${
-                            group.isAluno
-                              ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
-                              : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
-                          }`}
-                        >
-                          <div className="whitespace-pre-wrap break-words">{m.conteudo}</div>
-                          {isLast && (
-                            <div
-                              className="text-[10px] opacity-60 mt-1 text-right"
-                              title={new Date(m.criadoEm).toLocaleString("pt-BR")}
-                            >
-                              {relativeTime(m.criadoEm)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))
-              )}
+              <ChatMessages msgLoading={msgLoading} msgs={msgs} groups={groups} />
             </>
           )}
           <div ref={endRef} />
@@ -681,7 +760,7 @@ export default function ChamadoDetalhePage() {
                 }}
                 disabled={msgSending}
               />
-              <button
+              <button type="button"
                 onClick={sendMensagem}
                 disabled={msgSending || msgText.trim().length === 0}
                 className="h-[90px] px-4 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center gap-2"
@@ -704,48 +783,7 @@ export default function ChamadoDetalhePage() {
           <Paperclip className="size-4" /> Anexos ({anexos.length})
         </h2>
 
-        {loadingAnexos ? (
-          <div className="text-sm text-muted-foreground">
-            <Loader2 className="size-4 animate-spin inline mr-1" /> Carregando anexos...
-          </div>
-        ) : anexos.length === 0 ? (
-          <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background">
-            Nenhum anexo encontrado.
-          </div>
-        ) : (
-          <ul className="space-y-3 mb-4">
-            {anexos.map((a) => (
-              <li key={a.id} className="border rounded-md bg-background overflow-hidden">
-                {a.mimeType.startsWith("image/") && (
-                  <AnexoImagem anexoId={a.id} alt={a.nomeArquivo} />
-                )}
-                <div className="flex items-center justify-between gap-2 p-2 text-sm">
-                  <div className="min-w-0">
-                    <span className="font-medium truncate block">{a.nomeArquivo}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {(a.tamanhoBytes / 1024).toFixed(1)} KB ·{" "}
-                      {new Date(a.enviadoEm).toLocaleDateString("pt-BR")}
-                      {a.enviadoPor?.nome ? ` · ${a.enviadoPor.nome}` : ""}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        await downloadAnexo(a.id, a.nomeArquivo);
-                      } catch {
-                        toast.error("Não foi possível baixar o arquivo.");
-                      }
-                    }}
-                    className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
-                  >
-                    <Download className="size-3.5" /> Baixar
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+        <AnexoList loadingAnexos={loadingAnexos} anexos={anexos} />
 
         {/* Upload */}
         {!isEncerrado && (
@@ -774,7 +812,7 @@ export default function ChamadoDetalhePage() {
               )}
             </div>
             {selectedFile && (
-              <button
+              <button type="button"
                 onClick={handleUpload}
                 disabled={uploading}
                 className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"

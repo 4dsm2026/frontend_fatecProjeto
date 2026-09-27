@@ -17,11 +17,11 @@ export default function MobileSidebarTriggerAluno() {
       </button>
       {open && (
         <div className="fixed inset-0 z-50 xl:hidden">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
+          <button type="button" aria-label="Fechar menu" className="absolute inset-0 bg-black/30" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-0 h-full w-[86%] max-w-[320px] bg-background shadow-xl p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="font-grotesk font-semibold">Portal do Aluno</div>
-              <button
+              <button type="button"
                 className="inline-grid place-items-center size-9 rounded-md hover:bg-[var(--muted)]"
                 onClick={() => setOpen(false)}
               >

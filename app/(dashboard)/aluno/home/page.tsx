@@ -156,7 +156,7 @@ export default function AlunoHomePage() {
 
             {chamadosAtivos.length > limite && (
               <div className="px-4 py-3 border-t border-[var(--border)]">
-                <button
+                <button type="button"
                   onClick={() => setLimite(chamadosAtivos.length)}
                   className="text-sm text-[var(--brand-red)] hover:underline font-medium"
                 >
@@ -166,7 +166,7 @@ export default function AlunoHomePage() {
             )}
             {limite > 20 && chamadosAtivos.length > 20 && (
               <div className="px-4 py-3 border-t border-[var(--border)]">
-                <button
+                <button type="button"
                   onClick={() => setLimite(20)}
                   className="text-sm text-muted-foreground hover:underline"
                 >

@@ -48,7 +48,7 @@ export default function Button({
   ...rest
 }: Props) {
   return (
-    <button
+    <button type="button"
       disabled={disabled || loading}
       className={cx(
         "inline-flex items-center justify-center rounded-lg font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] disabled:cursor-not-allowed",

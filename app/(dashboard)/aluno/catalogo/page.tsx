@@ -14,7 +14,7 @@ const MOCK: CatalogResponse = CATALOGO_INSTITUCIONAL;
 
 function CategoriaPill({ label, active, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
-    <button
+    <button type="button"
       className={cx(
         "h-9 px-3 rounded-lg border text-sm transition",
         active
@@ -54,7 +54,7 @@ function ServicoCard({ s }: { s: Servico }) {
             <ArrowRight className="size-4" /> Preencher solicitação
           </Link>
         ) : (
-          <button
+          <button type="button"
             disabled
             className="inline-flex items-center gap-1.5 h-9 px-3 rounded-md bg-[var(--muted)] text-muted-foreground text-sm cursor-not-allowed"
           >

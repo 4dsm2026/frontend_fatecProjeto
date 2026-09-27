@@ -68,7 +68,6 @@ export default function NotificacoesAlunoPage() {
   const [loading, setLoading] = useState(true);
   const [notifs, setNotifs] = useState<Notificacao[]>([]);
   const [marking, setMarking] = useState<string | null>(null);
-  const [unread, setUnread] = useState(0); // Contador de notificações não lidas
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   // carregar notificações
@@ -81,10 +80,8 @@ export default function NotificacoesAlunoPage() {
       const data: PageResp = await res.json();
       const items = data.items ?? [];
       setNotifs(items);
-      setUnread(items.filter((n) => !n.lidaEm).length); // Recalcular as notificações não lidas
     } catch {
       setNotifs([]);
-      setUnread(0); // Caso não haja notificações, garantir que o contador seja zero
     } finally {
       setLoading(false);
     }
@@ -103,7 +100,6 @@ export default function NotificacoesAlunoPage() {
         body: JSON.stringify({ lida: true }),
       });
       setNotifs((xs) => xs.map((n) => (n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n)));
-      setUnread((prevUnread) => prevUnread - 1); // Decrementar o contador de notificações não lidas
     } finally {
       setMarking(null);
     }
@@ -127,9 +123,6 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
       setNotifs((prevNotifs) =>
         prevNotifs.map((n) => ({ ...n, lidaEm: new Date().toISOString() }))
       );
-
-      // Resetando o contador de notificações não lidas
-      setUnread(0);
     } catch (error) {
       console.error("Erro ao marcar todas as notificações como lidas", error);
     } finally {
@@ -146,7 +139,7 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
 
       {/* Botão de "Marcar todas como lidas" */}
       <div className="mb-4">
-        <button
+        <button type="button"
           onClick={markAllAsRead}
           className="bg-[#D91F2B] text-white px-4 py-2 rounded hover:bg-[#B11D22]" // Vermelho mais escuro
 
@@ -219,7 +212,7 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
                     </div>
                   </div>
 
-                  <button
+                  <button type="button"
                     onClick={() => markAsRead(n.id)}
                     disabled={!!n.lidaEm || marking === n.id}
                     title="Marcar como lida"

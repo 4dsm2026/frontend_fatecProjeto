@@ -260,10 +260,10 @@ export default function FuncionarioDetalhePage() {
         <div className="flex items-center gap-2">
           <Link prefetch={false} href={`${FUNC_LIST}/${func.id}/editar`}
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm">Editar</Link>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
             Resetar senha
           </button>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
             <Trash2 className="size-4" /> Excluir
           </button>
         </div>
@@ -301,7 +301,7 @@ export default function FuncionarioDetalhePage() {
       <div className="rounded-xl border border-[var(--border)] bg-card">
         <div className="p-4 flex items-center justify-between">
           <div className="font-semibold">Setores do funcionário</div>
-          <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
+          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
             <Plus className="size-4" /> Adicionar a setor
           </button>
         </div>
@@ -323,7 +323,7 @@ export default function FuncionarioDetalhePage() {
                       )}
                     </div>
                   </div>
-                  <button
+                  <button type="button"
                     className="inline-flex items-center gap-2 h-8 px-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-xs"
                     onClick={() => onRemoverSetor(s.usuarioSetorId)}
                   >
@@ -339,22 +339,22 @@ export default function FuncionarioDetalhePage() {
       {/* Dialog: Adicionar a setor */}
       {addOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setAddOpen(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setAddOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center justify-between">
               <div className="font-semibold">Adicionar funcionário a um setor</div>
-              <button className="h-8 w-8 grid place-items-center rounded-md hover:bg-[var(--muted)]" onClick={() => setAddOpen(false)}><X className="size-4" /></button>
+              <button type="button" className="h-8 w-8 grid place-items-center rounded-md hover:bg-[var(--muted)]" onClick={() => setAddOpen(false)}><X className="size-4" /></button>
             </div>
             <form className="p-4 space-y-3" onSubmit={onAddSetor}>
               <div className="space-y-1">
-                <label className="text-sm">ID do setor</label>
-                <input className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                <label htmlFor="func-setor-id" className="text-sm">ID do setor</label>
+                <input id="func-setor-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
                   placeholder="ex.: clx9… (cuid do Setor)"
                   value={novoSetorId} onChange={(e) => setNovoSetorId(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <label className="text-sm">ID do papel (opcional)</label>
-                <input className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                <label htmlFor="func-papel-id" className="text-sm">ID do papel (opcional)</label>
+                <input id="func-papel-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
                   placeholder="PapelCatalogo.id (opcional)"
                   value={novoPapelId} onChange={(e) => setNovoPapelId(e.target.value)} />
               </div>
@@ -372,7 +372,7 @@ export default function FuncionarioDetalhePage() {
       {/* Dialog: Excluir */}
       {delOpen && func && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center gap-2">
               <Trash2 className="size-4 text-red-600" />
@@ -389,10 +389,10 @@ export default function FuncionarioDetalhePage() {
                 value={delConfirmText} onChange={(e) => setDelConfirmText(e.target.value)} />
             </div>
             <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-2">
-              <button className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setDelOpen(false)}>
+              <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setDelOpen(false)}>
                 <X className="size-4" /> Cancelar
               </button>
-              <button
+              <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (func.emailEducacional ?? func.emailPessoal ?? "")

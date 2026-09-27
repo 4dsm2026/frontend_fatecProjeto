@@ -257,19 +257,19 @@ export default function PageAlunoDetalhe() {
           <span className="font-medium truncate max-w-[60vw]">{aluno.nome ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={() => setEditOpen(true)}
           >
             <Pencil className="size-4" /> Editar
           </button>
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={onResetSenha}
           >
             <KeyRound className="size-4" /> Resetar senha
           </button>
-          <button
+          <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm"
             onClick={() => setDelOpen(true)}
           >
@@ -480,7 +480,7 @@ export default function PageAlunoDetalhe() {
       {/* Dialog de exclusão */}
       {delOpen && (
         <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
+          <button type="button" aria-label="Fechar" className="absolute inset-0 bg-black/30" onClick={() => setDelOpen(false)} />
           <div className="absolute left-1/2 top-1/2 w-[92%] max-w-[520px] -translate-x-1/2 -translate-y-1/2 bg-background rounded-xl shadow-xl border border-[var(--border)]">
             <div className="p-4 border-b border-[var(--border)] flex items-center gap-2">
               <AlertTriangle className="size-4 text-red-600" />
@@ -502,13 +502,13 @@ export default function PageAlunoDetalhe() {
               />
             </div>
             <div className="p-4 border-t border-[var(--border)] flex items-center justify-end gap-2">
-              <button
+              <button type="button"
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
                 onClick={() => setDelOpen(false)}
               >
                 <X className="size-4" /> Cancelar
               </button>
-              <button
+              <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (aluno.emailEducacional ?? aluno.emailPessoal)
