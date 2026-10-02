@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import type { JSONContent } from "@tiptap/react";
 import SugestaoStatusBadge from "./SugestaoStatusBadge";
 
 type SugestaoResumo = {
   conteudo: string;
+  documento?: JSONContent | null;
   status: "NAO_RESPONDIDO" | "RESPONDIDO";
 };
 
@@ -16,6 +18,90 @@ type Props = Readonly<{
   identificacao?: ReactNode;
   children?: ReactNode;
 }>;
+
+const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
+
+function aplicarMarcas(texto: string, marks?: JSONContent["marks"]): ReactNode {
+  let resultado: ReactNode = texto;
+
+  for (const mark of marks ?? []) {
+    if (mark.type === "bold") {
+      resultado = <strong>{resultado}</strong>;
+    } else if (mark.type === "italic") {
+      resultado = <em>{resultado}</em>;
+    }
+  }
+
+  return resultado;
+}
+
+function renderizarFilhos(nos?: JSONContent[]): ReactNode {
+  if (!nos?.length) return null;
+
+  return nos.map((no, indice) => {
+    const chave = `${no.type ?? "texto"}-${indice}`;
+
+    if (no.type === "hardBreak") {
+      return <br key={chave} />;
+    }
+
+    return (
+      <span key={chave}>
+        {aplicarMarcas(no.text ?? "", no.marks)}
+      </span>
+    );
+  });
+}
+
+function renderizarConteudoSugestao(sugestao: SugestaoResumo): ReactNode {
+  const blocos = sugestao.documento?.content?.filter(
+    (bloco) => bloco.type === "paragraph" || bloco.type === "image",
+  );
+
+  if (!blocos?.length) {
+    return (
+      <p className="whitespace-pre-wrap break-words text-sm">
+        {sugestao.conteudo}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 text-sm">
+      {blocos.map((bloco, indice) => {
+        if (bloco.type === "image") {
+          const src =
+            typeof bloco.attrs?.src === "string" ? bloco.attrs.src : "";
+          if (!DATA_IMAGE_PREFIX.test(src)) return null;
+
+          const alt =
+            typeof bloco.attrs?.alt === "string" && bloco.attrs.alt.trim()
+              ? bloco.attrs.alt
+              : `Imagem ${indice + 1} da sugestão`;
+
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`imagem-${indice}`}
+              src={src}
+              alt={alt}
+              className="my-2 max-h-80 rounded-lg border border-[var(--border)] object-contain"
+            />
+          );
+        }
+
+        return (
+          <p
+            key={`paragrafo-${indice}`}
+            className="whitespace-pre-wrap break-words"
+          >
+            {renderizarFilhos(bloco.content)}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function SugestaoDetalheLayout({
   voltarHref,
@@ -54,9 +140,7 @@ export default function SugestaoDetalheLayout({
             <SugestaoStatusBadge status={sugestao.status} />
           </div>
 
-          <p className="whitespace-pre-wrap break-words text-sm">
-            {sugestao.conteudo}
-          </p>
+          {renderizarConteudoSugestao(sugestao)}
         </div>
 
         {children}
