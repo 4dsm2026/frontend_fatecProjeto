@@ -21,6 +21,21 @@ type Props = Readonly<{
 
 const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
 
+function identificarNos(nos: JSONContent[]) {
+  const ocorrencias = new Map<string, number>();
+
+  return nos.map((no) => {
+    const assinatura = JSON.stringify(no);
+    const ocorrencia = ocorrencias.get(assinatura) ?? 0;
+    ocorrencias.set(assinatura, ocorrencia + 1);
+
+    return {
+      no,
+      chave: `${assinatura}:${ocorrencia}`,
+    };
+  });
+}
+
 function aplicarMarcas(texto: string, marks?: JSONContent["marks"]): ReactNode {
   let resultado: ReactNode = texto;
 
@@ -38,8 +53,7 @@ function aplicarMarcas(texto: string, marks?: JSONContent["marks"]): ReactNode {
 function renderizarFilhos(nos?: JSONContent[]): ReactNode {
   if (!nos?.length) return null;
 
-  return nos.map((no, indice) => {
-    const chave = `${no.type ?? "texto"}-${indice}`;
+    return identificarNos(nos).map(({ no, chave }) => {
 
     if (no.type === "hardBreak") {
       return <br key={chave} />;
@@ -68,7 +82,7 @@ function renderizarConteudoSugestao(sugestao: SugestaoResumo): ReactNode {
 
   return (
     <div className="space-y-2 text-sm">
-      {blocos.map((bloco, indice) => {
+            {identificarNos(blocos).map(({ no: bloco, chave }, indice) => {
         if (bloco.type === "image") {
           const src =
             typeof bloco.attrs?.src === "string" ? bloco.attrs.src : "";
@@ -82,7 +96,7 @@ function renderizarConteudoSugestao(sugestao: SugestaoResumo): ReactNode {
           return (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              key={`imagem-${indice}`}
+              key={chave}
               src={src}
               alt={alt}
               className="my-2 max-h-80 rounded-lg border border-[var(--border)] object-contain"
@@ -92,7 +106,7 @@ function renderizarConteudoSugestao(sugestao: SugestaoResumo): ReactNode {
 
         return (
           <p
-            key={`paragrafo-${indice}`}
+            key={chave}
             className="whitespace-pre-wrap break-words"
           >
             {renderizarFilhos(bloco.content)}

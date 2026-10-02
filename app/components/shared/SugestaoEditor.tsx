@@ -161,11 +161,10 @@ export default function SugestaoEditor({
 
   return (
     <div className="overflow-hidden rounded-lg border border-[var(--border)] bg-input">
-      <div
-        role="group"
-        aria-label="Formatação da sugestão"
-        className="flex flex-wrap gap-2 border-b border-[var(--border)] p-2"
+           <fieldset
+        className="m-0 flex min-w-0 flex-wrap gap-2 border-0 border-b border-[var(--border)] p-2"
       >
+        <legend className="sr-only">Formatação da sugestão</legend>
         <button
           type="button"
           disabled={disabled || !editor}
@@ -201,7 +200,7 @@ export default function SugestaoEditor({
           className="hidden"
           aria-label="Selecionar imagem da sugestão"
         />
-      </div>
+            </fieldset>
 
       <EditorContent editor={editor} />
     </div>
