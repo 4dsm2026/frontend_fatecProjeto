@@ -11,6 +11,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@tiptap/extension-image": "^3.31.3",
+    "@tiptap/pm": "^3.31.3",
+    "@tiptap/react": "^3.31.3",
+    "@tiptap/starter-kit": "^3.31.3",
     "jose": "6.1.0",
     "js-cookie": "^3.0.5",
     "lucide-react": "^0.546.0",
