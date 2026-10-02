@@ -51,10 +51,11 @@ function aplicarMarcas(texto: string, marks?: JSONContent["marks"]): ReactNode {
 }
 
 function renderizarFilhos(nos?: JSONContent[]): ReactNode {
-  if (!nos?.length) return null;
+  if (!nos?.length) {
+    return null;
+  }
 
-    return identificarNos(nos).map(({ no, chave }) => {
-
+  return identificarNos(nos).map(({ no, chave }) => {
     if (no.type === "hardBreak") {
       return <br key={chave} />;
     }
