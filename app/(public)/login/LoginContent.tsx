@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { Papel } from "../../../utils/types";
 import { storeSession } from "../../../utils/session";
 import { safeRedirect } from "../../../utils/safe-redirect";
+import { extractApiError } from "../../../utils/api";
 
 type Mode = "email" | "ra";
 
@@ -123,7 +124,7 @@ export default function LoginContent() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.message || "Conta temporariamente bloqueada");
       }
-      if (!res.ok) throw new Error((await res.text().catch(() => "")) || "Erro no servidor");
+      if (!res.ok) throw new Error(await extractApiError(res, "Erro no servidor"));
 
       handleSuccessfulLogin(await res.json());
     } catch (e: unknown) {

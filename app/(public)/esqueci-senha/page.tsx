@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { MailCheck, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { extractApiError } from "../../../utils/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -25,8 +26,7 @@ export default function ForgotPasswordPage() {
       });
 
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || "Erro ao solicitar redefinição de senha.");
+        throw new Error(await extractApiError(res, "Erro ao solicitar redefinição de senha."));
       }
 
       toast.success(

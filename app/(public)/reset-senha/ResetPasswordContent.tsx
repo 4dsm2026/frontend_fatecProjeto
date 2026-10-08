@@ -6,6 +6,7 @@ import { Eye, EyeOff, Info, LockKeyhole, Loader2, ShieldCheck } from "lucide-rea
 import Link from "next/link";
 import { toast } from "sonner";
 import { storeSession } from "../../../utils/session";
+import { extractApiError } from "../../../utils/api";
 
 type Usuario = {
   id: string;
@@ -98,8 +99,7 @@ export default function ResetPasswordContent() {
       });
 
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Falha ao redefinir senha (${res.status})`);
+        throw new Error(await extractApiError(res, `Falha ao redefinir senha (${res.status})`));
       }
 
       const data = await res.json();

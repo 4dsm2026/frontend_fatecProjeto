@@ -6,6 +6,7 @@ import { Eye, EyeOff, Info, LockKeyhole, MailCheck, Loader2, ShieldCheck } from 
 import Link from "next/link";
 import { toast } from "sonner";
 import { storeSession } from "../../../utils/session";
+import { extractApiError } from "../../../utils/api";
 
 type Usuario = {
   id: string;
@@ -112,8 +113,7 @@ export default function PrimeiroAcessoContent() {
           window.location.href = "/login";
           return;
         }
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Falha ao concluir primeiro acesso (${res.status})`);
+        throw new Error(await extractApiError(res, `Falha ao concluir primeiro acesso (${res.status})`));
       }
 
       const data = await res.json();
