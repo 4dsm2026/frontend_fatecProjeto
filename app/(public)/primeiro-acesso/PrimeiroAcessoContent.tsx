@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Info, LockKeyhole, MailCheck, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
+import { storeSession } from "../../../utils/session";
 
 type Usuario = {
   id: string;
@@ -120,21 +120,7 @@ export default function PrimeiroAcessoContent() {
       const user: Usuario | undefined = data?.user;
 
       if (data?.accessToken) {
-        Cookies.set("accessToken", data.accessToken, {
-          expires: 7,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("accessToken", data.accessToken);
-      }
-
-      if (data?.refreshToken) {
-        Cookies.set("refreshToken", data.refreshToken, {
-          expires: 30,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("refreshToken", data.refreshToken);
+        storeSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       }
 
       toast.success("Senha atualizada com sucesso!", {
@@ -144,9 +130,9 @@ export default function PrimeiroAcessoContent() {
       });
 
       window.location.href = getRedirectPath(user);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Não foi possível concluir o primeiro acesso.", {
-        description: err?.message ?? "Tente novamente em instantes.",
+        description: err instanceof Error ? err.message : "Tente novamente em instantes.",
       });
     } finally {
       setLoading(false);

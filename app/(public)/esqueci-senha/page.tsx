@@ -32,9 +32,9 @@ export default function ForgotPasswordPage() {
       toast.success(
         "Se existir uma conta com esse e-mail, enviaremos um link de redefinição."
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Não foi possível enviar o link de redefinição.", {
-        description: err?.message ?? "Tente novamente em instantes.",
+        description: err instanceof Error ? err.message : "Tente novamente em instantes.",
       });
     } finally {
       setLoading(false);

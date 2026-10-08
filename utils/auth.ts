@@ -1,18 +1,6 @@
-import Cookies from "js-cookie";
+import { clearSession, getRefreshToken } from "./session";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-function clearLocalSession() {
-  try {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    localStorage.removeItem("userId");
-    Cookies.remove("accessToken", { path: "/" });
-    Cookies.remove("refreshToken", { path: "/" });
-  } catch {
-    // best-effort
-  }
-}
 
 /**
  * Revoga a sessão no backend e limpa o estado local.
@@ -20,10 +8,7 @@ function clearLocalSession() {
  */
 export async function logout(): Promise<void> {
   try {
-    const refreshToken =
-      typeof window !== "undefined"
-        ? localStorage.getItem("refreshToken")
-        : null;
+    const refreshToken = getRefreshToken();
 
     if (refreshToken) {
       await fetch(`${API_BASE}/auth/logout`, {
@@ -34,7 +19,7 @@ export async function logout(): Promise<void> {
       }).catch(() => {});
     }
   } finally {
-    clearLocalSession();
+    clearSession();
   }
 }
 
