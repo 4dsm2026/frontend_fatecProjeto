@@ -15,6 +15,7 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Papel } from "../../../utils/types";
+import { safeRedirect } from "../../../utils/safe-redirect";
 
 type Mode = "email" | "ra";
 
@@ -38,12 +39,6 @@ function getRedirectPath(user?: Usuario | null): string {
     default:
       return "/aluno/home";
   }
-}
-
-function safeRedirect(redirect: string | null, fallback: string): string {
-  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//"))
-    return redirect;
-  return fallback;
 }
 
 export default function LoginContent() {
