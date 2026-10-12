@@ -1,6 +1,6 @@
 import { logoutAndRedirect } from "./auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 // Garante que múltiplos requests 401 simultâneos compartilhem o mesmo refresh
 let refreshPromise: Promise<string | null> | null = null;
@@ -111,8 +111,18 @@ export async function extractApiError(res: Response, fallback?: string): Promise
   if (!text) return base;
   try {
     const json = JSON.parse(text);
-    if (Array.isArray(json?.issues) && json.issues.length) {
+    // RFC 7807 (application/problem+json): { type, title, status, detail?, errors?: [{ field, message }] }
+        if (Array.isArray(json?.issues) && json.issues.length) {
       return json.issues.map((i: any) => `${i.path}: ${i.message}`).join(" | ");
+    }
+    // RFC 7807 (application/problem+json): { type, title, status, detail?, errors?: [{ field, message }] }
+    if (typeof json?.title === "string" && typeof json?.status === "number") {
+      if (Array.isArray(json.errors) && json.errors.length) {
+        return json.errors
+          .map((e: { field?: string; message: string }) => (e.field ? `${e.field}: ${e.message}` : e.message))
+          .join(" | ");
+      }
+      return json.detail || json.title;
     }
     return json?.error || json?.message || base;
   } catch {
