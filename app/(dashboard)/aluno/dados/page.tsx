@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
 import { logoutAndRedirect } from "../../../../utils/auth";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
 
 type Usuario = {
@@ -143,8 +144,7 @@ export default function MeusDadosPage() {
     let alive = true;
     (async () => {
       try {
-        const res = await apiFetch(`${apiBase}/auth/me`, { cache: "no-store" });
-        const data: Usuario = await res.json();
+        const data = await getCurrentUser<Usuario>();
         if (!alive) return;
         setUser(data);
         setNome(data?.nome ?? "");

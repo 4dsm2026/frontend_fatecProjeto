@@ -5,7 +5,8 @@ import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Info, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
+import { storeSession } from "../../../utils/session";
+import { extractApiError } from "../../../utils/api";
 
 type Usuario = {
   id: string;
@@ -98,28 +99,14 @@ export default function ResetPasswordContent() {
       });
 
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Falha ao redefinir senha (${res.status})`);
+        throw new Error(await extractApiError(res, `Falha ao redefinir senha (${res.status})`));
       }
 
       const data = await res.json();
       const user: Usuario | undefined = data?.user;
 
       if (data?.accessToken) {
-        Cookies.set("accessToken", data.accessToken, {
-          expires: 7,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("accessToken", data.accessToken);
-      }
-      if (data?.refreshToken) {
-        Cookies.set("refreshToken", data.refreshToken, {
-          expires: 30,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("refreshToken", data.refreshToken);
+        storeSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
       }
 
       toast.success("Senha redefinida com sucesso!", {
@@ -127,9 +114,9 @@ export default function ResetPasswordContent() {
       });
 
       window.location.href = getRedirectPath(user);
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Não foi possível redefinir a senha.", {
-        description: err?.message ?? "Tente novamente em instantes.",
+        description: err instanceof Error ? err.message : "Tente novamente em instantes.",
       });
     } finally {
       setLoading(false);

@@ -15,8 +15,13 @@ import {
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Papel } from "../../../utils/types";
+import { storeSession } from "../../../utils/session";
+import { safeRedirect } from "../../../utils/safe-redirect";
+import { extractApiError } from "../../../utils/api";
 
 type Mode = "email" | "ra";
+
+const raRegex = /^[A-Za-z0-9._-]{3,32}$/;
 
 type Usuario = {
   id: string;
@@ -40,12 +45,6 @@ function getRedirectPath(user?: Usuario | null): string {
   }
 }
 
-function safeRedirect(redirect: string | null, fallback: string): string {
-  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//"))
-    return redirect;
-  return fallback;
-}
-
 export default function LoginContent() {
   const searchParams = useSearchParams();
   const redirectParam = searchParams.get("redirect");
@@ -56,8 +55,6 @@ export default function LoginContent() {
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-
-  const raRegex = /^[A-Za-z0-9._-]{3,32}$/;
 
   const isValid = useMemo(() => {
     const id = identifier.trim();
@@ -76,16 +73,10 @@ export default function LoginContent() {
 
   function storeAuthTokens(data: Record<string, unknown>) {
     if (!data?.accessToken) return;
-    // Usa o protocolo real da página — cookie Secure só funciona em HTTPS.
-    // NODE_ENV=production não garante HTTPS (ex: IP direto na AWS).
-    const isSecure = window.location.protocol === "https:";
-    const secure = isSecure ? "; Secure" : "";
-    document.cookie = `accessToken=${data.accessToken}; Path=/; Max-Age=${15 * 60}; SameSite=Lax${secure}`;
-    localStorage.setItem("accessToken", String(data.accessToken));
-    if (data.refreshToken) {
-      document.cookie = `refreshToken=${data.refreshToken}; Path=/; Max-Age=${7 * 24 * 60 * 60}; SameSite=Lax${secure}`;
-      localStorage.setItem("refreshToken", String(data.refreshToken));
-    }
+    storeSession({
+      accessToken: String(data.accessToken),
+      refreshToken: data.refreshToken ? String(data.refreshToken) : undefined,
+    });
   }
 
   function handleFirstAccess(data: Record<string, unknown>) {
@@ -133,7 +124,7 @@ export default function LoginContent() {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.message || "Conta temporariamente bloqueada");
       }
-      if (!res.ok) throw new Error((await res.text().catch(() => "")) || "Erro no servidor");
+      if (!res.ok) throw new Error(await extractApiError(res, "Erro no servidor"));
 
       handleSuccessfulLogin(await res.json());
     } catch (e: unknown) {

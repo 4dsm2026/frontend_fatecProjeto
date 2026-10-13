@@ -1,24 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Cookies from "js-cookie";
+import { logout } from "../../../utils/auth";
 
 export function useSidebarLogout(onClose?: () => void) {
   const router = useRouter();
 
-  return function handleLogout() {
+  return async function handleLogout() {
     try {
-      Cookies.remove("accessToken");
-      Cookies.remove("refreshToken");
-
-      localStorage.removeItem("accessToken");
-      localStorage.removeItem("refreshToken");
-      localStorage.removeItem("userId");
-    } catch (e) {
-      console.error("Erro ao fazer logout:", e);
+      // Revoga a sessão no servidor e limpa o estado local. Antes só limpava o
+      // navegador e o refresh token seguia válido no servidor por 7 dias.
+      // `logout()` nunca lança e tem tempo limite.
+      await logout();
+    } finally {
+      router.push("/login");
+      onClose?.();
     }
-
-    router.push("/login");
-    onClose?.();
   };
 }
