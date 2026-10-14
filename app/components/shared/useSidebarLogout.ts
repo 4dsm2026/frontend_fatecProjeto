@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { logout } from "../../../utils/auth";
+import { logout } from "../../../utils/logout";
 
 export function useSidebarLogout(onClose?: () => void) {
   const router = useRouter();

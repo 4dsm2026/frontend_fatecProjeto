@@ -4,7 +4,7 @@ import { renderHook } from "@testing-library/react";
 const { push, logout } = vi.hoisted(() => ({ push: vi.fn(), logout: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
-vi.mock("../utils/auth", () => ({ logout }));
+vi.mock("../utils/logout", () => ({ logout }));
 
 import { useSidebarLogout } from "../app/components/shared/useSidebarLogout";
 
