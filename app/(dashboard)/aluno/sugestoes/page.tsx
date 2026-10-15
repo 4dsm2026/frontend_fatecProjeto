@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
 import Pagination from "../../../components/shared/Pagination";
 
@@ -34,10 +35,9 @@ export default function SugestoesPage() {
   const [total, setTotal] = useState(0);
 
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { ra?: string | number } | null) => {
-        if (data?.ra != null) setRa(String(data.ra));
+    getCurrentUser<{ ra?: string | number }>()
+      .then((data) => {
+        if (data.ra != null) setRa(String(data.ra));
       })
       .catch(() => {});
   }, []);

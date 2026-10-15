@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Loader2, Moon, Sun } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
 
 type Props = {
@@ -159,8 +160,7 @@ export default function SistemaTopbar({
     let alive = true;
     (async () => {
       try {
-        const res = await apiFetch(`${apiBase}/auth/me`, { cache: "no-store" });
-        const data = await res.json();
+        const data = await getCurrentUser<{ nome?: string; emailPessoal?: string; email?: string }>();
         if (!alive) return;
         setUserNome(data?.nome ?? null);
         setUserEmail(data?.emailPessoal ?? data?.email ?? null);

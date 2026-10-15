@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "../../../../../utils/api";
+import { getCurrentUser } from "../../../../../utils/current-user";
 import {
   CATALOGO_INSTITUCIONAL,
   enriquecerCatalogo,
@@ -118,10 +119,8 @@ export default function OutrosPage() {
       })
       .catch(() => {});
 
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: Partial<DadosAcademicos & { semestreAtual?: string | number }> | null) => {
-        if (!data) return;
+    getCurrentUser<Partial<DadosAcademicos & { semestreAtual?: string | number }>>()
+      .then((data) => {
         setDadosAcademicos((prev) => ({
           ra: String(data.ra ?? prev.ra),
           unidadeFatec: data.unidadeFatec ?? prev.unidadeFatec,

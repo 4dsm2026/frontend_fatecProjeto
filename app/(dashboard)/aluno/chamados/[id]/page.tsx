@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, downloadAnexo, fetchAnexoImageUrl } from "../../../../../utils/api";
+import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
 
 /* ================= Constantes ================= */
@@ -308,11 +309,8 @@ export default function ChamadoDetalhePage() {
 
   /* ===== Dados acadêmicos básicos do aluno ===== */
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: DadosAcademicosUser | null) => {
-        if (data) setDadosAcademicos(data);
-      })
+    getCurrentUser<DadosAcademicosUser>()
+      .then((data) => setDadosAcademicos(data))
       .catch(() => {});
   }, []);
 

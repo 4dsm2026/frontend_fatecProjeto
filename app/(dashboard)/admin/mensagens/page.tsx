@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
 import Link from "next/link";
 import {
@@ -75,8 +76,7 @@ export default function AdminMensagensPage() {
     let alive = true;
     (async () => {
       try {
-        const r = await apiFetch(`${API}/auth/me`, { cache: "no-store" });
-        const d = await r.json();
+        const d = await getCurrentUser<{ id: string; nome: string }>();
         if (!alive) return;
         setMe({ id: d?.id, nome: d?.nome });
       } catch {
