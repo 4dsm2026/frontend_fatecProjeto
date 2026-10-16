@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, AlertTriangle, Paperclip, Plus, MessageSquareText, Ticket } from "lucide-react";
+import { embedded } from "../../../../utils/hal";
+import type { HalCollection } from "../../../../utils/hal";
 import { toast } from "sonner";
 import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
 import { apiFetch } from "../../../../utils/api";
@@ -13,9 +15,9 @@ import Button from "../../../components/ui/Button";
 import EmptyState from "../../../components/ui/EmptyState";
 import Alert from "../../../components/ui/Alert";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
-import type { Chamado, PageResponse, Status } from "../../../../utils/types";
+import type { Chamado, Status } from "../../../../utils/types";
 
-type PageResp = PageResponse<Chamado>;
+type PageResp = HalCollection<Chamado>;
 
 function AcoesChamado({ c }: { c: Chamado }) {
   return (
@@ -59,7 +61,7 @@ export default function MeusChamadosPage() {
           throw new Error((err as { error?: string })?.error ?? `Erro HTTP ${res.status}`);
         }
         const data: PageResp = await res.json();
-        if (alive) setDados(data.items ?? []);
+        if (alive) setDados(embedded(data, "tickets"));
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : undefined;
         toast.error("Erro ao carregar solicitações", { description: message });

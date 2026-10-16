@@ -6,6 +6,8 @@ import {
   Tag, User, Clock, ArrowUpDown
 } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
+import { embedded } from "../../../../utils/hal";
+import type { HalCollection } from "../../../../utils/hal";
 import Link from "next/link";
 
 import { cx } from '../../../../utils/cx';
@@ -14,7 +16,7 @@ import PriorityDot from "../../../components/shared/PriorityDot";
 import NivelBadge from "../../../components/shared/NivelBadge";
 import SetorChip from "../../../components/shared/SetorChip";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
-import type { Chamado, Nivel, PageResponse, Prioridade, Status } from "../../../../utils/types";
+import type { Chamado, Nivel, Prioridade, Status } from "../../../../utils/types";
 
 /* ===== Tipos ===== */
 
@@ -36,7 +38,7 @@ type ChamadoUI = {
 
 type ApiChamado = Chamado & { nivel: Nivel; prioridade: Prioridade };
 
-type PageResp = PageResponse<ApiChamado>;
+type PageResp = HalCollection<ApiChamado>;
 
 function toUI(x: ApiChamado): ChamadoUI {
   return {
@@ -85,8 +87,8 @@ export default function AdminChamadosPage() {
         setError(null);
 
         const params = new URLSearchParams();
-        params.set("page", "1");
-        params.set("pageSize", "20");
+        params.set("page", "0");
+        params.set("size", "20");
         params.set("orderBy", "criadoEm");
         params.set("orderDir", "desc");
         params.set("include", "setor,criadoPor,responsavel");
@@ -105,7 +107,7 @@ export default function AdminChamadosPage() {
           throw new Error(msg || `HTTP ${res.status}`);
         }
         const data: PageResp = await res.json();
-        const items = (data?.items ?? []).map(toUI);
+        const items = embedded(data, "tickets").map(toUI);
         if (alive) setDadosApi(items);
       } catch (e: unknown) {
         const message = e instanceof Error ? e.message : "Falha ao carregar chamados";

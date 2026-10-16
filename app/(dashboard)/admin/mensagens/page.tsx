@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { embedded } from "../../../../utils/hal";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -44,7 +45,7 @@ function shortDateTime(iso?: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
   return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) + " " +
-         d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 /* =========================
@@ -91,11 +92,11 @@ export default function AdminMensagensPage() {
     try {
       setLoadingList(true);
       // ✅ endpoint de tickets: inclua o que precisar na lista (setor e último evento)
-      const url = `${API}/tickets?include=setor&page=1&pageSize=100&orderBy=criadoEm&orderDir=desc`;
+      const url = `${API}/tickets?include=setor&page=0&size=100&orderBy=criadoEm&orderDir=desc`;
       const res = await apiFetch(url, { cache: "no-store" });
       const data = await res.json();
 
-      const items: ChamadoSummary[] = (data?.items ?? []).map((c: any) => ({
+      const items: ChamadoSummary[] = embedded<ChamadoSummary & { criadoEm?: string | null }>(data, "tickets").map((c) => ({
         id: c.id,
         protocolo: c.protocolo,
         titulo: c.titulo,
@@ -157,8 +158,8 @@ export default function AdminMensagensPage() {
     if (!currentId) return;
     clearInterval(pollRef.current);
     pollRef.current = setInterval(() => {
-      fetchMessages(currentId).catch(() => {});
-      fetchConversas().catch(() => {});
+      fetchMessages(currentId).catch(() => { });
+      fetchConversas().catch(() => { });
     }, 15000);
     return () => clearInterval(pollRef.current);
   }, [currentId, fetchMessages, fetchConversas]);
@@ -198,7 +199,7 @@ export default function AdminMensagensPage() {
         prev.map((m) => (m.id === tempId ? { ...saved, autor: saved.autor ?? m.autor } : m))
       );
       // atualiza lista
-      fetchConversas().catch(() => {});
+      fetchConversas().catch(() => { });
     } catch (e: unknown) {
       // reverte em caso de erro
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
@@ -237,8 +238,8 @@ export default function AdminMensagensPage() {
       await apiFetch(`${API}/tickets/${currentId}/mensagens`, {
         method: "POST",
         body: JSON.stringify({ conteudo: `📎 Anexou o arquivo: ${file.name}` }),
-      }).catch(() => {});
-      fetchMessages(currentId).catch(() => {});
+      }).catch(() => { });
+      fetchMessages(currentId).catch(() => { });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Falha ao anexar arquivo.");
     } finally {
@@ -361,15 +362,15 @@ export default function AdminMensagensPage() {
             </div>
           ) : (
             <div className="space-y-2">
-                {messages.map((m) => (
+              {messages.map((m) => (
                 <Bubble
-                    key={`${m.id}-${m.criadoEm}`} // 🔹 garante unicidade mesmo em mensagens otimizadas
-                    isMe={m.autorId === me?.id}
-                    nome={m.autor?.nome || (m.autorId === me?.id ? "Você" : "Usuário")}
-                    conteudo={m.conteudo}
-                    quando={shortDateTime(m.criadoEm)}
+                  key={`${m.id}-${m.criadoEm}`} // 🔹 garante unicidade mesmo em mensagens otimizadas
+                  isMe={m.autorId === me?.id}
+                  nome={m.autor?.nome || (m.autorId === me?.id ? "Você" : "Usuário")}
+                  conteudo={m.conteudo}
+                  quando={shortDateTime(m.criadoEm)}
                 />
-                ))}
+              ))}
 
             </div>
           )}
