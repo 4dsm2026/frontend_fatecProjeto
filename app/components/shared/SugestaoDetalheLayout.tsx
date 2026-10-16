@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import type { JSONContent } from "@tiptap/react";
 import SugestaoStatusBadge from "./SugestaoStatusBadge";
+import SugestaoDocumentoView from "./SugestaoDocumentoView";
 
 type SugestaoResumo = {
   conteudo: string;
@@ -18,105 +19,6 @@ type Props = Readonly<{
   identificacao?: ReactNode;
   children?: ReactNode;
 }>;
-
-const DATA_IMAGE_PREFIX = /^data:image\/(?:png|jpeg|jpg|webp|gif);base64,/i;
-
-function identificarNos(nos: JSONContent[]) {
-  const ocorrencias = new Map<string, number>();
-
-  return nos.map((no) => {
-    const assinatura = JSON.stringify(no);
-    const ocorrencia = ocorrencias.get(assinatura) ?? 0;
-    ocorrencias.set(assinatura, ocorrencia + 1);
-
-    return {
-      no,
-      chave: `${assinatura}:${ocorrencia}`,
-    };
-  });
-}
-
-function aplicarMarcas(texto: string, marks?: JSONContent["marks"]): ReactNode {
-  let resultado: ReactNode = texto;
-
-  for (const mark of marks ?? []) {
-    if (mark.type === "bold") {
-      resultado = <strong>{resultado}</strong>;
-    } else if (mark.type === "italic") {
-      resultado = <em>{resultado}</em>;
-    }
-  }
-
-  return resultado;
-}
-
-function renderizarFilhos(nos?: JSONContent[]): ReactNode {
-  if (!nos?.length) {
-    return null;
-  }
-
-  return identificarNos(nos).map(({ no, chave }) => {
-    if (no.type === "hardBreak") {
-      return <br key={chave} />;
-    }
-
-    return (
-      <span key={chave}>
-        {aplicarMarcas(no.text ?? "", no.marks)}
-      </span>
-    );
-  });
-}
-
-function renderizarConteudoSugestao(sugestao: SugestaoResumo): ReactNode {
-  const blocos = sugestao.documento?.content?.filter(
-    (bloco) => bloco.type === "paragraph" || bloco.type === "image",
-  );
-
-  if (!blocos?.length) {
-    return (
-      <p className="whitespace-pre-wrap break-words text-sm">
-        {sugestao.conteudo}
-      </p>
-    );
-  }
-
-  return (
-    <div className="space-y-2 text-sm">
-            {identificarNos(blocos).map(({ no: bloco, chave }, indice) => {
-        if (bloco.type === "image") {
-          const src =
-            typeof bloco.attrs?.src === "string" ? bloco.attrs.src : "";
-          if (!DATA_IMAGE_PREFIX.test(src)) return null;
-
-          const alt =
-            typeof bloco.attrs?.alt === "string" && bloco.attrs.alt.trim()
-              ? bloco.attrs.alt
-              : `Imagem ${indice + 1} da sugestão`;
-
-          return (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={chave}
-              src={src}
-              alt={alt}
-              className="my-2 max-h-80 rounded-lg border border-[var(--border)] object-contain"
-            />
-          );
-        }
-
-        return (
-          <p
-            key={chave}
-            className="whitespace-pre-wrap break-words"
-          >
-            {renderizarFilhos(bloco.content)}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
 
 export default function SugestaoDetalheLayout({
   voltarHref,
@@ -155,7 +57,7 @@ export default function SugestaoDetalheLayout({
             <SugestaoStatusBadge status={sugestao.status} />
           </div>
 
-          {renderizarConteudoSugestao(sugestao)}
+          <SugestaoDocumentoView documento={sugestao.documento} conteudo={sugestao.conteudo} />
         </div>
 
         {children}

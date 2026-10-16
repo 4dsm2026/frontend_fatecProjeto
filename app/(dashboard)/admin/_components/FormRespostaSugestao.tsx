@@ -4,6 +4,9 @@ import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import SugestaoEditor, { type SugestaoEditorValor } from "../../../components/shared/SugestaoEditor";
+import SugestaoDocumentoView from "../../../components/shared/SugestaoDocumentoView";
+import type { JSONContent } from "@tiptap/react";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -14,7 +17,8 @@ type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
 type Props = Readonly<{
   sugestaoId: string;
   resposta: string;
-  onRespostaChange: (value: string) => void;
+  respostaDocumento: JSONContent | null;
+  onRespostaChange: (value: SugestaoEditorValor) => void;
   status: StatusSugestao;
   onStatusChange: (value: StatusSugestao) => void;
   respostaBloqueada: boolean;
@@ -27,6 +31,7 @@ type Props = Readonly<{
 export default function FormRespostaSugestao({
   sugestaoId,
   resposta,
+  respostaDocumento,
   onRespostaChange,
   status,
   onStatusChange,
@@ -52,7 +57,7 @@ export default function FormRespostaSugestao({
       const res = await apiFetch(`${API}/sugestoes/${sugestaoId}`, {
         method: "PATCH",
         body: JSON.stringify({
-          ...(texto && !respostaJaSalva ? { resposta: texto } : {}),
+          ...(texto && !respostaJaSalva ? { resposta: texto, respostaDocumento } : {}),
           ...(!statusBloqueado ? { status } : {}),
         }),
       });
@@ -72,20 +77,16 @@ export default function FormRespostaSugestao({
 
   return (
     <div className="rounded-xl border border-[var(--border)] bg-card p-5 space-y-3">
-      <label className="space-y-1 text-sm block">
+      <div className="space-y-1 text-sm">
         <span className="font-medium">
           Resposta do funcionário/professor
         </span>
 
-        <textarea
-          value={resposta}
-          onChange={(e) => onRespostaChange(e.target.value)}
-          maxLength={RESPOSTA_MAX}
-          rows={4}
-          disabled={respostaBloqueada}
-          placeholder="Escreva a resposta para o aluno…"
-          className="w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none disabled:opacity-70 disabled:cursor-not-allowed"
-        />
+        {respostaJaSalva ? (
+          <SugestaoDocumentoView documento={respostaDocumento} conteudo={resposta} />
+        ) : (
+          <SugestaoEditor disabled={respostaBloqueada} onChange={onRespostaChange} />
+        )}
 
         <span className="block text-right text-xs text-muted-foreground">
           {resposta.length}/{RESPOSTA_MAX}
@@ -98,7 +99,7 @@ export default function FormRespostaSugestao({
               : "Esta resposta já foi salva e não pode mais ser editada."}
           </span>
         )}
-      </label>
+      </div>
 
       <label className="space-y-1 text-sm block">
         <span className="font-medium">Status</span>
