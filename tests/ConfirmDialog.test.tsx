@@ -4,11 +4,12 @@ import userEvent from "@testing-library/user-event";
 import ConfirmDialog from "../app/components/ui/ConfirmDialog";
 
 describe("ConfirmDialog", () => {
-  it("não renderiza nada quando open=false", () => {
+  it("mantém o <dialog> fechado quando open=false", () => {
     const { container } = render(
       <ConfirmDialog open={false} title="X" onConfirm={() => {}} onClose={() => {}} />,
     );
-    expect(container).toBeEmptyDOMElement();
+    // O <dialog> nativo fica sempre no DOM; fechado, ele não tem o atributo `open`.
+    expect(container.querySelector("dialog")).not.toHaveAttribute("open");
   });
 
   it("mostra título/descrição e dispara onConfirm ao confirmar", async () => {
