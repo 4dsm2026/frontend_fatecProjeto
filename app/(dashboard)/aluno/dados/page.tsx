@@ -254,9 +254,8 @@ export default function MeusDadosPage() {
       setChanging(true);
 
       // Fluxo reautenticado: exige a senha atual e é validado no backend.
-      const res = await apiFetch(`${apiBase}/auth/trocar-senha`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await apiFetch(`${apiBase}/users/me/password`, {
+        method: "PUT",
         body: JSON.stringify({
           senhaAtual: currentPass,
           novaSenha: newPass,
