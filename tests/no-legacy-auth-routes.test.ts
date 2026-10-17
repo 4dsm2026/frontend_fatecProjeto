@@ -17,7 +17,8 @@ function arquivos(dir: string): string[] {
   return readdirSync(dir).flatMap((nome) => {
     if (nome === "node_modules" || nome === ".next") return [];
     const caminho = join(dir, nome);
-    return statSync(caminho).isDirectory() ? arquivos(caminho) : EXT.test(nome) ? [caminho] : [];
+    if (statSync(caminho).isDirectory()) return arquivos(caminho);
+    return EXT.test(nome) ? [caminho] : [];
   });
 }
 
