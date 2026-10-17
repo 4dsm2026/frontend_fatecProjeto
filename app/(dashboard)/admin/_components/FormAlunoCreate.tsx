@@ -1,5 +1,7 @@
 "use client";
-import { apiFetch, extractApiError } from "../../../../utils/api";
+import { extractApiError } from "../../../../utils/api";
+import { followLink } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -13,8 +15,6 @@ import {
   RotateCcw,
 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
 const COURSES = [
   { key: "DSM",   sigla: "DSM",   nome: "Desenvolvimento de Software Multiplataforma" },
   { key: "CD",    sigla: "CD",    nome: "Ciência de Dados" },
@@ -26,8 +26,10 @@ const COURSES = [
 
 const TURNOS = ["Manhã", "Tarde", "Noite"] as const;
 
+type UserResource = HalResource & { id: string; nome?: string | null };
 type Props = {
-  onSuccess?: (createdUser: never) => void;
+  collection: HalCollection<UserResource>;
+  onSuccess?: (createdUser: UserResource) => void;
   onCancel?: () => void;
 };
 
@@ -42,7 +44,20 @@ const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+export function isEmailAddress(value: string): boolean {
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  const dotIndex = domain.indexOf(".", 1);
+  return Boolean(
+    local &&
+      domain &&
+      !/\s/.test(local) &&
+      !/\s/.test(domain) &&
+      dotIndex > 0 &&
+      dotIndex < domain.length - 1,
+  );
+}
 
 type PayloadValue = string | boolean | undefined;
 
@@ -109,7 +124,7 @@ function FormAlunoCreateSuccess({
   onReset: () => void;
   onSuccess?: Props["onSuccess"];
   onCancel?: () => void;
-  lastCreated: unknown;
+  lastCreated: UserResource | null;
 }) {
   return (
     <div className="space-y-5">
@@ -172,7 +187,7 @@ function FormAlunoCreateSuccess({
         {(onSuccess || onCancel) && (
           <button
             type="button"
-            onClick={() => (onSuccess ? onSuccess(lastCreated as never) : onCancel?.())}
+            onClick={() => (lastCreated && onSuccess ? onSuccess(lastCreated) : onCancel?.())}
             className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
           >
             Concluído
@@ -183,7 +198,7 @@ function FormAlunoCreateSuccess({
   );
 }
 
-export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
+export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Props) {
   /* ── Identificação ── */
   const [nome, setNome] = useState("");
   const [ra, setRa] = useState("");
@@ -209,7 +224,7 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
-  const [lastCreated, setLastCreated] = useState<unknown>(null);
+  const [lastCreated, setLastCreated] = useState<UserResource | null>(null);
   const [copied, setCopied] = useState(false);
 
   function handleCourseChange(val: string) {
@@ -230,7 +245,7 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
 
   const canSubmit = useMemo(() => {
     const raOk = ra.trim().length > 0;
-    const mailOk = EMAIL_REGEX.test(emailEducacional);
+    const mailOk = isEmailAddress(emailEducacional);
     return raOk && mailOk && senhaValida && !submitting;
   }, [ra, emailEducacional, senhaValida, submitting]);
 
@@ -272,8 +287,7 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
         anoSemestreIngresso,
       });
 
-      const res = await apiFetch(`${API_URL}/usuarios`, {
-        method: "POST",
+      const res = await followLink(collection, "create", {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -282,7 +296,7 @@ export default function FormAlunoCreate({ onSuccess, onCancel }: Props) {
         throw new Error(await extractApiError(res, `Falha ao criar aluno (${res.status})`));
       }
 
-      const created = await res.json();
+      const created = (await res.json()) as UserResource;
 
       setLastCreated(created);
       setSuccessInfo({
