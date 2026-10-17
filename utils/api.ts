@@ -44,10 +44,12 @@ async function tryRefreshToken(): Promise<string | null> {
       return data.accessToken;
     } catch {
       return null;
-    } finally {
-      refreshPromise = null;
     }
-  })();
+  })().finally(() => {
+    // Fora do async: com `return` síncrono (sem refresh token) um `finally` interno
+    // rodaria ANTES da atribuição acima e deixaria a promise presa para sempre.
+    refreshPromise = null;
+  });
 
   return refreshPromise;
 }
