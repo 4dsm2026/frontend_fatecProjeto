@@ -134,7 +134,7 @@ export default function SugestaoEditor({ disabled = false, onChange }: Props) {
         className="hidden"
         aria-label="Selecionar imagem da sugestão"
       />
-      {lendoImagem && <p role="status" className="px-3 py-1 text-xs">Carregando imagem… aguarde antes de enviar.</p>}
+      {lendoImagem && <output className="px-3 py-1 text-xs">Carregando imagem… aguarde antes de enviar.</output>}
       <div className="overflow-x-auto"><EditorContent editor={editor} /></div>
     </div>
   );

@@ -27,7 +27,9 @@ export default function SugestaoEditorBarra({ editor, disabled, adicionarImagem 
   function aplicarLink() {
     try {
       const destino = new URL(url.trim());
-      if (!["https:", "http:", "mailto:"].includes(destino.protocol)) throw new Error();
+      if (!["https:", "http:", "mailto:"].includes(destino.protocol)) {
+        throw new Error("Protocolo de link não permitido.");
+      }
       editor.chain().focus().extendMarkRange("link").setLink({ href: destino.href }).run();
       setLinkAberto(false);
       setErro("");
