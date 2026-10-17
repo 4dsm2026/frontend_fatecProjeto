@@ -51,6 +51,14 @@ describe("activationTokenFromProblem", () => {
     ).toBeNull();
   });
 
+  it("rejeita href com prefixo antes de /account-activations/", () => {
+    expect(
+      activationTokenFromProblem({
+        _links: { activate: { href: "/evil/account-activations/abc", method: "PUT" } },
+      }),
+    ).toBeNull();
+  });
+
   it("rejeita segmento adicional", () => {
     expect(
       activationTokenFromProblem({

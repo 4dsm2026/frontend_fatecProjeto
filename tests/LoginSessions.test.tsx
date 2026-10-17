@@ -222,6 +222,24 @@ describe("login via POST /sessions", () => {
     expect(storeSession).not.toHaveBeenCalled();
   });
 
+  it("403 primeiro acesso recodifica o token na URL do primeiro acesso", async () => {
+    respond(
+      403,
+      {
+        type: "/errors/password-change-required",
+        title: "Troca de senha obrigatória",
+        status: 403,
+        _links: { activate: { href: "/account-activations/a%26b", method: "PUT" } },
+      },
+      problemHeaders,
+    );
+
+    await entrar();
+
+    // "&" decodificado precisa voltar como %26, senão o token seria cortado em "a"
+    expect(window.location.href).toBe("/primeiro-acesso?token=a%26b");
+  });
+
   it("403 primeiro acesso sem activate mostra erro e não navega", async () => {
     const description = "Não foi possível iniciar o primeiro acesso. Tente novamente.";
     respond(
