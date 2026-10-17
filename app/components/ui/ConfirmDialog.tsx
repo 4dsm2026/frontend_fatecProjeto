@@ -44,6 +44,8 @@ export default function ConfirmDialog({
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const hasInput = input !== undefined;
+  const inputDefaultValue = input?.defaultValue;
 
   // Sincroniza abertura/fechamento com o <dialog> nativo.
   useEffect(() => {
@@ -59,12 +61,12 @@ export default function ConfirmDialog({
   // Reinicia o valor e foca o input a cada abertura (modo prompt).
   useEffect(() => {
     if (!open) return;
-    setValue(input?.defaultValue ?? "");
-    if (input) {
+    setValue(inputDefaultValue ?? "");
+    if (hasInput) {
       const t = setTimeout(() => inputRef.current?.focus(), 30);
       return () => clearTimeout(t);
     }
-  }, [open, input?.defaultValue]);
+  }, [open, hasInput, inputDefaultValue]);
 
   // Fecha no cancel (Escape nativo do <dialog>).
   function handleCancel(e: React.SyntheticEvent<HTMLDialogElement>) {

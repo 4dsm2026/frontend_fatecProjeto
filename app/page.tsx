@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 
 export default function Home() {
   return (
@@ -67,11 +68,13 @@ export default function Home() {
         {/* Mock de mídia substituído por imagem real */}
         <div className="mt-10 md:mt-12">
           <div className="mx-auto max-w-3xl rounded-2xl border bg-gray-50 p-4 md:p-6 shadow-[0_1px_0_rgba(0,0,0,0.04)]">
-            <div className="aspect-[16/9] w-full rounded-xl overflow-hidden border bg-white">
-              <img
+            <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border bg-white">
+              <Image
                 src="/images/aluno-dashboard.png"
                 alt="Dashboard do aluno no Workflow Fatec"
-                className="w-full h-full object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, 768px"
+                className="object-cover"
               />
             </div>
           </div>

@@ -1,14 +1,79 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ConfirmDialog from "../app/components/ui/ConfirmDialog";
 
+const showModalDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "showModal");
+const closeDescriptor = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
+
+beforeEach(() => {
+  Object.defineProperty(HTMLDialogElement.prototype, "showModal", {
+    configurable: true,
+    value(this: HTMLDialogElement) { this.setAttribute("open", ""); },
+  });
+  Object.defineProperty(HTMLDialogElement.prototype, "close", {
+    configurable: true,
+    value(this: HTMLDialogElement) { this.removeAttribute("open"); },
+  });
+});
+
+afterEach(() => {
+  if (showModalDescriptor) Object.defineProperty(HTMLDialogElement.prototype, "showModal", showModalDescriptor);
+  else Reflect.deleteProperty(HTMLDialogElement.prototype, "showModal");
+  if (closeDescriptor) Object.defineProperty(HTMLDialogElement.prototype, "close", closeDescriptor);
+  else Reflect.deleteProperty(HTMLDialogElement.prototype, "close");
+});
+
 describe("ConfirmDialog", () => {
-  it("não renderiza nada quando open=false", () => {
+  it("mantém o dialog fechado quando open=false", () => {
     const { container } = render(
       <ConfirmDialog open={false} title="X" onConfirm={() => {}} onClose={() => {}} />,
     );
-    expect(container).toBeEmptyDOMElement();
+    expect(container.querySelector("dialog")).toBeInTheDocument();
+    expect(container.querySelector("dialog")).not.toHaveAttribute("open");
+  });
+
+  it("sincroniza a entrada do modo prompt sem resetar por nova identidade do objeto", async () => {
+    const { rerender } = render(
+      <ConfirmDialog open title="Prompt" onConfirm={() => {}} onClose={() => {}} />,
+    );
+
+    rerender(
+      <ConfirmDialog
+        open
+        title="Prompt"
+        input={{ label: "Nome", defaultValue: "Inicial" }}
+        onConfirm={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    const input = screen.getByRole("textbox");
+    await vi.waitFor(() => expect(input).toHaveValue("Inicial"));
+    await vi.waitFor(() => expect(input).toHaveFocus());
+
+    await userEvent.clear(input);
+    await userEvent.type(input, "Digitado");
+    rerender(
+      <ConfirmDialog
+        open
+        title="Prompt"
+        input={{ label: "Nome atualizado", defaultValue: "Inicial" }}
+        onConfirm={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(input).toHaveValue("Digitado");
+
+    rerender(
+      <ConfirmDialog
+        open
+        title="Prompt"
+        input={{ label: "Nome atualizado", defaultValue: "Novo padrão" }}
+        onConfirm={() => {}}
+        onClose={() => {}}
+      />,
+    );
+    expect(input).toHaveValue("Novo padrão");
   });
 
   it("mostra título/descrição e dispara onConfirm ao confirmar", async () => {
