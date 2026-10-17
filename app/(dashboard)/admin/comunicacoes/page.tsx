@@ -3,28 +3,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, Mail, Eye, Send, Download, Upload, Save, Check, X,
-  Filter, ToggleLeft, ToggleRight, FileText, TriangleAlert
+  ToggleLeft, ToggleRight, FileText
 } from "lucide-react";
 import { toast } from "sonner";
 import { cx } from "../../../../utils/cx";
-import { apiFetch } from "../../../../utils/api";
+import { API_BASE, apiFetch, extractApiError } from "../../../../utils/api";
+import { getEntry } from "../../../../utils/entry";
+import { embedded, followLink, getLink, hasLink } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
-type TemplateKey =
-  | "WELCOME_FIRST_ACCESS"
-  | "PASSWORD_RESET"
-  | "TICKET_OPENED"
-  | "TICKET_STATUS_UPDATED"
-  | "TICKET_RESOLVED"
-  | "TICKET_WAITING_USER"
-  | "TICKET_NEW_MESSAGE"
-  | "TICKET_NEW_ATTACHMENT";
-
-type Template = {
+type Template = HalResource & {
   id: string;
-  key: TemplateKey;
+  key: string;
   nome: string;
   descricao?: string;
   habilitado: boolean;
@@ -32,6 +23,45 @@ type Template = {
   corpo: string; // HTML simples ou text; aqui editamos como texto com variáveis
   variaveis: string[]; // lista de chaves disponíveis {{...}}
 };
+
+type TemplateResource = HalResource & {
+  id: string;
+  chave: string;
+  nome: string;
+  descricao?: string | null;
+  habilitado: boolean;
+  assunto: string;
+  corpo: string;
+  variaveis?: string[] | null;
+};
+
+type TemplatesCollection = HalCollection<TemplateResource>;
+type CommunicationTestResponse = HalResource & { message?: string };
+
+function mergeTemplate(resource: TemplateResource, fallback?: Template): Template {
+  return {
+    id: fallback?.id ?? resource.id,
+    key: resource.chave,
+    nome: resource.nome,
+    descricao: resource.descricao === null ? undefined : resource.descricao ?? fallback?.descricao,
+    habilitado: resource.habilitado,
+    assunto: resource.assunto,
+    corpo: resource.corpo,
+    variaveis: resource.variaveis ?? fallback?.variaveis ?? [],
+    _links: resource._links,
+  };
+}
+
+function mergeTemplates(persisted: TemplateResource[]): Template[] {
+  const byKey = new Map(persisted.map((template) => [template.chave, template]));
+  const defaults = DEFAULT_TEMPLATES.map((template) => {
+    const saved = byKey.get(template.key);
+    if (!saved) return template;
+    byKey.delete(template.key);
+    return mergeTemplate(saved, template);
+  });
+  return [...defaults, ...Array.from(byKey.values(), (template) => mergeTemplate(template))];
+}
 
 /** ---- Mock inicial (você vai carregar do backend futuramente) ---- */
 const DEFAULT_TEMPLATES: Template[] = [
@@ -184,6 +214,8 @@ function applyVars(text: string, vars: string[]) {
 export default function ComunicacoesPage() {
   const [query, setQuery] = useState("");
   const [templates, setTemplates] = useState<Template[]>(DEFAULT_TEMPLATES);
+  const [collection, setCollection] = useState<TemplatesCollection | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string>(DEFAULT_TEMPLATES[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -204,33 +236,28 @@ export default function ComunicacoesPage() {
     });
   };
 
-  /* Carrega os templates persistidos e mescla sobre os defaults (por chave). */
+  /* Carrega a coleção HAL e mescla os recursos persistidos sobre os defaults por chave. */
   useEffect(() => {
-    apiFetch(`${API_URL}/admin/comunicacoes`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const persistidos: Array<Partial<Template> & { chave: string }> = json?.data ?? [];
-        if (persistidos.length === 0) return;
-        const porChave = new Map(persistidos.map((p) => [p.chave, p]));
-        setTemplates((prev) =>
-          prev.map((t) => {
-            const salvo = porChave.get(t.key);
-            if (!salvo) return t;
-            const merged = {
-              ...t,
-              nome: salvo.nome ?? t.nome,
-              descricao: salvo.descricao ?? t.descricao,
-              habilitado: salvo.habilitado ?? t.habilitado,
-              assunto: salvo.assunto ?? t.assunto,
-              corpo: salvo.corpo ?? t.corpo,
-              variaveis: (salvo.variaveis as string[] | undefined) ?? t.variaveis,
-            };
-            baselineRef.current.set(t.id, merged); // baseline = versão carregada
-            return merged;
-          }),
-        );
-      })
-      .catch(() => {});
+    let active = true;
+    async function loadTemplates() {
+      try {
+        const entry = await getEntry();
+        const response = await followLink(entry, "communication-templates", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(await extractApiError(response, `Erro ${response.status} ao carregar templates`));
+        }
+        const loaded = (await response.json()) as TemplatesCollection;
+        const merged = mergeTemplates(embedded(loaded, "communication-templates"));
+        if (!active) return;
+        setCollection(loaded);
+        setTemplates(merged);
+        baselineRef.current = new Map(merged.map((template) => [template.id, template]));
+      } catch (error: unknown) {
+        if (active) setLoadError(error instanceof Error ? error.message : "Falha ao carregar templates.");
+      }
+    }
+    void loadTemplates();
+    return () => { active = false; };
   }, []);
 
   // Avisa ao fechar/recarregar a aba com edições pendentes.
@@ -268,34 +295,47 @@ export default function ComunicacoesPage() {
     setPendingSwitch(null);
   }
 
-  async function persistir(t: Template) {
-    const res = await apiFetch(`${API_URL}/admin/comunicacoes/${encodeURIComponent(t.key)}`, {
-      method: "PUT",
+  async function persistir(template: Template): Promise<Template> {
+    const init: RequestInit = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        nome: t.nome,
-        descricao: t.descricao ?? null,
-        habilitado: t.habilitado,
-        assunto: t.assunto,
-        corpo: t.corpo,
-        variaveis: t.variaveis,
+        nome: template.nome,
+        descricao: template.descricao ?? null,
+        habilitado: template.habilitado,
+        assunto: template.assunto,
+        corpo: template.corpo,
+        variaveis: template.variaveis,
       }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error((err as any)?.error || `Erro ${res.status}`);
     }
+    const updateLink = getLink(template, "update");
+    let response: Response;
+    if (updateLink) {
+      response = await followLink(template, "update", init);
+    } else {
+      // Exceção: defaults estáticos ainda não são recursos HAL; usa-se a URI PUT convencional pela chave.
+      const href = `/admin/communication-templates/${encodeURIComponent(template.key)}`;
+      response = await apiFetch(`${API_BASE}${href}`, { ...init, method: "PUT" });
+    }
+    if (!response.ok) {
+      throw new Error(await extractApiError(response, `Erro ${response.status} ao salvar template`));
+    }
+    if (response.status !== 200 && response.status !== 201) {
+      throw new Error(`Resposta inesperada ao salvar template (${response.status})`);
+    }
+    const resource = (await response.json()) as TemplateResource;
+    return mergeTemplate(resource, template);
   }
 
   async function salvarTemplate() {
     if (!current) return;
     setSaving(true);
     try {
-      await persistir(current);
-      markClean(current.id, current); // vira a nova baseline; limpa o "sujo"
+      const saved = await persistir(current);
+      setTemplates((previous) => previous.map((template) => template.id === saved.id ? saved : template));
+      markClean(saved.id, saved); // vira a nova baseline; limpa o "sujo"
       toast.success("Template salvo.");
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao salvar template");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar template");
     } finally {
       setSaving(false);
     }
@@ -320,12 +360,13 @@ export default function ComunicacoesPage() {
     const atualizado = { ...alvo, habilitado: !alvo.habilitado };
     setTemplates((prev) => prev.map(t => t.id === id ? atualizado : t));
     try {
-      await persistir(atualizado);
-      baselineRef.current.set(id, atualizado); // mantém a baseline em sincronia
-    } catch (e: any) {
+      const saved = await persistir(atualizado);
+      setTemplates((previous) => previous.map((template) => template.id === id ? saved : template));
+      baselineRef.current.set(id, saved); // mantém a baseline em sincronia
+    } catch (error: unknown) {
       // Reverte em caso de falha na persistência.
       setTemplates((prev) => prev.map(t => t.id === id ? alvo : t));
-      toast.error(e?.message ?? "Falha ao atualizar status do template");
+      toast.error(error instanceof Error ? error.message : "Falha ao atualizar status do template");
     }
   }
 
@@ -335,19 +376,20 @@ export default function ComunicacoesPage() {
   }
 
   async function sendTest(to: string) {
-    if (!current) return;
+    if (!current || !collection || !hasLink(collection, "communication-tests")) return;
     setTesting(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/comunicacoes/teste`, {
-        method: "POST",
+      const response = await followLink(collection, "communication-tests", {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ to: to.trim(), assunto: current.assunto, corpo: current.corpo }),
       });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((json as any)?.error || `Erro ${res.status}`);
-      toast.success((json as any)?.message ?? `E-mail de teste enviado para ${to}`);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Falha ao enviar e-mail de teste");
+      if (!response.ok) {
+        throw new Error(await extractApiError(response, `Erro ${response.status} ao enviar teste`));
+      }
+      const result = (await response.json()) as CommunicationTestResponse;
+      toast.success(result.message ?? `E-mail de teste enviado para ${to}`);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao enviar e-mail de teste");
     } finally {
       setTesting(false);
     }
@@ -374,7 +416,8 @@ export default function ComunicacoesPage() {
         if (!Array.isArray(data)) throw new Error("JSON inválido");
         setTemplates(data);
         setCurrentId(data[0]?.id ?? "");
-      } catch (err) {
+      } catch (error: unknown) {
+        console.error(error);
         toast.error("Erro ao importar JSON.");
       }
     };
@@ -475,6 +518,7 @@ export default function ComunicacoesPage() {
 
       {/* Editor + Preview */}
       <section className="xl:col-span-8">
+        {loadError && <p role="alert" className="mb-4 text-sm text-destructive">{loadError}</p>}
         {!current ? (
           <div className="rounded-xl border border-[var(--border)] bg-card p-6 text-center text-muted-foreground">
             Selecione um template à esquerda para editar.
@@ -531,13 +575,15 @@ export default function ComunicacoesPage() {
                     Alterações não salvas
                   </span>
                 )}
-                <button type="button"
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
-                  onClick={() => setTestEmailOpen(true)}
-                  disabled={testing}
-                >
-                  <Send className="size-4" /> {testing ? "Enviando…" : "Enviar teste"}
-                </button>
+                {hasLink(collection, "communication-tests") && (
+                  <button type="button"
+                    className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)] disabled:opacity-60"
+                    onClick={() => setTestEmailOpen(true)}
+                    disabled={testing}
+                  >
+                    <Send className="size-4" /> {testing ? "Enviando…" : "Enviar teste"}
+                  </button>
+                )}
                 <button type="button"
                   className={cx(
                     "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm border",
