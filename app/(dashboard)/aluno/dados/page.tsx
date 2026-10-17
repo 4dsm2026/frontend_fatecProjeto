@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../utils/api";
 import { useEffect, useMemo, useState } from "react";
 import {
   Accessibility,
@@ -58,14 +58,6 @@ function valueOrDash(value?: string | number | boolean | null) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : undefined;
-}
-
-function getResponseErrorMessage(value: unknown) {
-  if (typeof value !== "object" || value === null) return undefined;
-  const data = value as { error?: unknown; message?: unknown };
-  if (typeof data.error === "string") return data.error;
-  if (typeof data.message === "string") return data.message;
-  return undefined;
 }
 
 function LoadingCard() {
@@ -274,8 +266,7 @@ export default function MeusDadosPage() {
           logoutAndRedirect();
         }, 4000);
       } else {
-        const errData: unknown = await res.json().catch(() => ({}));
-        throw new Error(getResponseErrorMessage(errData) || `Erro ${res.status} ao alterar senha`);
+        throw new Error(await extractApiError(res, `Erro ${res.status} ao alterar senha`));
       }
     } catch (e: unknown) {
       toast.error("Falha ao alterar senha", { description: getErrorMessage(e) });
