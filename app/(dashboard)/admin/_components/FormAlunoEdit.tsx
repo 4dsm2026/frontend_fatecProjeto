@@ -1,15 +1,14 @@
 "use client";
-import { apiFetch, extractApiError } from "../../../../utils/api";
-import { useEffect, useMemo, useState } from "react";
+import { extractApiError } from "../../../../utils/api";
+import { followLink, type HalResource } from "../../../../utils/hal";
+import { useEffect, useState } from "react";
 import { Loader2, X } from "lucide-react";
-
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const TURNOS = ["Manhã", "Tarde", "Noite"] as const;
 const CANAIS = ["E-mail", "WhatsApp", "Telefone", "Presencial"] as const;
 const PERIODOS = ["Manhã", "Tarde", "Noite", "Qualquer horário"] as const;
 
-type AlunoData = {
+type AlunoData = HalResource & {
   id: string;
   nome?: string | null;
   emailPessoal?: string | null;
@@ -93,7 +92,7 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
       setSubmitting(true);
       setError(null);
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, string | boolean | null> = {
         nome:             nome.trim()             || null,
         emailPessoal:     emailPessoal.trim()     || null,
         emailEducacional: emailEducacional.trim() || null,
@@ -120,8 +119,7 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
         observacoesAtendimento: observacoesAtendimento.trim() || null,
       };
 
-      const res = await apiFetch(`${API_URL}/usuarios/${aluno.id}`, {
-        method: "PATCH",
+      const res = await followLink(aluno, "update", {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -130,11 +128,11 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
         throw new Error(await extractApiError(res, `Falha ao atualizar (${res.status})`));
       }
 
-      const updated = await res.json();
+      const updated = (await res.json()) as AlunoData;
       onSaved(updated);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err?.message ?? "Erro ao salvar");
+      setError(err instanceof Error ? err.message : "Erro ao salvar");
     } finally {
       setSubmitting(false);
     }

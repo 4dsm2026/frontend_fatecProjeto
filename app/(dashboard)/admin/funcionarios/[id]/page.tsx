@@ -1,5 +1,8 @@
 "use client";
-import { apiFetch } from "../../../../../utils/api";
+import { API_BASE, apiFetch, extractApiError } from "../../../../../utils/api";
+import { getEntry } from "../../../../../utils/entry";
+import { embedded, followLink, getLink, hasLink } from "../../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../../utils/hal";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -12,7 +15,7 @@ import { cx } from '../../../../../utils/cx';
 
 type Papel = "USUARIO" | "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR";
 
-type UsuarioApi = {
+type UsuarioApi = HalResource & {
   id: string;
   nome: string | null;
   emailPessoal: string | null;
@@ -24,7 +27,7 @@ type UsuarioApi = {
   atualizadoEm?: string;
 };
 
-type Funcionario = {
+type Funcionario = HalResource & {
   id: string;
   nome: string | null;
   emailPessoal: string | null;
@@ -35,12 +38,24 @@ type Funcionario = {
   atualizadoEm?: string;
 };
 
-type SetorLite = {
-  usuarioSetorId: string; // ID do vínculo — usado no DELETE
-  id: string;             // ID do setor — display
+type SectorOption = {
+  id: string;
   nome: string;
-  papelNoSetor?: string | null;
 };
+
+type RoleOption = { id: string; nome: string };
+
+type UserSector = HalResource & {
+  id: string;
+  setorId: string;
+  papelId?: string | null;
+  setor?: SectorOption | null;
+  papel?: RoleOption | null;
+};
+
+type UserSectorsCollection = HalCollection<UserSector> & { _embedded?: { sectors?: UserSector[] } };
+type SectorsCollection = HalCollection<SectorOption> & { _embedded?: { sectors?: SectorOption[] } };
+type RolesCollection = HalCollection<RoleOption> & { _embedded?: { roles?: RoleOption[] } };
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const FUNC_LIST = "/admin/funcionarios";
@@ -70,13 +85,54 @@ function StatusPill({ ativo }: { ativo: boolean }) {
 
 function showToast(msg: string) { toast(msg); }
 
+async function followEntryCollection(
+  entry: HalResource,
+  rel: string,
+  fallbackHref?: string,
+): Promise<Response> {
+  if (hasLink(entry, rel)) return followLink(entry, rel, { cache: "no-store" });
+  if (!fallbackHref) throw new Error(`Link ${rel} indisponível para esta conta.`);
+
+  // Exceção temporária: o GET de setores autoriza TECNICO, mas entryLinks publica sectors apenas para ADMINISTRADOR.
+  return apiFetch(`${API_BASE}${fallbackHref}`, { cache: "no-store" });
+}
+
+async function loadUserSectors(user: UsuarioApi): Promise<UserSector[]> {
+  const response = await followLink(user, "sectors", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(await extractApiError(response, `Erro ${response.status} ao buscar setores do funcionário.`));
+  }
+  const collection = (await response.json()) as UserSectorsCollection;
+  return embedded(collection, "sectors");
+}
+
+async function loadSectorOptions(entry: HalResource): Promise<SectorOption[]> {
+  const response = await followEntryCollection(entry, "sectors", "/admin/sectors");
+  if (!response.ok) {
+    throw new Error(await extractApiError(response, `Erro ${response.status} ao carregar setores.`));
+  }
+  const collection = (await response.json()) as SectorsCollection;
+  return embedded(collection, "sectors");
+}
+
+async function loadRoleOptions(entry: HalResource): Promise<RoleOption[]> {
+  if (!hasLink(entry, "roles")) return [];
+  const response = await followLink(entry, "roles", { cache: "no-store" });
+  if (!response.ok) return [];
+  const collection = (await response.json()) as RolesCollection;
+  return embedded(collection, "roles");
+}
+
 export default function FuncionarioDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [func, setFunc] = useState<Funcionario | null>(null);
-  const [setores, setSetores] = useState<SetorLite[]>([]);
+  const [setores, setSetores] = useState<UserSector[]>([]);
+  const [setoresDisponiveis, setSetoresDisponiveis] = useState<SectorOption[]>([]);
+  const [papeisDisponiveis, setPapeisDisponiveis] = useState<RoleOption[]>([]);
+  const [papelEdits, setPapelEdits] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const [delOpen, setDelOpen] = useState(false);
@@ -95,10 +151,16 @@ export default function FuncionarioDetalhePage() {
         setError(null);
 
         // Busca dados do usuário
-        const uRes = await apiFetch(`${API_URL}/usuarios/${encodeURIComponent(id)}`, { cache: "no-store" });
-        if (!uRes.ok) throw new Error(uRes.status === 404 ? "Funcionário não encontrado." : `Erro ${uRes.status} ao buscar funcionário.`);
+        const entry = await getEntry();
+        const usersHref = getLink(entry, "users")?.href;
+        if (!usersHref) throw new Error("A consulta de usuários não está disponível para esta conta.");
+        const userUrl = new URL(`${usersHref}/${encodeURIComponent(id)}`, API_BASE || window.location.origin);
+        const uRes = await apiFetch(userUrl.toString(), { cache: "no-store" });
+        if (!uRes.ok) {
+          throw new Error(await extractApiError(uRes, `Erro ${uRes.status} ao buscar funcionário.`));
+        }
 
-        const json: UsuarioApi = await uRes.json();
+        const json = (await uRes.json()) as UsuarioApi;
         const papel = extrairPapel(json);
         if (papel === null) throw new Error("Usuário não possui papel de funcionário válido.");
         const mapped: Funcionario = {
@@ -110,23 +172,20 @@ export default function FuncionarioDetalhePage() {
           ativo: Boolean(json.ativo),
           criadoEm: json.criadoEm,
           atualizadoEm: json.atualizadoEm,
+          _links: json._links,
         };
         if (alive) setFunc(mapped);
 
-        // Busca setores do usuário — rota: GET /admin/usuarios/:id/setores
-        const sRes = await apiFetch(`${API_URL}/admin/usuarios/${encodeURIComponent(id)}/setores`, { cache: "no-store" });
-        if (!sRes.ok) throw new Error(`Erro ${sRes.status} ao buscar setores do funcionário.`);
-        const data = await sRes.json();
-        const arr: any[] = Array.isArray(data) ? data : (data.data ?? []);
-        const setoresNorm: SetorLite[] = arr
-          .filter((item) => item?.setor?.id)
-          .map((item) => ({
-            usuarioSetorId: String(item.id),
-            id: String(item.setor.id),
-            nome: String(item.setor.nome),
-            papelNoSetor: item?.papel?.nome ?? null,
-          }));
-        if (alive) setSetores(setoresNorm);
+        const [userSectors, availableSectors, availableRoles] = await Promise.all([
+          loadUserSectors(json),
+          loadSectorOptions(entry),
+          loadRoleOptions(entry),
+        ]);
+        if (alive) {
+          setSetores(userSectors);
+          setSetoresDisponiveis(availableSectors);
+          setPapeisDisponiveis(availableRoles);
+        }
       } catch (e: unknown) {
         if (alive) setError(e instanceof Error ? e.message : "Falha ao carregar funcionário.");
       } finally {
@@ -166,8 +225,8 @@ export default function FuncionarioDetalhePage() {
       return;
     }
     try {
-      const res = await apiFetch(`${API_URL}/usuarios/${encodeURIComponent(func.id)}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erro ao excluir funcionário.");
+      const res = await followLink(func, "delete");
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status} ao excluir funcionário.`));
       showToast("Funcionário excluído com sucesso.");
       router.push(FUNC_LIST);
     } catch (err: unknown) {
@@ -180,27 +239,23 @@ export default function FuncionarioDetalhePage() {
 
   async function onAddSetor(e: React.FormEvent) {
     e.preventDefault();
-    if (!func) return;
+    if (!func || !hasLink(func, "sectors")) return;
     if (!novoSetorId.trim()) { showToast("Informe o ID do setor."); return; }
     try {
       const body = {
         setorId: novoSetorId.trim(),
         ...(novoPapelId.trim() ? { papelId: novoPapelId.trim() } : {}),
       };
-      // Rota real: POST /admin/usuarios/:usuarioId/setores
-      const res = await apiFetch(`${API_URL}/admin/usuarios/${encodeURIComponent(func.id)}/setores`, {
+      // A coleção não publica create; use o href do rel sectors com o método POST convencional.
+      const sectorsHref = getLink(func, "sectors")!.href;
+      const res = await apiFetch(`${API_BASE}${sectorsHref}`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error("Falha ao adicionar ao setor.");
-      const data = await res.json();
-      const novo: SetorLite = {
-        usuarioSetorId: String(data.id),
-        id: String(data.setor?.id ?? novoSetorId.trim()),
-        nome: String(data.setor?.nome ?? novoSetorId.trim()),
-        papelNoSetor: data.papel?.nome ?? (novoPapelId.trim() || null),
-      };
-      setSetores((prev) => prev.some((s) => s.usuarioSetorId === novo.usuarioSetorId) ? prev : [...prev, novo]);
+      if (!res.ok) throw new Error(await extractApiError(res, `Falha ao adicionar ao setor (${res.status}).`));
+      const created = (await res.json()) as UserSector;
+      setSetores((previous) => previous.some((item) => item.id === created.id) ? previous : [...previous, created]);
       setAddOpen(false);
       setNovoSetorId("");
       setNovoPapelId("");
@@ -210,15 +265,41 @@ export default function FuncionarioDetalhePage() {
     }
   }
 
-  async function onRemoverSetor(usuarioSetorId: string) {
+  async function onAtualizarPapelSetor(vinculo: UserSector) {
+    if (!hasLink(vinculo, "update")) return;
     try {
-      // Rota real: DELETE /admin/usuarios-setores/:usuarioSetorId
-      const res = await apiFetch(`${API_URL}/admin/usuarios-setores/${encodeURIComponent(usuarioSetorId)}`, { method: "DELETE" });
-      if (!res.ok && res.status !== 204) throw new Error("Falha ao remover do setor.");
-      setSetores((prev) => prev.filter((s) => s.usuarioSetorId !== usuarioSetorId));
+      const papelId = papelEdits[vinculo.id] ?? vinculo.papelId ?? "";
+      const response = await followLink(vinculo, "update", {
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ papelId: papelId || null }),
+      });
+      if (!response.ok) {
+        throw new Error(await extractApiError(response, `Falha ao atualizar o papel (${response.status}).`));
+      }
+      const updated = (await response.json()) as UserSector;
+      setSetores((previous) => previous.map((item) => item.id === updated.id ? updated : item));
+      setPapelEdits((previous) => {
+        const next = { ...previous };
+        delete next[vinculo.id];
+        return next;
+      });
+      showToast("Papel do setor atualizado.");
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : "Não foi possível atualizar o papel.");
+    }
+  }
+
+  async function onRemoverSetor(vinculo: UserSector) {
+    if (!hasLink(vinculo, "delete")) return;
+    try {
+      const response = await followLink(vinculo, "delete");
+      if (!response.ok) {
+        throw new Error(await extractApiError(response, `Falha ao remover do setor (${response.status}).`));
+      }
+      setSetores((previous) => previous.filter((item) => item.id !== vinculo.id));
       showToast("Removido do setor.");
-    } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : "Não foi possível remover do setor.");
+    } catch (error: unknown) {
+      showToast(error instanceof Error ? error.message : "Não foi possível remover do setor.");
     }
   }
 
@@ -258,14 +339,18 @@ export default function FuncionarioDetalhePage() {
           <span className="font-medium truncate max-w-[60vw]">{func.nome ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Link prefetch={false} href={`${FUNC_LIST}/${func.id}/editar`}
-            className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm">Editar</Link>
+          {hasLink(func, "update") && (
+            <Link prefetch={false} href={`${FUNC_LIST}/${func.id}/editar`}
+              className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm">Editar</Link>
+          )}
           <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
             Resetar senha
           </button>
-          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
-            <Trash2 className="size-4" /> Excluir
-          </button>
+          {hasLink(func, "delete") && (
+            <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
+              <Trash2 className="size-4" /> Excluir
+            </button>
+          )}
         </div>
       </div>
 
@@ -301,9 +386,11 @@ export default function FuncionarioDetalhePage() {
       <div className="rounded-xl border border-[var(--border)] bg-card">
         <div className="p-4 flex items-center justify-between">
           <div className="font-semibold">Setores do funcionário</div>
-          <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
-            <Plus className="size-4" /> Adicionar a setor
-          </button>
+          {hasLink(func, "sectors") && (
+            <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(true)}>
+              <Plus className="size-4" /> Adicionar a setor
+            </button>
+          )}
         </div>
         <div className="px-4 pb-4">
           {setores.length === 0 ? (
@@ -311,24 +398,49 @@ export default function FuncionarioDetalhePage() {
           ) : (
             <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
               {setores.map((s) => (
-                <div key={s.usuarioSetorId} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-background p-3">
+                <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border)] bg-background p-3">
                   <div className="flex items-center gap-2">
                     <Building2 className="size-4 text-muted-foreground" />
                     <div className="flex flex-col">
-                      <span className="font-medium leading-5">{s.nome}</span>
-                      {s.papelNoSetor && (
+                      <span className="font-medium leading-5">{s.setor?.nome ?? s.setorId}</span>
+                      {s.papel?.nome && (
                         <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                          <BadgeCheck className="size-3" /> {s.papelNoSetor}
+                          <BadgeCheck className="size-3" /> {s.papel.nome}
                         </span>
+                      )}
+                      <label className="mt-2 text-xs text-muted-foreground" htmlFor={`sector-role-${s.id}`}>
+                        Papel no setor
+                      </label>
+                      <select
+                        id={`sector-role-${s.id}`}
+                        aria-label={`Papel para ${s.setor?.nome ?? s.setorId}`}
+                        className="h-8 rounded-md border border-[var(--border)] bg-background px-2 text-xs"
+                        value={papelEdits[s.id] ?? s.papelId ?? ""}
+                        onChange={(event) => setPapelEdits((previous) => ({ ...previous, [s.id]: event.target.value }))}
+                        disabled={!hasLink(s, "update")}
+                      >
+                        <option value="">Sem papel</option>
+                        {papeisDisponiveis.map((role) => (
+                          <option key={role.id} value={role.id}>{role.nome}</option>
+                        ))}
+                      </select>
+                      {hasLink(s, "update") && (
+                        <button type="button" className="mt-1 text-left text-xs text-primary hover:underline"
+                          onClick={() => void onAtualizarPapelSetor(s)}>
+                          Alterar papel
+                        </button>
                       )}
                     </div>
                   </div>
-                  <button type="button"
-                    className="inline-flex items-center gap-2 h-8 px-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-xs"
-                    onClick={() => onRemoverSetor(s.usuarioSetorId)}
-                  >
-                    <Trash2 className="size-3" /> Remover
-                  </button>
+                  {hasLink(s, "delete") && (
+                    <button type="button"
+                      aria-label={`Remover ${s.setor?.nome ?? s.setorId}`}
+                      className="inline-flex items-center gap-2 h-8 px-2 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-xs"
+                      onClick={() => void onRemoverSetor(s)}
+                    >
+                      <Trash2 className="size-3" /> Remover
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -347,16 +459,24 @@ export default function FuncionarioDetalhePage() {
             </div>
             <form className="p-4 space-y-3" onSubmit={onAddSetor}>
               <div className="space-y-1">
-                <label htmlFor="func-setor-id" className="text-sm">ID do setor</label>
-                <input id="func-setor-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
-                  placeholder="ex.: clx9… (cuid do Setor)"
-                  value={novoSetorId} onChange={(e) => setNovoSetorId(e.target.value)} />
+                <label htmlFor="func-setor-id" className="text-sm">Setor</label>
+                <select id="func-setor-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                  value={novoSetorId} onChange={(e) => setNovoSetorId(e.target.value)}>
+                  <option value="">Selecione um setor</option>
+                  {setoresDisponiveis.map((setor) => (
+                    <option key={setor.id} value={setor.id}>{setor.nome}</option>
+                  ))}
+                </select>
               </div>
               <div className="space-y-1">
-                <label htmlFor="func-papel-id" className="text-sm">ID do papel (opcional)</label>
-                <input id="func-papel-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
-                  placeholder="PapelCatalogo.id (opcional)"
-                  value={novoPapelId} onChange={(e) => setNovoPapelId(e.target.value)} />
+                <label htmlFor="func-papel-id" className="text-sm">Papel no setor (opcional)</label>
+                <select id="func-papel-id" className="w-full h-10 rounded-md border border-[var(--border)] bg-background px-3"
+                  value={novoPapelId} onChange={(e) => setNovoPapelId(e.target.value)}>
+                  <option value="">Sem papel</option>
+                  {papeisDisponiveis.map((role) => (
+                    <option key={role.id} value={role.id}>{role.nome}</option>
+                  ))}
+                </select>
               </div>
               <div className="pt-2 flex items-center justify-end gap-2">
                 <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setAddOpen(false)}>Cancelar</button>
@@ -392,7 +512,7 @@ export default function FuncionarioDetalhePage() {
               <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={() => setDelOpen(false)}>
                 <X className="size-4" /> Cancelar
               </button>
-              <button type="button"
+              {hasLink(func, "delete") && <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (func.emailEducacional ?? func.emailPessoal ?? "")
@@ -403,7 +523,7 @@ export default function FuncionarioDetalhePage() {
                 disabled={delConfirmText !== (func.emailEducacional ?? func.emailPessoal ?? "")}
               >
                 <Trash2 className="size-4" /> Excluir definitivamente
-              </button>
+              </button>}
             </div>
           </div>
         </div>

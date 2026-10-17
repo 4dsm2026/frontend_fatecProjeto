@@ -3,9 +3,13 @@
 import { useMemo, useRef, useState } from "react";
 import { X, Info } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch } from "../../../../utils/api";
+import { extractApiError } from "../../../../utils/api";
+import { followLink, hasLink } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
 
-type ResultRow = {
+type UsersCollection = HalCollection<HalResource>;
+
+export type ResultRow = {
   idx: number;
   ra: string;
   emailEducacional: string;
@@ -31,7 +35,7 @@ function cx(...xs: Array<string | false | null | undefined>) {
  * CSV parser simples com suporte a campos entre aspas.
  * Lida com vírgulas dentro de aspas duplas e aspas escapadas (""").
  */
-function parseCsv(text: string): string[][] {
+export function parseCsv(text: string): string[][] {
   const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   return lines.map((line) => {
     const cols: string[] = [];
@@ -57,10 +61,94 @@ function parseCsv(text: string): string[][] {
   });
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export type AlunoCsvResult =
+  | { ok: true; rows: ResultRow[] }
+  | { ok: false; reason: "empty" | "missing-columns" };
+
+export function parseAlunoCsv(text: string): AlunoCsvResult {
+  const raw = parseCsv(text);
+  if (raw.length <= 1) return { ok: false, reason: "empty" };
+
+  const [header, ...data] = raw;
+  const column = (key: string) =>
+    header.findIndex((value) => value.toLowerCase().trim() === key.toLowerCase());
+
+  const indexes = {
+    ra: column("ra"),
+    emailEducacional: column("emaileducacional"),
+    emailPessoal: column("emailpessoal"),
+    nome: column("nome"),
+    cursoNome: column("cursonome"),
+    cursoSigla: column("cursosigla"),
+    unidadeFatec: column("unidadefatec"),
+    turno: column("turno"),
+    turma: column("turma"),
+    semestreAtual: column("semestreatual"),
+    anoSemestreIngresso: column("anossemestreingresso") >= 0
+      ? column("anossemestreingresso")
+      : column("anosemestreingresso"),
+  };
+
+  if (indexes.ra < 0 || indexes.emailEducacional < 0) {
+    return { ok: false, reason: "missing-columns" };
+  }
+
+  const seenRa = new Set<string>();
+  const rows = data.map((columns, index): ResultRow => {
+    const get = (columnIndex: number) =>
+      columnIndex >= 0 ? (columns[columnIndex] ?? "").trim() : "";
+    const row: ResultRow = {
+      idx: index + 1,
+      ra: get(indexes.ra),
+      emailEducacional: get(indexes.emailEducacional),
+      emailPessoal: get(indexes.emailPessoal),
+      nome: get(indexes.nome),
+      cursoNome: get(indexes.cursoNome),
+      cursoSigla: get(indexes.cursoSigla),
+      unidadeFatec: get(indexes.unidadeFatec),
+      turno: get(indexes.turno),
+      turma: get(indexes.turma),
+      semestreAtual: get(indexes.semestreAtual),
+      anoSemestreIngresso: get(indexes.anoSemestreIngresso),
+      status: "PENDING",
+    };
+
+    if (row.ra) {
+      const normalizedRa = row.ra.toLowerCase();
+      if (seenRa.has(normalizedRa)) {
+        row.status = "ERROR";
+        row.errorMsg = "RA duplicado no arquivo";
+      } else {
+        seenRa.add(normalizedRa);
+      }
+    }
+
+    return row;
+  });
+
+  return { ok: true, rows };
+}
 
 function isDuplicateRaRow(r: ResultRow) {
   return r.status === "ERROR" && r.errorMsg === "RA duplicado no arquivo";
+}
+
+function resultStatusLabel(row: ResultRow): string {
+  if (row.status === "PENDING") return "Pendente";
+  if (row.status === "OK") return row.note ? `OK (${row.note})` : "OK";
+  return "Erro";
+}
+
+function resultStatusClass(status: ResultRow["status"]): string {
+  if (status === "PENDING") return "text-muted-foreground";
+  if (status === "OK") return "text-[var(--success)] font-medium";
+  return "text-[var(--brand-red)] font-medium";
+}
+
+function importButtonLabel(running: boolean, rowCount: number): string {
+  if (running) return "Processando...";
+  if (rowCount > 0) return "Processar importação";
+  return "Selecionar CSV";
 }
 
 function buildImportPayload(r: ResultRow, ra: string, edu: string) {
@@ -103,7 +191,7 @@ function isDuplicateResponse(status: number, text: string) {
   );
 }
 
-async function importRow(r: ResultRow): Promise<ResultRow> {
+async function importRow(r: ResultRow, collection: UsersCollection): Promise<ResultRow> {
   const ra = r.ra?.trim();
   const edu = r.emailEducacional?.trim();
 
@@ -112,8 +200,8 @@ async function importRow(r: ResultRow): Promise<ResultRow> {
   }
 
   try {
-    const resp = await apiFetch(`${API_URL}/usuarios`, {
-      method: "POST",
+    const resp = await followLink(collection, "create", {
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(buildImportPayload(r, ra, edu)),
     });
 
@@ -121,20 +209,22 @@ async function importRow(r: ResultRow): Promise<ResultRow> {
       return { ...r, status: "OK" };
     }
 
-    const text = await resp.text().catch(() => "");
-    if (isDuplicateResponse(resp.status, text)) {
+    const message = await extractApiError(resp, `HTTP ${resp.status}`);
+    if (isDuplicateResponse(resp.status, message)) {
       return { ...r, status: "OK", note: "Já existia" };
     }
-    return { ...r, status: "ERROR", errorMsg: text || `HTTP ${resp.status}` };
+    return { ...r, status: "ERROR", errorMsg: message };
   } catch (e: unknown) {
     return { ...r, status: "ERROR", errorMsg: String((e as Error)?.message ?? e) };
   }
 }
 
 export default function ImportAlunos({
+  collection,
   onClose,
   onDone,
 }: {
+  collection: UsersCollection;
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -156,72 +246,18 @@ export default function ImportAlunos({
     setFileName(file.name);
 
     const text = await file.text();
-    const raw  = parseCsv(text);
-    if (raw.length <= 1) {
+    const parsedCsv = parseAlunoCsv(text);
+    if (!parsedCsv.ok && parsedCsv.reason === "empty") {
       toast.error("CSV vazio ou apenas cabeçalho.");
       e.target.value = "";
       return;
     }
-
-    const [header, ...data] = raw;
-    const col = (key: string) =>
-      header.findIndex((h) => h.toLowerCase().trim() === key.toLowerCase());
-
-    const iRA      = col("ra");
-    const iEdu     = col("emaileducacional");
-    const iPes     = col("emailpessoal");
-    const iNome    = col("nome");
-    const iCursoN  = col("cursonome");
-    const iCursoS  = col("cursosigla");
-    const iUnidade = col("unidadefatec");
-    const iTurno   = col("turno");
-    const iTurma   = col("turma");
-    const iSemest  = col("semestreatual");
-    const iIngress = col("anossemestreingresso") >= 0 ? col("anossemestreingresso") : col("anosemestreingresso");
-
-    if (iRA < 0 || iEdu < 0) {
+    if (!parsedCsv.ok) {
       toast.error("Cabeçalho inválido. Colunas obrigatórias: ra, emailEducacional.");
       e.target.value = "";
       return;
     }
-
-    const seenRA = new Set<string>();
-    const parsed: ResultRow[] = data.map((cols, idx) => {
-      const get = (i: number) => (i >= 0 ? (cols[i] ?? "").trim() : "");
-
-      const ra                = get(iRA);
-      const emailEducacional  = get(iEdu);
-      const emailPessoal      = get(iPes);
-      const nome              = get(iNome);
-      const cursoNome         = get(iCursoN);
-      const cursoSigla        = get(iCursoS);
-      const unidadeFatec      = get(iUnidade);
-      const turno             = get(iTurno);
-      const turma             = get(iTurma);
-      const semestreAtual     = get(iSemest);
-      const anoSemestreIngresso = get(iIngress);
-
-      const row: ResultRow = {
-        idx: idx + 1,
-        ra, emailEducacional, emailPessoal,
-        nome, cursoNome, cursoSigla,
-        unidadeFatec, turno, turma, semestreAtual, anoSemestreIngresso,
-        status: "PENDING",
-      };
-
-      if (ra) {
-        const key = ra.toLowerCase();
-        if (seenRA.has(key)) {
-          row.status   = "ERROR";
-          row.errorMsg = "RA duplicado no arquivo";
-        } else {
-          seenRA.add(key);
-        }
-      }
-      return row;
-    });
-
-    setRows(parsed);
+    setRows(parsedCsv.rows);
     setFinished(false);
     e.target.value = "";
   }
@@ -229,6 +265,10 @@ export default function ImportAlunos({
   async function startImport() {
     if (!rows.length) {
       toast.error("Selecione um CSV primeiro.");
+      return;
+    }
+    if (!hasLink(collection, "create")) {
+      toast.error("A criação de usuários não está disponível.");
       return;
     }
     setRunning(true);
@@ -241,7 +281,7 @@ export default function ImportAlunos({
         setRows([...clone]);
         continue;
       }
-      clone[i] = await importRow(clone[i]);
+      clone[i] = await importRow(clone[i], collection);
       setRows([...clone]);
     }
 
@@ -345,9 +385,9 @@ export default function ImportAlunos({
                   <td className="px-3 py-2">{r.semestreAtual || "—"}</td>
                   <td className="px-3 py-2">{r.anoSemestreIngresso || "—"}</td>
                   <td className="px-3 py-2">
-                    {r.status === "PENDING" && <span className="text-muted-foreground">Pendente</span>}
-                    {r.status === "OK"      && <span className="text-[var(--success)] font-medium">OK{r.note ? ` (${r.note})` : ""}</span>}
-                    {r.status === "ERROR"   && <span className="text-[var(--brand-red)] font-medium">Erro</span>}
+                    <span className={resultStatusClass(r.status)}>
+                      {resultStatusLabel(r)}
+                    </span>
                   </td>
                   <td className="px-3 py-2 text-xs text-[var(--brand-red)]">{r.errorMsg || "—"}</td>
                 </tr>
@@ -369,7 +409,7 @@ export default function ImportAlunos({
               : "bg-[var(--muted)] text-muted-foreground cursor-not-allowed",
           )}
         >
-          {running ? "Processando..." : rows.length ? "Processar importação" : "Selecionar CSV"}
+          {importButtonLabel(running, rows.length)}
         </button>
 
         <button type="button"

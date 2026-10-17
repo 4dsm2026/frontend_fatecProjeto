@@ -1,14 +1,16 @@
 "use client";
-import { apiFetch, extractApiError } from "../../../../../utils/api"
+import { API_BASE, apiFetch, extractApiError } from "../../../../../utils/api"
+import { getEntry } from "../../../../../utils/entry";
+import { followLink, getLink, hasLink, type HalResource } from "../../../../../utils/hal";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Mail, User, Badge, Shield, CheckCircle2, XCircle,
+  ArrowLeft, Mail, User, Badge, Shield, CheckCircle2,
   Pencil, Trash2, KeyRound, AlertTriangle, Search, Filter,
-  ChevronRight, Loader2, Check, X, Ticket, Clock,
-  Phone, MessageCircle, GraduationCap, Building2, BookOpen,
+  ChevronRight, Loader2, X, Ticket, Clock,
+  Phone, GraduationCap,
 } from "lucide-react";
 
 import { cx } from '../../../../../utils/cx'
@@ -22,10 +24,10 @@ type StatusChamado = "ABERTO" | "EM_ATENDIMENTO" | "AGUARDANDO_USUARIO" | "RESOL
 type Prioridade = "BAIXA" | "MEDIA" | "ALTA" | "URGENTE";
 type Nivel = "N1" | "N2" | "N3";
 
-type Usuario = {
+type Usuario = HalResource & {
   id: string;
   nome: string | null;
-  emailPessoal: string;
+  emailPessoal: string | null;
   emailEducacional: string | null;
   ra: string | null;
   papel: Papel;
@@ -110,6 +112,11 @@ function SectionCard({ title, icon, children }: { title: string; icon?: React.Re
   );
 }
 
+function accessibilityNeedLabel(value: boolean | null): string | undefined {
+  if (value === null) return undefined;
+  return value ? "Sim" : "Não";
+}
+
 
 /* ===================== Página ===================== */
 export default function PageAlunoDetalhe() {
@@ -136,9 +143,19 @@ export default function PageAlunoDetalhe() {
       try {
         setLoading(true);
 
-        const uRes = await apiFetch(`${API_URL}/usuarios/${id}`, { cache: "no-store" });
-        if (!uRes.ok) throw new Error("Falha ao buscar usuário");
-        const u: Usuario = await uRes.json();
+        const entry = await getEntry();
+        const usersHref = getLink(entry, "users")?.href;
+        if (!usersHref) throw new Error("A consulta de usuários não está disponível para esta conta.");
+        const userUrl = new URL(`${usersHref}/${encodeURIComponent(id)}`, API_BASE || window.location.origin);
+        const uRes = await apiFetch(userUrl.toString(), { cache: "no-store" });
+        if (!uRes.ok) {
+          throw new Error(await extractApiError(uRes, `Falha ao buscar usuário (${uRes.status})`));
+        }
+        const u = (await uRes.json()) as Usuario;
+        if (u.papel !== "USUARIO") {
+          if (active) setAluno(u);
+          return;
+        }
 
         const cRes = await apiFetch(`${API_URL}/tickets?criadoPorId=${u.id}`, { cache: "no-store" });
         if (!cRes.ok) throw new Error("Falha ao buscar tickets");
@@ -180,8 +197,8 @@ export default function PageAlunoDetalhe() {
       return;
     }
     try {
-      const res = await apiFetch(`${API_URL}/usuarios/${aluno.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Erro ao excluir");
+      const res = await followLink(aluno, "delete");
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status} ao excluir usuário`));
       toast("Usuário excluído com sucesso.");
       router.push("/admin/alunos");
     } catch (e) {
@@ -237,6 +254,20 @@ export default function PageAlunoDetalhe() {
     );
   }
 
+  if (aluno.papel !== "USUARIO") {
+    return (
+      <div className="p-6">
+        <div className="rounded-xl border border-[var(--border)] bg-card p-6 text-center">
+          <div className="text-lg font-semibold mb-1">Este cadastro não é de aluno</div>
+          <div className="text-sm text-muted-foreground">A tela de detalhes de alunos só pode exibir contas com papel USUARIO.</div>
+          <Link href="/admin/alunos" className="inline-flex items-center gap-2 mt-4 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm">
+            <ArrowLeft className="size-4" /> Voltar
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   const counts = {
     abertos:    chamados.filter((c) => c.status === "ABERTO").length,
     andamento:  chamados.filter((c) => c.status === "EM_ATENDIMENTO").length,
@@ -257,24 +288,24 @@ export default function PageAlunoDetalhe() {
           <span className="font-medium truncate max-w-[60vw]">{aluno.nome ?? "—"}</span>
         </div>
         <div className="flex items-center gap-2">
-          <button type="button"
+          {hasLink(aluno, "update") && <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={() => setEditOpen(true)}
           >
             <Pencil className="size-4" /> Editar
-          </button>
+          </button>}
           <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm"
             onClick={onResetSenha}
           >
             <KeyRound className="size-4" /> Resetar senha
           </button>
-          <button type="button"
+          {hasLink(aluno, "delete") && <button type="button"
             className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm"
             onClick={() => setDelOpen(true)}
           >
             <Trash2 className="size-4" /> Excluir
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -336,13 +367,7 @@ export default function PageAlunoDetalhe() {
             <div className="col-span-2">
               <InfoRow
                 label="Atendimento acessível"
-                value={
-                  aluno.necessitaAtendimentoAcessivel === null
-                    ? undefined
-                    : aluno.necessitaAtendimentoAcessivel
-                    ? "Sim"
-                    : "Não"
-                }
+                value={accessibilityNeedLabel(aluno.necessitaAtendimentoAcessivel)}
               />
             </div>
             {aluno.necessitaAtendimentoAcessivel && (
@@ -386,7 +411,7 @@ export default function PageAlunoDetalhe() {
               <select
                 className="h-10 w-[220px] pl-9 pr-8 rounded-lg border border-[var(--border)] bg-background"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as any)}
+                onChange={(e) => setStatus(e.target.value as StatusChamado | "ALL")}
               >
                 <option value="ALL">Todos os status</option>
                 <option value="ABERTO">Aberto</option>
@@ -399,7 +424,7 @@ export default function PageAlunoDetalhe() {
             <select
               className="h-10 w-[160px] rounded-lg border border-[var(--border)] bg-background px-3"
               value={prioridade}
-              onChange={(e) => setPrioridade(e.target.value as any)}
+              onChange={(e) => setPrioridade(e.target.value as Prioridade | "ALL")}
             >
               <option value="ALL">Prioridade</option>
               <option value="BAIXA">Baixa</option>
@@ -410,7 +435,7 @@ export default function PageAlunoDetalhe() {
             <select
               className="h-10 w-[130px] rounded-lg border border-[var(--border)] bg-background px-3"
               value={nivel}
-              onChange={(e) => setNivel(e.target.value as any)}
+              onChange={(e) => setNivel(e.target.value as Nivel | "ALL")}
             >
               <option value="ALL">Nível</option>
               <option value="N1">N1</option>
@@ -466,12 +491,12 @@ export default function PageAlunoDetalhe() {
       </div>
 
       {/* Modal de edição */}
-      {editOpen && aluno && (
+      {editOpen && hasLink(aluno, "update") && (
         <FormAlunoEdit
           aluno={aluno}
           onClose={() => setEditOpen(false)}
           onSaved={(updated) => {
-            setAluno((prev : any) => prev ? { ...prev, ...updated } : prev);
+            setAluno((prev) => prev ? { ...prev, ...updated } : prev);
             setEditOpen(false);
           }}
         />
@@ -508,7 +533,7 @@ export default function PageAlunoDetalhe() {
               >
                 <X className="size-4" /> Cancelar
               </button>
-              <button type="button"
+              {hasLink(aluno, "delete") && <button type="button"
                 className={cx(
                   "inline-flex items-center gap-2 h-9 px-3 rounded-md text-sm",
                   delConfirmText === (aluno.emailEducacional ?? aluno.emailPessoal)
@@ -519,7 +544,7 @@ export default function PageAlunoDetalhe() {
                 disabled={delConfirmText !== (aluno.emailEducacional ?? aluno.emailPessoal)}
               >
                 <Trash2 className="size-4" /> Excluir definitivamente
-              </button>
+              </button>}
             </div>
           </div>
         </div>
