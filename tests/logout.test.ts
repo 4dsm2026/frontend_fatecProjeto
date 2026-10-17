@@ -37,13 +37,13 @@ describe("logout — revoga a sessão seguindo o link `session`", () => {
     const api = stubApi({
       "GET /api": (init) =>
         new Headers(init.headers).get("Authorization") === "Bearer velho" ? json({}, 401) : json(FULL_ENTRY),
-      "POST /auth/refresh": () => json({ accessToken: "novo", refreshToken: "ref2" }),
+      "POST /tokens": () => json({ accessToken: "novo", refreshToken: "ref2" }),
       "DELETE /sessions/current": noContent,
     });
 
     await logout();
 
-    expect(api.keys()).toEqual(["GET /api", "POST /auth/refresh", "GET /api", "DELETE /sessions/current"]);
+    expect(api.keys()).toEqual(["GET /api", "POST /tokens", "GET /api", "DELETE /sessions/current"]);
     expect(api.calls[3].auth).toBe("Bearer novo");
     expect(localStorage.getItem("accessToken")).toBeNull();
   });
@@ -52,7 +52,7 @@ describe("logout — revoga a sessão seguindo o link `session`", () => {
     storeSession({ accessToken: "velho", refreshToken: "ref" });
     const api = stubApi({
       "GET /api": () => json({}, 401),
-      "POST /auth/refresh": () => json({}, 401),
+      "POST /tokens": () => json({}, 401),
     });
 
     await expect(logout()).resolves.toBeUndefined();
