@@ -18,6 +18,7 @@ import type { Papel } from "../../../utils/types";
 import { storeSession } from "../../../utils/session";
 import { safeRedirect } from "../../../utils/safe-redirect";
 import { extractApiError } from "../../../utils/api";
+import { activationTokenFromProblem, isPasswordChangeRequired } from "../../../utils/activation-link";
 
 type Mode = "email" | "ra";
 
@@ -79,12 +80,15 @@ export default function LoginContent() {
     });
   }
 
-  function handleFirstAccess(data: Record<string, unknown>) {
-    const token = data?.token;
+  function handleFirstAccess(problem: unknown) {
+    const token = activationTokenFromProblem(problem);
+    if (!token) {
+      throw new Error("Não foi possível iniciar o primeiro acesso. Tente novamente.");
+    }
     toast.message("Primeiro acesso", {
       description: "Você precisa criar uma nova senha antes de continuar.",
     });
-    window.location.href = `/primeiro-acesso${token ? `?token=${token}` : ""}`;
+    window.location.href = `/primeiro-acesso?token=${encodeURIComponent(token)}`;
   }
 
   function handleSuccessfulLogin(data: Record<string, unknown>) {
@@ -105,26 +109,25 @@ export default function LoginContent() {
       const id = identifier.trim();
       const body = mode === "email" ? { email: id, password } : { ra: id, password };
 
-      const res = await fetch(`${API_BASE}/auth/login`, {
+      const res = await fetch(`${API_BASE}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify(body),
       });
 
-      if (res.status === 428) {
-        handleFirstAccess(await res.json().catch(() => ({})));
-        return;
+      if (res.status === 403) {
+        const problem: unknown = await res.clone().json().catch(() => null);
+        if (isPasswordChangeRequired(problem)) {
+          handleFirstAccess(problem);
+          return;
+        }
       }
-      if (res.status === 401) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.error || "Credenciais inválidas");
+      if (!res.ok) {
+        throw new Error(
+          await extractApiError(res, res.status === 401 ? "Credenciais inválidas" : "Erro no servidor"),
+        );
       }
-      if (res.status === 423) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.message || "Conta temporariamente bloqueada");
-      }
-      if (!res.ok) throw new Error(await extractApiError(res, "Erro no servidor"));
 
       handleSuccessfulLogin(await res.json());
     } catch (e: unknown) {
