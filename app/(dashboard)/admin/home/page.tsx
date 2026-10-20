@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Ticket, User, FileChartColumn } from "lucide-react";
-import MobileSidebarTriggerAdmin from "../_components/MobileSidebarTriggerAdmin";
 import { apiFetch } from "../../../../utils/api";
 import TicketStatusBadge from "../../../components/shared/TicketStatusBadge";
 import PriorityDot from "../../../components/shared/PriorityDot";
@@ -108,11 +107,6 @@ export default function AdminHomePage() {
 
   return (
     <div className="min-h-dvh px-4 py-2 sm:px-6 lg:px-8">
-      {/* Topbar (mobile) */}
-      <div className="mb-4 xl:hidden">
-        <MobileSidebarTriggerAdmin />
-      </div>
-
       {/* Ações rápidas (no topo) */}
       <section className="mb-6 grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Link
