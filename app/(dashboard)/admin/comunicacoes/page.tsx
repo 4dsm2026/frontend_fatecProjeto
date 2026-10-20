@@ -10,6 +10,7 @@ import { cx } from "../../../../utils/cx";
 import { apiFetch } from "../../../../utils/api";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
 import ModeloEmailEditor from "../_components/ModeloEmailEditor";
+import ModeloEmailPreview from "../_components/ModeloEmailPreview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -481,7 +482,7 @@ export default function ComunicacoesPage() {
             Selecione um template à esquerda para editar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Editor */}
             <div className="rounded-xl border border-[var(--border)] bg-card p-4">
               <div className="mb-3">
@@ -505,7 +506,6 @@ export default function ComunicacoesPage() {
                 value={current.corpo}
                 onChange={(html) => updateField("corpo", html)}
                 variaveis={current.variaveis}
-                aplicarExemplo={(html) => applyVars(html, current.variaveis)}
               />
 
               <div className="mt-4 flex items-center gap-2">
@@ -542,6 +542,12 @@ export default function ComunicacoesPage() {
                 </button>
               </div>
             </div>
+
+            <ModeloEmailPreview
+              assunto={current.assunto}
+              corpo={current.corpo}
+              aplicarExemplo={(texto) => applyVars(texto, current.variaveis)}
+            />
           </div>
         )}
       </section>

@@ -2,17 +2,17 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ModeloEmailEditor from "../app/(dashboard)/admin/_components/ModeloEmailEditor";
+import ModeloEmailPreview from "../app/(dashboard)/admin/_components/ModeloEmailPreview";
 
 const CORPO_ATUAL = "Olá {{aluno.nome}},<br/><br/>Seja bem-vindo(a).";
-const exemplo = (html: string) => html.replaceAll("{{aluno.nome}}", "Maria Souza");
+const exemplo = (texto: string) => texto.replaceAll("{{aluno.nome}}", "Maria Souza");
 
-function renderizar(onChange = vi.fn()) {
+function renderizarEditor(onChange = vi.fn()) {
   render(
     <ModeloEmailEditor
       value={CORPO_ATUAL}
       onChange={onChange}
       variaveis={["aluno.nome", "chamado.protocolo"]}
-      aplicarExemplo={exemplo}
     />,
   );
   return onChange;
@@ -20,7 +20,7 @@ function renderizar(onChange = vi.fn()) {
 
 describe("ModeloEmailEditor", () => {
   it("carrega o corpo atual (HTML com <br/>) sem marcar como alterado", async () => {
-    const onChange = renderizar();
+    const onChange = renderizarEditor();
     const editor = await screen.findByRole("textbox", { name: "Corpo do comunicado" });
     expect(editor).toHaveTextContent("Olá {{aluno.nome}},");
     expect(editor).toHaveTextContent("Seja bem-vindo(a).");
@@ -28,21 +28,28 @@ describe("ModeloEmailEditor", () => {
   });
 
   it("insere a variável clicada no texto", async () => {
-    const onChange = renderizar();
+    const onChange = renderizarEditor();
     await screen.findByRole("textbox", { name: "Corpo do comunicado" });
     await userEvent.click(screen.getByRole("button", { name: "{{chamado.protocolo}}" }));
     await waitFor(() => expect(onChange).toHaveBeenCalled());
     expect(onChange.mock.lastCall?.[0]).toContain("{{chamado.protocolo}}");
   });
+});
 
-  it("mostra o corpo com dados de exemplo e volta a editar", async () => {
-    renderizar();
-    await screen.findByRole("textbox", { name: "Corpo do comunicado" });
-    await userEvent.click(screen.getByRole("button", { name: /Ver com dados de exemplo/ }));
-    expect(screen.getByLabelText("Corpo com dados de exemplo")).toHaveTextContent("Olá Maria Souza,");
-    expect(screen.queryByRole("textbox", { name: "Corpo do comunicado" })).not.toBeInTheDocument();
+describe("ModeloEmailPreview", () => {
+  it("mostra assunto e corpo com os dados de exemplo", () => {
+    render(<ModeloEmailPreview assunto="Bem-vindo, {{aluno.nome}}!" corpo={CORPO_ATUAL} aplicarExemplo={exemplo} />);
+    const email = screen.getByRole("article", { name: "Visualização do e-mail" });
+    expect(email).toHaveTextContent("Bem-vindo, Maria Souza!");
+    expect(email).toHaveTextContent("Olá Maria Souza,");
+    expect(email).not.toHaveTextContent("{{aluno.nome}}");
+  });
 
-    await userEvent.click(screen.getByRole("button", { name: /Voltar a editar/ }));
-    expect(await screen.findByRole("textbox", { name: "Corpo do comunicado" })).toBeInTheDocument();
+  it("acompanha as mudanças do corpo", () => {
+    const { rerender } = render(<ModeloEmailPreview assunto="Aviso" corpo="<p>Primeira versão</p>" aplicarExemplo={exemplo} />);
+    rerender(<ModeloEmailPreview assunto="Aviso" corpo="<p><strong>Versão editada</strong></p>" aplicarExemplo={exemplo} />);
+    const email = screen.getByRole("article", { name: "Visualização do e-mail" });
+    expect(email).toHaveTextContent("Versão editada");
+    expect(email.querySelector("strong")).not.toBeNull();
   });
 });
