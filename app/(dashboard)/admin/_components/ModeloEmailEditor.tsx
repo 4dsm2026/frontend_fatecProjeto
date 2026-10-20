@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
-  Bold, Italic, Underline, Heading2, List, ListOrdered, Link2, Unlink, Undo2, Redo2,
+  Bold, Italic, Underline, Heading2, List, ListOrdered, Link2, Unlink, Undo2, Redo2, Eye, PencilLine,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cx } from "../../../../utils/cx";
@@ -16,13 +16,15 @@ type Props = Readonly<{
   onChange: (html: string) => void;
   /** Variáveis que podem ser inseridas, sem as chaves (ex.: "aluno.nome"). */
   variaveis: string[];
+  /** Troca as variáveis por dados de exemplo, para a visualização. */
+  aplicarExemplo: (html: string) => string;
 }>;
 
 const classeBotao =
   "inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs text-muted-foreground transition " +
   "hover:bg-[var(--muted)] disabled:opacity-30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--ring)]";
 
-export const classeConteudoEmail =
+const classeConteudo =
   "min-h-[220px] px-3 py-2 text-sm leading-relaxed outline-none break-words " +
   "[&_p]:mb-2 [&_strong]:font-bold [&_em]:italic [&_u]:underline [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:mb-2 " +
   "[&_ul]:list-disc [&_ol]:list-decimal [&_ul]:pl-6 [&_ol]:pl-6 [&_li]:my-1 [&_a]:text-blue-700 [&_a]:underline";
@@ -31,7 +33,8 @@ export const classeConteudoEmail =
  * Editor visual (WYSIWYG) do corpo dos modelos de e-mail.
  * Salva HTML simples (parágrafos, negrito, listas, links), compatível com clientes de e-mail.
  */
-export default function ModeloEmailEditor({ value, onChange, variaveis }: Props) {
+export default function ModeloEmailEditor({ value, onChange, variaveis, aplicarExemplo }: Props) {
+  const [verExemplo, setVerExemplo] = useState(false);
   const [linkAberto, setLinkAberto] = useState(false);
 
   const editor = useEditor({
@@ -52,7 +55,7 @@ export default function ModeloEmailEditor({ value, onChange, variaveis }: Props)
         role: "textbox",
         "aria-label": "Corpo do comunicado",
         "aria-multiline": "true",
-        class: classeConteudoEmail,
+        class: classeConteudo,
       },
     },
     onUpdate: ({ editor: atual }) => onChange(atual.getHTML()),
@@ -126,16 +129,34 @@ export default function ModeloEmailEditor({ value, onChange, variaveis }: Props)
               title={nome}
               aria-label={nome}
               aria-pressed={ativo}
-              disabled={desabilitado}
+              disabled={verExemplo || desabilitado}
               onClick={executar}
               className={cx(classeBotao, ativo && "bg-[var(--muted)] text-foreground")}
             >
               <Icone className="size-4" />
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => setVerExemplo((v) => !v)}
+            aria-pressed={verExemplo}
+            className={cx(classeBotao, "ml-auto gap-1.5", verExemplo && "bg-[var(--muted)] text-foreground")}
+          >
+            {verExemplo ? <PencilLine className="size-4" /> : <Eye className="size-4" />}
+            {verExemplo ? "Voltar a editar" : "Ver com dados de exemplo"}
+          </button>
         </div>
 
-        <EditorContent editor={editor} />
+        {verExemplo ? (
+          <div
+            aria-label="Corpo com dados de exemplo"
+            className={classeConteudo}
+            // HTML gerado pelo próprio editor (esquema limitado) com dados de exemplo fixos.
+            dangerouslySetInnerHTML={{ __html: aplicarExemplo(editor.getHTML()) }}
+          />
+        ) : (
+          <EditorContent editor={editor} />
+        )}
       </div>
 
       <div className="mt-3">
@@ -147,6 +168,7 @@ export default function ModeloEmailEditor({ value, onChange, variaveis }: Props)
             <button
               key={v}
               type="button"
+              disabled={verExemplo}
               onClick={() => editor.chain().focus().insertContent(`{{${v}}}`).run()}
               className="text-xs rounded-md border border-[var(--border)] bg-background px-2 py-0.5 hover:bg-[var(--muted)] disabled:opacity-50"
             >
