@@ -508,7 +508,7 @@ export default function ComunicacoesPage() {
                 variaveis={current.variaveis}
               />
 
-              <div className="mt-4 flex items-center gap-2">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
                 <button type="button"
                   className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-60"
                   onClick={salvarTemplate}
