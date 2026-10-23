@@ -205,7 +205,7 @@ export default function FuncionarioDetalhePage() {
       return;
     }
     try {
-      const res = await apiFetch(`${API_URL}/auth/esqueci-senha`, {
+      const res = await apiFetch(`${API_URL}/password-resets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),

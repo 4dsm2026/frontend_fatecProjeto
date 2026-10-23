@@ -7,7 +7,7 @@ import { join, relative } from "node:path";
  * (POST /sessions, POST /tokens, ...). Ninguém volta a chamá-las no front.
  * Ao migrar o próximo endpoint, acrescente a rota antiga em MIGRADAS.
  */
-const MIGRADAS = ["/auth/login", "/auth/refresh", "/auth/trocar-senha"];
+const MIGRADAS = ["/auth/login", "/auth/refresh", "/auth/trocar-senha", "/auth/esqueci-senha", "/auth/reset-senha"];
 
 const ROOT = join(__dirname, "..");
 const PASTAS = ["app", "utils"];
