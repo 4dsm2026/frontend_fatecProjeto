@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, downloadAnexo, fetchAnexoImageUrl, extractApiError } from "../../../../../utils/api";
-import { followLink, hasLink } from "../../../../../utils/hal";
+import { embedded, followLink, hasLink } from "../../../../../utils/hal";
 import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
@@ -328,12 +328,12 @@ export default function ChamadoDetalhePage() {
     if (!id) { setMsgLoading(false); return; }
     setMsgLoading(true);
     try {
-      const res = await apiFetch(
-        `${API}/tickets/${id}/mensagens?page=1&pageSize=100&orderDir=asc`,
+            const res = await apiFetch(
+        `${API}/tickets/${id}/messages?page=0&size=100&orderDir=asc`,
       );
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       const data = await res.json();
-      const lista: Mensagem[] = data.mensagens || data.items || [];
+      const lista = embedded<Mensagem>(data, "messages");
       lista.forEach((m) => knownIds.current.add(m.id));
       setMsgs(lista);
       scrollToEnd(false);
@@ -399,14 +399,13 @@ export default function ChamadoDetalhePage() {
 
   /* ===== Enviar Mensagem ===== */
   const sendMensagem = useCallback(async () => {
-    if (!msgText.trim() || !chamado?.id) return;
+        if (!msgText.trim() || !chamado) return;
     setMsgSending(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${chamado.id}/mensagens`, {
-        method: "POST",
+      const res = await followLink(chamado, "reply", {
         body: JSON.stringify({ conteudo: msgText.trim() }),
       });
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       const novaMsg: Mensagem = await res.json();
       if (!knownIds.current.has(novaMsg.id)) {
         knownIds.current.add(novaMsg.id);
@@ -419,7 +418,7 @@ export default function ChamadoDetalhePage() {
     } finally {
       setMsgSending(false);
     }
-  }, [msgText, chamado?.id]);
+  }, [msgText, chamado]);
 
   /* ===== Fetch Anexos ===== */
   const fetchAnexos = useCallback(async () => {

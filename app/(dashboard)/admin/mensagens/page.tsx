@@ -127,11 +127,11 @@ export default function AdminMensagensPage() {
       setLoadingMsgs(true);
       // ✅ ajuste a rota para sua API real de mensagens:
       // suposição: GET /tickets/:id/mensagens?order=asc&page=1&pageSize=50
-      const res = await apiFetch(`${API}/tickets/${id}/mensagens?order=asc&page=1&pageSize=50`, {
+      const res = await apiFetch(`${API}/tickets/${id}/messages?orderDir=asc&page=0&size=100`, {
         cache: "no-store",
       });
       const data = await res.json();
-      const list: Mensagem[] = (data?.items ?? data ?? []).map((m: any) => ({
+      const list: Mensagem[] = embedded<Mensagem>(data, "messages").map((m) => ({
         id: m.id,
         chamadoId: m.chamadoId ?? id,
         autorId: m.autorId,
@@ -187,7 +187,7 @@ export default function AdminMensagensPage() {
       setSending(true);
       // ✅ ajuste a rota real do seu backend:
       // POST /tickets/:id/mensagens { conteudo }
-      const res = await apiFetch(`${API}/tickets/${currentId}/mensagens`, {
+      const res = await apiFetch(`${API}/tickets/${currentId}/messages`, {
         method: "POST",
         body: JSON.stringify({ conteudo: v }),
       });
@@ -235,7 +235,7 @@ export default function AdminMensagensPage() {
       if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
       toast.success(`"${file.name}" anexado ao chamado.`);
       // Registra a anexação como mensagem no fluxo, para ambos os lados verem.
-      await apiFetch(`${API}/tickets/${currentId}/mensagens`, {
+      await apiFetch(`${API}/tickets/${currentId}/messages`, {
         method: "POST",
         body: JSON.stringify({ conteudo: `📎 Anexou o arquivo: ${file.name}` }),
       }).catch(() => { });

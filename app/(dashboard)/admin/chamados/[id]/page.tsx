@@ -351,14 +351,11 @@ export default function AdminChamadoPage() {
     if (!ticket || !msg.trim()) return;
     setSending(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${ticket.id}/mensagens`, {
-        method: "POST",
+            const res = await followLink(ticket, "reply", {
         body: JSON.stringify({ conteudo: msg.trim() }),
       });
       if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
-      const data: Ticket = await res.json();
-
-      const nova = await res.json();
+      const nova: Mensagem = await res.json();
 
       if (!knownIds.current.has(nova.id)) {
         knownIds.current.add(nova.id);
