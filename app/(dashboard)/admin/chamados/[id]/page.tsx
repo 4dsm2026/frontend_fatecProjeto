@@ -6,9 +6,11 @@ import Link from "next/link";
 import {
   ArrowLeft, Loader2, Send, User, Building2, Tag, Clock,
   CheckCircle2, RotateCcw, Pencil, Save, MessageSquareText,
-  Paperclip, Download, Upload, Route, GraduationCap,
+  Paperclip, Download, Upload, Route, GraduationCap, Archive, ArchiveRestore
 } from "lucide-react";
-import { apiFetch, downloadAnexo } from "../../../../../utils/api";
+import { apiFetch, downloadAnexo, extractApiError } from "../../../../../utils/api";
+import { followLink, getLinks, hasLink } from "../../../../../utils/hal";
+import type { HalLinks } from "../../../../../utils/hal";
 import { toast } from "sonner";
 
 import { cx } from '../../../../../utils/cx'
@@ -104,6 +106,16 @@ type Ticket = {
   contrato?: ContratoMin | null;
   mensagens?: Mensagem[];
   historico?: Historico[];
+  arquivadoEm?: string | null;
+  _links?: HalLinks;
+};
+
+const STATUS_LABEL: Record<Status, string> = {
+  ABERTO: "Aberto",
+  EM_ATENDIMENTO: "Em atendimento",
+  AGUARDANDO_USUARIO: "Aguardando usuário",
+  RESOLVIDO: "Resolvido",
+  ENCERRADO: "Encerrado",
 };
 
 function formatarChave(key: string): string {
@@ -213,7 +225,7 @@ export default function AdminChamadoPage() {
     apiFetch(`${API}/usuarios/${ticket.criadoPorId}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((data: PerfilAcademico | null) => { if (data) setPerfilAluno(data); })
-      .catch(() => {});
+      .catch(() => { });
   }, [ticket?.criadoPorId]);
 
   useEffect(() => {
@@ -240,7 +252,7 @@ export default function AdminChamadoPage() {
         try {
           ws?.send(JSON.stringify({ type: "auth", token }));
           ws?.send(JSON.stringify({ type: "hello", chamadoId: id }));
-        } catch {}
+        } catch { }
       };
 
       ws.onmessage = (event) => {
@@ -275,34 +287,66 @@ export default function AdminChamadoPage() {
     };
   }, [id]);
 
-  async function saveEdits(newStatus?: Status) {
+  async function garantirOk(res: Response) {
+    if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
+  }
+
+  /** Dados pelo link `update`, status pelo link `transition`. Só envia o que mudou. */
+  async function saveEdits(alvo?: Status) {
     if (!ticket) return;
+    const novoStatus = alvo ?? status;
+
+    const campos: Record<string, unknown> = {};
+    if (prioridade !== ticket.prioridade) campos.prioridade = prioridade;
+    if (nivel !== ticket.nivel) campos.nivel = nivel;
+    const responsavelAtual = ticket.responsavelId ?? ticket.responsavel?.id ?? null;
+    if ((responsavelId || null) !== responsavelAtual) campos.responsavelId = responsavelId || null;
+
+    const mudouDados = Object.keys(campos).length > 0;
+    const mudouStatus = novoStatus !== ticket.status;
+    if (!mudouDados && !mudouStatus) {
+      toast.info("Nada para salvar.");
+      return;
+    }
+
     try {
       setSaving(true);
-      const body = {
-        status: newStatus ?? status,
-        prioridade,
-        nivel,
-        responsavelId: responsavelId || null,
-      };
-      const res = await apiFetch(`${API}/tickets/${ticket.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
+      if (mudouDados) {
+        await garantirOk(await followLink(ticket, "update", { body: JSON.stringify(campos) }));
+      }
+      if (mudouStatus) {
+        await garantirOk(
+          await followLink(ticket, "transition", {
+            name: novoStatus,
+            body: JSON.stringify({ status: novoStatus }),
+          }),
+        );
       }
       toast.success("Alterações salvas!");
       await load();
     } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      toast.error("Falha ao salvar", { description: errMsg });
+      toast.error("Falha ao salvar", { description: e instanceof Error ? e.message : String(e) });
     } finally {
       setSaving(false);
     }
   }
 
+  /** Reabrir, arquivar e desarquivar: um link, um corpo, uma mensagem. */
+  async function seguirAcao(rel: string, corpo: object, sucesso: string, name?: string) {
+    if (!ticket) return;
+    try {
+      setSaving(true);
+      await garantirOk(await followLink(ticket, rel, { name, body: JSON.stringify(corpo) }));
+      toast.success(sucesso);
+      await load();
+    } catch (e: unknown) {
+      toast.error("Não foi possível concluir a ação", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
   async function sendMessage() {
     if (!ticket || !msg.trim()) return;
     setSending(true);
@@ -311,10 +355,9 @@ export default function AdminChamadoPage() {
         method: "POST",
         body: JSON.stringify({ conteudo: msg.trim() }),
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
+      const data: Ticket = await res.json();
+
       const nova = await res.json();
 
       if (!knownIds.current.has(nova.id)) {
@@ -391,6 +434,18 @@ export default function AdminChamadoPage() {
     : [];
 
   const isWizardTicket = ticket.origem === "catalogo_wizard_aluno";
+
+  const podeEditar = hasLink(ticket, "update");
+  const podeResponder = hasLink(ticket, "reply");
+  const podeAnexar = hasLink(ticket, "upload");
+  const podeReabrir = hasLink(ticket, "reopen");
+  const podeResolver = hasLink(ticket, "transition", "RESOLVIDO");
+  const podeArquivar = hasLink(ticket, "archive");
+  const podeDesarquivar = hasLink(ticket, "unarchive");
+  const statusPermitidos = Array.from(
+    new Set<Status>([ticket.status, ...getLinks(ticket, "transition").map((l) => l.name as Status)]),
+  );
+  const podeSalvar = podeEditar || statusPermitidos.length > 1;
 
   return (
     <div className="px-4 py-2 sm:px-6 lg:px-8">
@@ -550,7 +605,8 @@ export default function AdminChamadoPage() {
               )}
               <div ref={endRef} />
             </div>
-
+            
+            {podeResponder ? (
             <div className="p-3 border-t border-[var(--border)]">
               <div className="flex items-end gap-2">
                 <textarea
@@ -572,6 +628,13 @@ export default function AdminChamadoPage() {
                 </button>
               </div>
             </div>
+            ) : (
+              <div className="p-3 border-t text-center text-sm text-muted-foreground">
+                {ticket.arquivadoEm
+                  ? "🔒 Chamado arquivado. Somente leitura."
+                  : "🔒 Respostas indisponíveis neste estado do chamado."}
+              </div>
+            )}
           </section>
 
           {/* CAMPOS ESPECÍFICOS DO SERVIÇO */}
@@ -692,6 +755,7 @@ export default function AdminChamadoPage() {
               </ul>
             )}
 
+            {podeAnexar && (
             <div className="mt-4 pt-4 border-t">
               <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
               <input
@@ -715,6 +779,7 @@ export default function AdminChamadoPage() {
                   </span>
                 )}
               </div>
+              
 
               {selectedFile && (
                 <button type="button"
@@ -728,8 +793,10 @@ export default function AdminChamadoPage() {
               )}
               <p className="text-xs text-muted-foreground mt-2">Limite por arquivo: 10MB.</p>
             </div>
+            )}
           </section>
         </div>
+        
 
         {/* DIREITA: Gestão + Histórico */}
         <aside className="xl:col-span-4 space-y-6">
@@ -739,6 +806,11 @@ export default function AdminChamadoPage() {
               <div className="font-semibold">Atribuição & Status</div>
             </div>
             <div className="p-4 space-y-3">
+              {ticket.arquivadoEm && (
+                <div className="rounded-md border border-yellow-400/30 bg-yellow-100/20 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-300">
+                  Chamado arquivado: somente leitura.
+                </div>
+              )}
               <label className="text-sm block">
                 <span className="text-muted-foreground">Status</span>
                 <select
@@ -746,11 +818,9 @@ export default function AdminChamadoPage() {
                   value={status}
                   onChange={(e) => setStatus(e.target.value as Status)}
                 >
-                  <option value="ABERTO">Aberto</option>
-                  <option value="EM_ATENDIMENTO">Em atendimento</option>
-                  <option value="AGUARDANDO_USUARIO">Aguardando usuário</option>
-                  <option value="RESOLVIDO">Resolvido</option>
-                  <option value="ENCERRADO">Encerrado</option>
+                  {statusPermitidos.map((s) => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
                 </select>
               </label>
 
@@ -760,6 +830,7 @@ export default function AdminChamadoPage() {
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 focus:ring-2 focus:ring-[var(--ring)]"
                   value={prioridade}
                   onChange={(e) => setPrioridade(e.target.value as Prioridade)}
+                  disabled={!podeEditar}
                 >
                   <option value="BAIXA">Baixa</option>
                   <option value="MEDIA">Média</option>
@@ -774,6 +845,7 @@ export default function AdminChamadoPage() {
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 focus:ring-2 focus:ring-[var(--ring)]"
                   value={nivel}
                   onChange={(e) => setNivel(e.target.value as Nivel)}
+                  disabled={!podeEditar}
                 >
                   <option value="N1">N1</option>
                   <option value="N2">N2</option>
@@ -787,30 +859,57 @@ export default function AdminChamadoPage() {
                   value={responsavelId}
                   onChange={(e) => setResponsavelId(e.target.value)}
                   placeholder="cuid_xxx"
+                  disabled={!podeEditar}
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:ring-2 focus:ring-[var(--ring)]"
                 />
               </label>
 
               <div className="flex flex-col gap-2 pt-2">
-                <button type="button"
-                  onClick={() => saveEdits("RESOLVIDO")}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
-                >
-                  <CheckCircle2 className="size-4" /> Marcar como resolvido
-                </button>
-                <button type="button"
-                  onClick={() => saveEdits("ABERTO")}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
-                >
-                  <RotateCcw className="size-4" /> Reabrir
-                </button>
-                <button type="button"
-                  onClick={() => saveEdits()}
-                  disabled={saving}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 text-sm"
-                >
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Salvar
-                </button>
+                {podeResolver && (
+                  <button type="button"
+                    onClick={() => saveEdits("RESOLVIDO")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <CheckCircle2 className="size-4" /> Marcar como resolvido
+                  </button>
+                )}
+                {podeReabrir && (
+                  <button type="button"
+                    onClick={() => seguirAcao("reopen", { status: "EM_ATENDIMENTO" }, "Chamado reaberto.", "EM_ATENDIMENTO")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <RotateCcw className="size-4" /> Reabrir
+                  </button>
+                )}
+                {podeSalvar && (
+                  <button type="button"
+                    onClick={() => saveEdits()}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 text-sm"
+                  >
+                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Salvar
+                  </button>
+                )}
+                {podeArquivar && (
+                  <button type="button"
+                    onClick={() => seguirAcao("archive", { arquivado: true }, "Chamado arquivado.")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <Archive className="size-4" /> Arquivar
+                  </button>
+                )}
+                {podeDesarquivar && (
+                  <button type="button"
+                    onClick={() => seguirAcao("unarchive", { arquivado: false }, "Chamado desarquivado.")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <ArchiveRestore className="size-4" /> Desarquivar
+                  </button>
+                )}
               </div>
             </div>
           </div>
