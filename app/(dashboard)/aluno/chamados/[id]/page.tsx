@@ -14,13 +14,23 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch, downloadAnexo, fetchAnexoImageUrl } from "../../../../../utils/api";
+import { apiFetch, downloadAnexo, fetchAnexoImageUrl, extractApiError } from "../../../../../utils/api";
+import { followLink, hasLink } from "../../../../../utils/hal";
+import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
 
 /* ================= Constantes ================= */
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+type ChamadoHal = Chamado & HalResource & { arquivadoEm?: string | null };
+
+function textoDeBloqueio(c: ChamadoHal, podeReabrir: boolean): string {
+  if (c.arquivadoEm) return "🔒 Solicitação arquivada. Disponível apenas para consulta.";
+  if (podeReabrir) return "🔒 Para enviar novas mensagens, reabra a solicitação.";
+  return "🔒 Atendimento finalizado. Solicitação disponível apenas para consulta.";
+}
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -174,11 +184,10 @@ function ChatMessages({
             return (
               <div
                 key={`${m.id}-${m.criadoEm}`}
-                className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${
-                  group.isAluno
-                    ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
-                }`}
+                className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${group.isAluno
+                  ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
+                  : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
+                  }`}
               >
                 <div className="whitespace-pre-wrap break-words">{m.conteudo}</div>
                 {isLast && (
@@ -262,7 +271,7 @@ export default function ChamadoDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [chamado, setChamado] = useState<Chamado | null>(null);
+  const [chamado, setChamado] = useState<ChamadoHal | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
@@ -311,7 +320,7 @@ export default function ChamadoDetalhePage() {
   useEffect(() => {
     getCurrentUser<DadosAcademicosUser>()
       .then((data) => setDadosAcademicos(data))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   /* ===== Fetch Mensagens ===== */
@@ -370,7 +379,7 @@ export default function ChamadoDetalhePage() {
             setMsgs((prev) => [...prev, m]);
             scrollToEnd();
           }
-        } catch {}
+        } catch { }
       };
       ws.onclose = () => {
         if (destroyed) return;
@@ -462,15 +471,16 @@ export default function ChamadoDetalhePage() {
   }, [selectedFile, chamado?.id, fetchAnexos]);
 
   /* ===== Alterar status ===== */
-  const atualizarStatus = useCallback(
-    async (novoStatus: Status): Promise<boolean> => {
-      if (!chamado?.id) return false;
+  /* ===== Ações do chamado: seguem os links que a API devolveu ===== */
+  const executarAcao = useCallback(
+    async (rel: "transition" | "reopen", status: Status): Promise<boolean> => {
+      if (!chamado) return false;
       try {
-        const res = await apiFetch(`${API}/tickets/${chamado.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: novoStatus }),
+        const res = await followLink(chamado, rel, {
+          name: status,
+          body: JSON.stringify({ status }),
         });
-        if (!res.ok) throw new Error(`Erro ${res.status}`);
+        if (!res.ok) throw new Error(await extractApiError(res, "Não foi possível concluir a ação"));
         await fetchChamado();
         return true;
       } catch (err: unknown) {
@@ -480,7 +490,7 @@ export default function ChamadoDetalhePage() {
         return false;
       }
     },
-    [chamado?.id, fetchChamado],
+    [chamado, fetchChamado],
   );
 
   /* ===== Drag-drop ===== */
@@ -511,8 +521,8 @@ export default function ChamadoDetalhePage() {
               Deseja finalizar esta solicitação acadêmica?
             </h3>
             <p className="text-sm text-muted-foreground mt-1 leading-snug">
-              Após finalizar, ficará <b>apenas para consulta</b> e{" "}
-              <b>não poderá ser reaberta</b>.
+              Após finalizar, ficará <b>apenas para consulta</b> e só poderá ser{" "}
+              <b>reaberta por um período limitado</b>.
             </p>
             <div className="mt-3 flex justify-end gap-2">
               <button type="button"
@@ -524,7 +534,7 @@ export default function ChamadoDetalhePage() {
               <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
-                  const ok = await atualizarStatus("ENCERRADO");
+                  const ok = await executarAcao("transition", "ENCERRADO");
                   if (ok)
                     toast.success("Solicitação finalizada.", {
                       description: "Disponível apenas para consulta no histórico.",
@@ -564,7 +574,7 @@ export default function ChamadoDetalhePage() {
               <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
-                  const ok = await atualizarStatus("EM_ATENDIMENTO");
+                  const ok = await executarAcao("reopen", "EM_ATENDIMENTO");
                   if (ok)
                     toast.success("Solicitação reaberta.", {
                       description: "Em análise pelo setor responsável.",
@@ -596,7 +606,10 @@ export default function ChamadoDetalhePage() {
       </div>
     );
 
-  const isEncerrado = chamado.status === "ENCERRADO";
+  const podeFinalizar = hasLink(chamado, "transition", "ENCERRADO");
+  const podeReabrir = hasLink(chamado, "reopen");
+  const podeResponder = hasLink(chamado, "reply");
+  const podeAnexar = hasLink(chamado, "upload");;
   const groups = groupMensagens(msgs, chamado.criadoPorId ?? undefined);
 
   return (
@@ -687,27 +700,30 @@ export default function ChamadoDetalhePage() {
           </svg>
           <div>
             Esta solicitação foi marcada como <b>respondida.</b> <br />
-            Você pode <b>reabrir</b> se o problema não foi solucionado ou{" "}
-            <b>encerrar</b> definitivamente se estiver tudo certo.
+            Use os botões abaixo para <b>reabrir</b> ou <b>finalizar</b>, conforme disponível.
           </div>
         </div>
       )}
 
-      {/* Botões de ação */}
-      {chamado.status === "RESOLVIDO" && (
+      {/* Botões de ação: só aparecem os que a API ofereceu */}
+      {(podeFinalizar || podeReabrir) && (
         <div className="flex gap-3">
-          <button type="button"
-            onClick={confirmarEncerramento}
-            className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
-          >
-            Finalizar atendimento
-          </button>
-          <button type="button"
-            onClick={confirmarReabertura}
-            className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
-          >
-            Reabrir solicitação
-          </button>
+          {podeFinalizar && (
+            <button type="button"
+              onClick={confirmarEncerramento}
+              className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
+            >
+              Finalizar atendimento
+            </button>
+          )}
+          {podeReabrir && (
+            <button type="button"
+              onClick={confirmarReabertura}
+              className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
+            >
+              Reabrir solicitação
+            </button>
+          )}
         </div>
       )}
 
@@ -723,9 +739,8 @@ export default function ChamadoDetalhePage() {
         </div>
 
         <div
-          className={`flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px] rounded-b-lg scrollbar-thin transition-colors ${
-            isDragging ? "bg-primary/5 border-2 border-dashed border-primary/40" : ""
-          }`}
+          className={`flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px] rounded-b-lg scrollbar-thin transition-colors ${isDragging ? "bg-primary/5 border-2 border-dashed border-primary/40" : ""
+            }`}
         >
           {isDragging && (
             <div className="flex items-center justify-center h-full text-primary text-sm font-medium py-8">
@@ -742,7 +757,7 @@ export default function ChamadoDetalhePage() {
         </div>
 
         {/* Composer */}
-        {!isEncerrado ? (
+        {podeResponder ? (
           <div className="p-3 border-t border-[var(--border)]">
             <div className="flex items-end gap-2">
               <textarea
@@ -770,7 +785,7 @@ export default function ChamadoDetalhePage() {
           </div>
         ) : (
           <div className="p-3 border-t text-center text-sm text-muted-foreground">
-            🔒 Atendimento finalizado. Solicitação disponível apenas para consulta.
+            {textoDeBloqueio(chamado, podeReabrir)}
           </div>
         )}
       </section>
@@ -784,7 +799,7 @@ export default function ChamadoDetalhePage() {
         <AnexoList loadingAnexos={loadingAnexos} anexos={anexos} />
 
         {/* Upload */}
-        {!isEncerrado && (
+        {podeAnexar && (
           <div className="mt-4 pt-4 border-t">
             <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
             <input
