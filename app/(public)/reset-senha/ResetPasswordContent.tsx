@@ -5,31 +5,18 @@ import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Info, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { storeSession } from "../../../utils/session";
 import { extractApiError } from "../../../utils/api";
-
-type Usuario = {
-  id: string;
-  nome?: string | null;
-  ra?: string | null;
-  papel?: "USUARIO" | "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR";
-};
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-/** rota pós-login baseada no papel */
-function getRedirectPath(user?: Usuario | null) {
-  switch (user?.papel) {
-    case "ADMINISTRADOR":
-    case "BACKOFFICE":
-      return "/admin/home";
-    case "TECNICO":
-      return "/admin";
-    case "USUARIO":
-    default:
-      return "/aluno/home";
-  }
-}
+/** Tempo para o aviso de sucesso ser lido antes de ir para o login. */
+const REDIRECT_DELAY_MS = 2500;
+
+/** Mensagens para os dois casos em que o LINK é o problema (e não a senha). */
+const ERROS_DO_LINK: Record<number, string> = {
+  404: "Este link é inválido ou expirou. Peça um novo em “Esqueci minha senha”.",
+  409: "Este link já foi utilizado. Peça um novo em “Esqueci minha senha”.",
+};
 
 /** força simples de senha (0-4) com dicas */
 function passwordScore(pw: string) {
@@ -50,6 +37,7 @@ export default function ResetPasswordContent() {
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     const fromQuery = q.get("token");
@@ -69,7 +57,8 @@ export default function ResetPasswordContent() {
     !!token &&
     meetsPolicy &&
     newPassword === confirm &&
-    !loading;
+    !loading &&
+    !done;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -88,32 +77,26 @@ export default function ResetPasswordContent() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/reset-senha`, {
-        method: "POST",
+      const res = await fetch(`${API_BASE}/password-resets/${encodeURIComponent(token)}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          token,
-          newPassword,
-        }),
+        body: JSON.stringify({ novaSenha: newPassword }),
       });
 
       if (!res.ok) {
+        const doLink = ERROS_DO_LINK[res.status];
+        if (doLink) throw new Error(doLink);
         throw new Error(await extractApiError(res, `Falha ao redefinir senha (${res.status})`));
       }
 
-      const data = await res.json();
-      const user: Usuario | undefined = data?.user;
-
-      if (data?.accessToken) {
-        storeSession({ accessToken: data.accessToken, refreshToken: data.refreshToken });
-      }
-
+      // 204 sem corpo e sem sessão: o login acontece na tela de login.
+      setDone(true);
       toast.success("Senha redefinida com sucesso!", {
-        description: "Você já pode acessar normalmente com a nova senha.",
+        description: "Entre com a nova senha.",
       });
-
-      window.location.href = getRedirectPath(user);
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, REDIRECT_DELAY_MS);
     } catch (err: unknown) {
       toast.error("Não foi possível redefinir a senha.", {
         description: err instanceof Error ? err.message : "Tente novamente em instantes.",

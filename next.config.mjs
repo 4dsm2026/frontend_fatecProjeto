@@ -51,6 +51,16 @@ const nextConfig = {
           },
         ],
       },
+      // O token do link de e-mail está na URL destas telas: o navegador não pode
+      // repassá-lo no cabeçalho Referer. Vêm DEPOIS da regra global (a última vence).
+      {
+        source: "/reset-senha",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
+      {
+        source: "/primeiro-acesso",
+        headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+      },
     ];
   },
 };

@@ -10,7 +10,9 @@ import { toast } from "sonner";
 import ForgotPasswordPage from "../app/(public)/esqueci-senha/page";
 
 function respond(status: number, body: string) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(body, { status })));
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status }));
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 async function enviar() {
@@ -52,8 +54,39 @@ describe("esqueci-senha — mensagem de erro mostrada ao usuário", () => {
     expect(toast.error).toHaveBeenCalledWith(expect.any(String), { description: "Bad Gateway" });
   });
 
-  it("sucesso mostra a confirmação e nenhum erro", async () => {
-    respond(200, JSON.stringify({ message: "ok" }));
+  it("erro no formato problem+json: mostra o detail do backend", async () => {
+    respond(429, JSON.stringify({ title: "Too Many Requests", status: 429, detail: "Muitas tentativas. Tente em 1 minuto." }));
+
+    await enviar();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), { description: "Muitas tentativas. Tente em 1 minuto." });
+  });
+
+  it("400 do problem+json: mostra campo e mensagem de errors[]", async () => {
+    respond(400, JSON.stringify({ title: "Dados inválidos", status: 400, errors: [{ field: "email", message: "E-mail inválido" }] }));
+
+    await enviar();
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(toast.error).toHaveBeenCalledWith(expect.any(String), { description: "email: E-mail inválido" });
+  });
+
+  it("envia POST /password-resets com o e-mail no corpo", async () => {
+    const fetchMock = respond(202, JSON.stringify({ message: "ok" }));
+
+    await enviar();
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url).endsWith("/password-resets")).toBe(true);
+    expect(String(url)).not.toContain("/auth/esqueci-senha");
+    expect(init?.method).toBe("POST");
+    expect(JSON.parse(String(init?.body))).toEqual({ email: "joao@example.com" });
+  });
+
+  it("sucesso (202) mostra a confirmação e nenhum erro", async () => {
+    respond(202, JSON.stringify({ message: "ok" }));
 
     await enviar();
 

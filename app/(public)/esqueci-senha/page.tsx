@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/esqueci-senha`, {
+      const res = await fetch(`${API_BASE}/password-resets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
