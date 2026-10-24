@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { cx } from "../../../../utils/cx";
 import { apiFetch } from "../../../../utils/api";
 import ConfirmDialog from "../../../components/ui/ConfirmDialog";
+import ModeloEmailEditor from "../_components/ModeloEmailEditor";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -480,7 +481,7 @@ export default function ComunicacoesPage() {
             Selecione um template à esquerda para editar.
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             {/* Editor */}
             <div className="rounded-xl border border-[var(--border)] bg-card p-4">
               <div className="mb-3">
@@ -499,23 +500,13 @@ export default function ComunicacoesPage() {
                 className="mt-1 mb-3 w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
               />
 
-              {/* <label className="text-sm font-medium">Corpo (suporta variáveis {{`{{chave}}`}})</label> */}
-              <textarea
-                aria-label="Corpo do comunicado"
+              <span className="text-sm font-medium">Corpo</span>
+              <ModeloEmailEditor
                 value={current.corpo}
-                onChange={(e) => updateField("corpo", e.target.value)}
-                className="mt-1 w-full min-h-[220px] rounded-lg border border-[var(--border)] bg-input p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                onChange={(html) => updateField("corpo", html)}
+                variaveis={current.variaveis}
+                aplicarExemplo={(html) => applyVars(html, current.variaveis)}
               />
-
-              {/* Variáveis disponíveis */}
-              <div className="mt-3">
-                <div className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Variáveis disponíveis</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {current.variaveis.map((v) => (
-                    <span key={v} className="text-xs rounded-md border border-[var(--border)] bg-background px-2 py-0.5">{`{{${v}}}`}</span>
-                  ))}
-                </div>
-              </div>
 
               <div className="mt-4 flex items-center gap-2">
                 <button type="button"
@@ -549,27 +540,6 @@ export default function ComunicacoesPage() {
                 >
                   {current.habilitado ? <><Check className="size-4" /> Habilitado</> : <><X className="size-4" /> Desabilitado</>}
                 </button>
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="rounded-xl border border-[var(--border)] bg-card p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="text-sm font-semibold inline-flex items-center gap-2">
-                  <Eye className="size-4" /> Pré-visualização
-                </div>
-                <div className="text-xs text-muted-foreground">Substituição com dados de exemplo</div>
-              </div>
-              <div className="rounded-lg border border-[var(--border)] bg-background p-3 text-sm leading-relaxed">
-                <div className="font-medium mb-2">{applyVars(current.assunto, current.variaveis)}</div>
-                <div
-                  className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: applyVars(current.corpo, current.variaveis) }}
-                />
-              </div>
-
-              <div className="mt-3 text-xs text-muted-foreground">
-                Dica: você pode suportar **Markdown → HTML** no backend, e aqui editar em Markdown.
               </div>
             </div>
           </div>
