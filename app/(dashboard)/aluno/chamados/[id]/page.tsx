@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch, downloadAnexo, fetchAnexoImageUrl, extractApiError } from "../../../../../utils/api";
-import { embedded, followLink, hasLink } from "../../../../../utils/hal";
+import { embedded, followLink, hasLink, markMessagesRead } from "../../../../../utils/hal";
 import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
@@ -337,6 +337,7 @@ export default function ChamadoDetalhePage() {
       lista.forEach((m) => knownIds.current.add(m.id));
       setMsgs(lista);
       scrollToEnd(false);
+      void markMessagesRead(data);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar mensagens.");
     } finally {

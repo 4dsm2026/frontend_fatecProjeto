@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, extractApiError } from "../../../../utils/api";
-import { embedded } from "../../../../utils/hal";
+import { embedded, markMessagesRead } from "../../../../utils/hal";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -140,6 +140,7 @@ export default function AdminMensagensPage() {
         autor: m.autor ?? null,
       }));
       setMessages(list);
+      void markMessagesRead(data);
       // marca como lidas (se houver endpoint)
       // try { await apiFetch(`${API}/tickets/${id}/mensagens/lidas`, { method: "POST", body: JSON.stringify({ ateId: list.at(-1)?.id })}); } catch {}
       // scroll ao final

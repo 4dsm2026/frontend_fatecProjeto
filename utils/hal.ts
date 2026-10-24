@@ -85,3 +85,31 @@ export async function followLink(resource: MaybeResource, rel: string, options: 
   }
   return apiFetch(`${API_BASE}${target.href}`, { ...init, method: target.method ?? "GET" });
 }
+
+/**
+ * Marca como lidas as mensagens de uma coleção, seguindo o link `mark-read`: a API só o
+ * oferece quando há mensagens não lidas. Falha em silêncio: ler a conversa nunca pode
+ * quebrar a tela.
+ */
+export async function markMessagesRead(collection: MaybeResource): Promise<void> {
+  if (!hasLink(collection, "mark-read")) return;
+  try {
+    await followLink(collection, "mark-read", { body: JSON.stringify({ lida: true }) });
+  } catch {
+    // sem efeito visível: na próxima abertura a API oferece o link de novo
+  }
+}
+
+/**
+ * Para telas que recebem a conversa embutida no chamado: busca a coleção de mensagens
+ * pelo link `messages` do chamado e marca como lidas, se houver o que marcar.
+ */
+export async function markTicketMessagesRead(ticket: MaybeResource): Promise<void> {
+  if (!hasLink(ticket, "messages")) return;
+  try {
+    const res = await followLink(ticket, "messages");
+    if (res.ok) await markMessagesRead(await res.json());
+  } catch {
+    // sem efeito visível: na próxima abertura a API oferece o link de novo
+  }
+}

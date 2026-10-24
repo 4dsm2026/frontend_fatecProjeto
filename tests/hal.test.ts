@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { embedded, followLink, getLink, getLinks, hasLink, HalLinkError } from "../utils/hal";
+import {
+  embedded,
+  followLink,
+  getLink,
+  getLinks,
+  hasLink,
+  HalLinkError,
+  markMessagesRead,
+  markTicketMessagesRead,
+} from "../utils/hal";
 import type { HalCollection, HalResource } from "../utils/hal";
 import { apiFetch } from "../utils/api";
 
@@ -124,4 +133,71 @@ describe("followLink", () => {
       expect(apiFetch).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("markMessagesRead", () => {
+  const colecao: HalResource = {
+    _links: { "mark-read": { href: "/tickets/clx1/messages", method: "PATCH" } },
+  };
+
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
+    vi.mocked(apiFetch).mockResolvedValue({ ok: true } as Response);
+  });
+
+  it("segue o link mark-read mandando { lida: true }", async () => {
+    await markMessagesRead(colecao);
+    expect(apiFetch).toHaveBeenCalledWith("http://api.test/tickets/clx1/messages", {
+      body: JSON.stringify({ lida: true }),
+      method: "PATCH",
+    });
+  });
+
+  it("não chama a API quando não há o link (nada para marcar)", async () => {
+    await markMessagesRead({ _links: { self: { href: "/tickets/clx1/messages" } } });
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("engole o erro: ler a conversa não pode quebrar a tela", async () => {
+    vi.mocked(apiFetch).mockRejectedValue(new Error("rede caiu"));
+    await expect(markMessagesRead(colecao)).resolves.toBeUndefined();
+  });
+});
+
+describe("markTicketMessagesRead", () => {
+  const ticket: HalResource = {
+    _links: { messages: { href: "/tickets/clx1/messages", method: "GET" } },
+  };
+
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
+  });
+
+  it("busca a coleção pelo link messages e marca como lidas", async () => {
+    const colecao = { _links: { "mark-read": { href: "/tickets/clx1/messages", method: "PATCH" } } };
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ ok: true, json: async () => colecao } as Response)
+      .mockResolvedValueOnce({ ok: true } as Response);
+
+    await markTicketMessagesRead(ticket);
+
+    expect(vi.mocked(apiFetch).mock.calls[0][1]).toMatchObject({ method: "GET" });
+    expect(vi.mocked(apiFetch).mock.calls[1][1]).toMatchObject({
+      method: "PATCH",
+      body: JSON.stringify({ lida: true }),
+    });
+  });
+
+  it("se a coleção não tem mark-read, só faz a busca", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ok: true, json: async () => ({ _links: {} }) } as Response);
+
+    await markTicketMessagesRead(ticket);
+
+    expect(apiFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("sem o link messages no chamado, não chama a API", async () => {
+    await markTicketMessagesRead({ _links: {} });
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
 });

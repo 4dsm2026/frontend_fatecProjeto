@@ -9,7 +9,7 @@ import {
   Paperclip, Download, Upload, Route, GraduationCap, Archive, ArchiveRestore
 } from "lucide-react";
 import { apiFetch, downloadAnexo, extractApiError } from "../../../../../utils/api";
-import { followLink, getLinks, hasLink } from "../../../../../utils/hal";
+import { followLink, getLinks, hasLink, markTicketMessagesRead } from "../../../../../utils/hal";
 import type { HalLinks } from "../../../../../utils/hal";
 import { toast } from "sonner";
 
@@ -194,15 +194,13 @@ export default function AdminChamadoPage() {
       const res = await apiFetch(`${API}/tickets/${id}?include=${encodeURIComponent(include)}`, {
         cache: "no-store",
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
       const data: Ticket = await res.json();
 
       (data.mensagens ?? []).forEach((m) => knownIds.current.add(m.id));
 
       setTicket(data);
+      void markTicketMessagesRead(data);
       setStatus(data.status);
       setPrioridade(data.prioridade);
       setNivel(data.nivel);
@@ -351,7 +349,7 @@ export default function AdminChamadoPage() {
     if (!ticket || !msg.trim()) return;
     setSending(true);
     try {
-            const res = await followLink(ticket, "reply", {
+      const res = await followLink(ticket, "reply", {
         body: JSON.stringify({ conteudo: msg.trim() }),
       });
       if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
@@ -602,29 +600,29 @@ export default function AdminChamadoPage() {
               )}
               <div ref={endRef} />
             </div>
-            
+
             {podeResponder ? (
-            <div className="p-3 border-t border-[var(--border)]">
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={msg}
-                  onChange={(e) => setMsg(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); } }}
-                  rows={2}
-                  placeholder="Escreva uma mensagem… (Ctrl+Enter para enviar)"
-                  className="flex-1 max-h-32 rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
-                  disabled={sending}
-                />
-                <button type="button"
-                  onClick={sendMessage}
-                  disabled={sending || !msg.trim()}
-                  className="h-[56px] px-3 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center shrink-0"
-                  title="Enviar"
-                >
-                  {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                </button>
+              <div className="p-3 border-t border-[var(--border)]">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={msg}
+                    onChange={(e) => setMsg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); } }}
+                    rows={2}
+                    placeholder="Escreva uma mensagem… (Ctrl+Enter para enviar)"
+                    className="flex-1 max-h-32 rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
+                    disabled={sending}
+                  />
+                  <button type="button"
+                    onClick={sendMessage}
+                    disabled={sending || !msg.trim()}
+                    className="h-[56px] px-3 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center shrink-0"
+                    title="Enviar"
+                  >
+                    {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
             ) : (
               <div className="p-3 border-t text-center text-sm text-muted-foreground">
                 {ticket.arquivadoEm
@@ -753,47 +751,47 @@ export default function AdminChamadoPage() {
             )}
 
             {podeAnexar && (
-            <div className="mt-4 pt-4 border-t">
-              <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                className="hidden"
-              />
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background hover:bg-[var(--muted)] text-sm"
-                  disabled={uploading}
-                >
-                  <Paperclip className="size-4" /> Escolher arquivo...
-                </button>
-                {selectedFile && (
-                  <span className="text-sm text-muted-foreground truncate max-w-xs">
-                    {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-                  </span>
-                )}
-              </div>
-              
+              <div className="mt-4 pt-4 border-t">
+                <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background hover:bg-[var(--muted)] text-sm"
+                    disabled={uploading}
+                  >
+                    <Paperclip className="size-4" /> Escolher arquivo...
+                  </button>
+                  {selectedFile && (
+                    <span className="text-sm text-muted-foreground truncate max-w-xs">
+                      {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  )}
+                </div>
 
-              {selectedFile && (
-                <button type="button"
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-                  className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"
-                >
-                  {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                  {uploading ? "Enviando..." : "Enviar arquivo"}
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">Limite por arquivo: 10MB.</p>
-            </div>
+
+                {selectedFile && (
+                  <button type="button"
+                    onClick={handleUpload}
+                    disabled={!selectedFile || uploading}
+                    className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"
+                  >
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                    {uploading ? "Enviando..." : "Enviar arquivo"}
+                  </button>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Limite por arquivo: 10MB.</p>
+              </div>
             )}
           </section>
         </div>
-        
+
 
         {/* DIREITA: Gestão + Histórico */}
         <aside className="xl:col-span-4 space-y-6">
