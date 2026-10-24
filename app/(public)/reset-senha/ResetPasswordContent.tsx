@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Info, LockKeyhole, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
@@ -38,6 +38,10 @@ export default function ResetPasswordContent() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Sair da tela antes do tempo cancela o redirecionamento (não puxa o usuário de volta ao /login).
+  useEffect(() => () => clearTimeout(redirectTimer.current), []);
 
   useEffect(() => {
     const fromQuery = q.get("token");
@@ -94,7 +98,7 @@ export default function ResetPasswordContent() {
       toast.success("Senha redefinida com sucesso!", {
         description: "Entre com a nova senha.",
       });
-      setTimeout(() => {
+      redirectTimer.current = setTimeout(() => {
         window.location.href = "/login";
       }, REDIRECT_DELAY_MS);
     } catch (err: unknown) {
