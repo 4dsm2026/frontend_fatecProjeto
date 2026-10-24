@@ -62,7 +62,7 @@ const POLICY: Record<ResourceKey, LinhaRecurso> = {
   },
   CHAMADO_COMENTAR: {
     label: "Chamado — mensagens",
-    rota: { metodo: "GET/POST", caminho: "/tickets/:id/mensagens" },
+    rota: { metodo: "GET/POST", caminho: "/tickets/:id/messages" },
     perfis: { USUARIO: "proprios", BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   CHAMADO_ANEXAR: {
@@ -132,7 +132,7 @@ const POLICY: Record<ResourceKey, LinhaRecurso> = {
   },
   RELATORIOS: {
     label: "Relatórios / estatísticas",
-    rota: { metodo: "GET", caminho: "/tickets/stats" },
+    rota: { metodo: "GET", caminho: "/ticket-stats" },
     perfis: { BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
 };
@@ -263,7 +263,7 @@ export default function ConfiguracoesPermissoesPage() {
               campos privilegiados (papel, ativo, senha).
             </p>
             <p>
-              <b>Relatórios</b> (<code>/tickets/stats</code>) são restritos à equipe
+              <b>Relatórios</b> (<code>/ticket-stats</code>) são restritos à equipe
               (Backoffice, Técnico e Administrador); o aluno não acessa estatísticas globais.
             </p>
           </div>
