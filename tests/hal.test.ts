@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  collectPages,
   embedded,
   followLink,
   getLink,
@@ -199,5 +200,50 @@ describe("markTicketMessagesRead", () => {
   it("sem o link messages no chamado, não chama a API", async () => {
     await markTicketMessagesRead({ _links: {} });
     expect(apiFetch).not.toHaveBeenCalled();
+  });
+});
+describe("collectPages", () => {
+  const pagina = (ids: string[], next?: string): HalCollection<{ id: string }> => ({
+    _embedded: { messages: ids.map((id) => ({ id })) },
+    _links: {
+      self: { href: "/tickets/clx1/messages?page=0", method: "GET" },
+      ...(next ? { next: { href: next, method: "GET" as const } } : {}),
+    },
+  });
+  const resposta = (body: unknown, ok = true) => ({ ok, json: async () => body }) as Response;
+
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset();
+  });
+
+  it("com uma página só, devolve os itens sem chamar a API", async () => {
+    const itens = await collectPages(pagina(["a", "b"]), "messages");
+    expect(itens.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(apiFetch).not.toHaveBeenCalled();
+  });
+
+  it("segue o next até acabar e junta tudo em ordem", async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce(resposta(pagina(["c", "d"], "/tickets/clx1/messages?page=2")))
+      .mockResolvedValueOnce(resposta(pagina(["e"])));
+
+    const itens = await collectPages(pagina(["a", "b"], "/tickets/clx1/messages?page=1"), "messages");
+
+    expect(itens.map((i) => i.id)).toEqual(["a", "b", "c", "d", "e"]);
+    expect(apiFetch).toHaveBeenNthCalledWith(1, "http://api.test/tickets/clx1/messages?page=1", expect.objectContaining({ method: "GET" }));
+    expect(apiFetch).toHaveBeenNthCalledWith(2, "http://api.test/tickets/clx1/messages?page=2", expect.objectContaining({ method: "GET" }));
+  });
+
+  it("se uma página seguinte falha, devolve o que já juntou", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(resposta({}, false));
+    const itens = await collectPages(pagina(["a"], "/tickets/clx1/messages?page=1"), "messages");
+    expect(itens.map((i) => i.id)).toEqual(["a"]);
+  });
+
+  it("respeita o limite de páginas, mesmo que a API ofereça next para sempre", async () => {
+    vi.mocked(apiFetch).mockImplementation(async () => resposta(pagina(["x"], "/tickets/clx1/messages?page=9")));
+    const itens = await collectPages(pagina(["a"], "/tickets/clx1/messages?page=1"), "messages", 3);
+    expect(itens).toHaveLength(3);
+    expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 });

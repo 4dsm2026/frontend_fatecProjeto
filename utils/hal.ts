@@ -60,6 +60,30 @@ export function embedded<T>(collection: HalCollection<T> | null | undefined, rel
   return collection?._embedded?.[rel] ?? [];
 }
 
+/** Limite de páginas de `collectPages`: evita girar sem fim se a API devolver `next` para sempre. */
+const MAX_COLLECTED_PAGES = 50;
+
+/**
+ * Junta todos os itens de uma coleção, seguindo o link `next` a partir da primeira página
+ * já carregada. Se uma página seguinte falhar, devolve o que já juntou.
+ */
+export async function collectPages<T>(
+  first: HalCollection<T>,
+  rel: string,
+  maxPages: number = MAX_COLLECTED_PAGES,
+): Promise<T[]> {
+  const items = [...embedded<T>(first, rel)];
+  let page = first;
+
+  for (let n = 1; n < maxPages && hasLink(page, "next"); n++) {
+    const res = await followLink(page, "next", { cache: "no-store" });
+    if (!res.ok) break;
+    page = (await res.json()) as HalCollection<T>;
+    items.push(...embedded<T>(page, rel));
+  }
+  return items;
+}
+
 export interface FollowOptions extends RequestInit {
   /** Escolhe, entre os links do `rel`, o que tem este `name`. */
   name?: string;
@@ -78,7 +102,8 @@ export async function followLink(resource: MaybeResource, rel: string, options: 
   const { name, ...init } = options;
   const target = getLink(resource, rel, name);
   if (!target) {
-    throw new HalLinkError(`Link "${rel}"${name ? ` (${name})` : ""} não está disponível neste recurso`);
+    const alvo = name ? `"${rel}" (${name})` : `"${rel}"`;
+    throw new HalLinkError(`Link ${alvo} não está disponível neste recurso`);
   }
   if (!isSafeHref(target.href)) {
     throw new HalLinkError(`Link "${rel}" recusado: o href não é um caminho da API`);

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, extractApiError } from "../../../../utils/api";
-import { embedded, markMessagesRead } from "../../../../utils/hal";
+import { collectPages, embedded, markMessagesRead } from "../../../../utils/hal";
+import type { HalCollection } from "../../../../utils/hal";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
 import {
@@ -90,8 +91,8 @@ export default function AdminMensagensPage() {
   const fetchConversas = useCallback(async () => {
     try {
       setLoadingList(true);
-      // ✅ endpoint de tickets: inclua o que precisar na lista (setor e último evento)
-      const url = `${API}/tickets?include=setor&page=0&size=100&orderBy=criadoEm&orderDir=desc`;
+      // naoLidas: a API soma, por chamado, as mensagens de outras pessoas que ainda não li
+      const url = `${API}/tickets?include=setor,naoLidas&page=0&size=100&orderBy=criadoEm&orderDir=desc`;
       const res = await apiFetch(url, { cache: "no-store" });
       const data = await res.json();
 
@@ -101,7 +102,7 @@ export default function AdminMensagensPage() {
         titulo: c.titulo,
         status: c.status,
         setor: c.setor ?? null,
-        mensagensNaoLidas: c.mensagensNaoLidas ?? 0, // se o backend ainda não envia, ficará 0
+        mensagensNaoLidas: c.mensagensNaoLidas ?? 0,
         ultimoMsgEm: c.ultimoMsgEm ?? c.criadoEm ?? null,
       }));
 
@@ -124,12 +125,13 @@ export default function AdminMensagensPage() {
   const fetchMessages = useCallback(async (id: string) => {
     try {
       setLoadingMsgs(true);
-      // ✅ ajuste a rota para sua API real de mensagens:
       const res = await apiFetch(`${API}/tickets/${id}/messages?orderDir=asc&page=0&size=100`, {
         cache: "no-store",
       });
-      const data = await res.json();
-      const list: Mensagem[] = embedded<Mensagem>(data, "messages").map((m) => ({
+      const data: HalCollection<Mensagem> = await res.json();
+      // conversa com mais de 100 mensagens: segue o link `next` para não perder as mais recentes
+      const todas = await collectPages<Mensagem>(data, "messages");
+      const list: Mensagem[] = todas.map((m) => ({
         id: m.id,
         chamadoId: m.chamadoId ?? id,
         autorId: m.autorId,
@@ -138,8 +140,9 @@ export default function AdminMensagensPage() {
         autor: m.autor ?? null,
       }));
       setMessages(list);
+      // o link mark-read vem na primeira página e marca a conversa toda
       void markMessagesRead(data);
-      // marca como lidas (se houver endpoint)
+      setConversas((prev) => prev.map((c) => (c.id === id ? { ...c, mensagensNaoLidas: 0 } : c)));
       // scroll ao final
       setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }), 0);
     } finally {
