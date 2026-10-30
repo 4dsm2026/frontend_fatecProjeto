@@ -5,9 +5,8 @@ import { apiFetch, extractApiError } from "../../../../utils/api";
 import { embedded, markMessagesRead } from "../../../../utils/hal";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
-import Link from "next/link";
 import {
-  Search, Loader2, MessageSquareText, SendHorizonal, Paperclip, Building2, User, Clock, Info
+  Search, Loader2, MessageSquareText, SendHorizonal, Paperclip, Building2, Clock, Info
 } from "lucide-react";
 
 import { cx } from '../../../../utils/cx'
@@ -68,7 +67,7 @@ export default function AdminMensagensPage() {
   const [text, setText] = useState("");
 
   const chatRef = useRef<HTMLDivElement | null>(null);
-  const pollRef = useRef<any>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const attachRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
 
@@ -126,7 +125,6 @@ export default function AdminMensagensPage() {
     try {
       setLoadingMsgs(true);
       // ✅ ajuste a rota para sua API real de mensagens:
-      // suposição: GET /tickets/:id/mensagens?order=asc&page=1&pageSize=50
       const res = await apiFetch(`${API}/tickets/${id}/messages?orderDir=asc&page=0&size=100`, {
         cache: "no-store",
       });
@@ -142,7 +140,6 @@ export default function AdminMensagensPage() {
       setMessages(list);
       void markMessagesRead(data);
       // marca como lidas (se houver endpoint)
-      // try { await apiFetch(`${API}/tickets/${id}/mensagens/lidas`, { method: "POST", body: JSON.stringify({ ateId: list.at(-1)?.id })}); } catch {}
       // scroll ao final
       setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }), 0);
     } finally {
@@ -187,7 +184,6 @@ export default function AdminMensagensPage() {
     try {
       setSending(true);
       // ✅ ajuste a rota real do seu backend:
-      // POST /tickets/:id/mensagens { conteudo }
       const res = await apiFetch(`${API}/tickets/${currentId}/messages`, {
         method: "POST",
         body: JSON.stringify({ conteudo: v }),
@@ -278,16 +274,18 @@ export default function AdminMensagensPage() {
         </div>
 
         <div className="max-h-[calc(100dvh-320px)] lg:max-h-[calc(100dvh-220px)] overflow-auto">
-          {loadingList ? (
+          {loadingList && (
             <div className="p-6 text-center text-muted-foreground">
               <Loader2 className="size-4 animate-spin inline-block mr-2" />
               Carregando conversas…
             </div>
-          ) : filtered.length === 0 ? (
+          )}
+          {!loadingList && filtered.length === 0 && (
             <div className="p-6 text-center text-muted-foreground">
               Nenhuma conversa encontrada.
             </div>
-          ) : (
+          )}
+          {!loadingList && filtered.length > 0 && (
             <ul className="divide-y divide-[var(--border)]">
               {filtered.map((c) => {
                 const active = currentId === c.id;
@@ -337,31 +335,34 @@ export default function AdminMensagensPage() {
       <section className="rounded-xl border border-[var(--border)] bg-card flex flex-col min-h-[480px]">
         {/* Cabeçalho do chat */}
         <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between">
-          {!currentId ? (
+          {!currentId && (
             <div className="text-muted-foreground text-sm">Selecione uma conversa ao lado</div>
-          ) : loadingMsgs ? (
+          )}
+          {currentId && loadingMsgs && (
             <div className="inline-flex items-center gap-2 text-muted-foreground">
               <Loader2 className="size-4 animate-spin" /> Carregando mensagens…
             </div>
-          ) : (
+          )}
+          {currentId && !loadingMsgs && (
             <ChatHeader conversas={conversas} currentId={currentId} />
           )}
         </div>
 
         {/* Lista de mensagens */}
         <div ref={chatRef} className="flex-1 overflow-auto px-3 py-4">
-          {!currentId ? (
-            <EmptyHint />
-          ) : loadingMsgs ? (
+          {!currentId && <EmptyHint />}
+          {currentId && loadingMsgs && (
             <div className="p-6 text-center text-muted-foreground">
               <Loader2 className="size-4 animate-spin inline-block mr-2" />
               Carregando…
             </div>
-          ) : messages.length === 0 ? (
+          )}
+          {currentId && !loadingMsgs && messages.length === 0 && (
             <div className="p-6 text-center text-muted-foreground">
               Sem mensagens ainda. Envie a primeira abaixo.
             </div>
-          ) : (
+          )}
+          {currentId && !loadingMsgs && messages.length > 0 && (
             <div className="space-y-2">
               {messages.map((m) => (
                 <Bubble

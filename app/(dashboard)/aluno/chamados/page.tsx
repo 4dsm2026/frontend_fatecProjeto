@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, AlertTriangle, Paperclip, Plus, MessageSquareText, Ticket } from "lucide-react";
+import { Search, Paperclip, Plus, MessageSquareText, Ticket } from "lucide-react";
 import { embedded } from "../../../../utils/hal";
 import type { HalCollection } from "../../../../utils/hal";
 import { toast } from "sonner";
@@ -54,7 +54,7 @@ export default function MeusChamadosPage() {
       try {
         setLoading(true);
         const res = await apiFetch(
-          `${process.env.NEXT_PUBLIC_API_BASE_URL}/tickets?include=setor`
+          `${process.env.NEXT_PUBLIC_API_BASE_URL}/tickets?include=setor&page=0&size=100`
         );
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
@@ -155,9 +155,8 @@ export default function MeusChamadosPage() {
 
         {/* Lista */}
         <div className="rounded-xl border border-[var(--border)] bg-card overflow-hidden">
-          {loading ? (
-            <SkeletonTable rows={5} cols={5} />
-          ) : filtrados.length === 0 ? (
+          {loading && <SkeletonTable rows={5} cols={5} />}
+          {!loading && filtrados.length === 0 && (
             <EmptyState
               icon={<Ticket className="size-6" />}
               title={dados.length === 0 ? "Nenhuma solicitação ainda" : "Nenhum resultado"}
@@ -178,7 +177,8 @@ export default function MeusChamadosPage() {
                 )
               }
             />
-          ) : (
+          )}
+          {!loading && filtrados.length > 0 && (
             <>
               {/* Desktop */}
               <div className="hidden md:block overflow-x-auto">
