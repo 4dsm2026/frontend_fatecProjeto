@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cx } from '../../../../utils/cx';
 import { apiFetch } from '../../../../utils/api';
+import { embedded } from '../../../../utils/hal';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -84,7 +85,7 @@ export default function RelatoriosPage() {
     try {
       const [statsRes, ticketsRes] = await Promise.all([
         apiFetch(`${API_BASE}/ticket-stats`),
-        apiFetch(`${API_BASE}/tickets?pageSize=100&include=setor,responsavel`),
+        apiFetch(`${API_BASE}/tickets?page=0&size=100&include=setor,responsavel`),
       ]);
 
       if (statsRes.ok) {
@@ -94,7 +95,7 @@ export default function RelatoriosPage() {
 
       if (ticketsRes.ok) {
         const json = await ticketsRes.json();
-        const list = Array.isArray(json) ? json : (json.data ?? []);
+        const list = embedded(json, "tickets");
         setTickets(
           list.map((t: any) => ({
             id: t.id,

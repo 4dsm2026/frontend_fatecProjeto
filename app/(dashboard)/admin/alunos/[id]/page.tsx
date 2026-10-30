@@ -1,7 +1,7 @@
 "use client";
 import { API_BASE, apiFetch, extractApiError } from "../../../../../utils/api"
 import { getEntry } from "../../../../../utils/entry";
-import { followLink, getLink, hasLink, type HalResource } from "../../../../../utils/hal";
+import { embedded, followLink, getLink, hasLink, type HalCollection, type HalResource } from "../../../../../utils/hal";
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
@@ -157,16 +157,11 @@ export default function PageAlunoDetalhe() {
           return;
         }
 
-        const cRes = await apiFetch(`${API_URL}/tickets?criadoPorId=${u.id}`, { cache: "no-store" });
+        const cRes = await apiFetch(`${API_URL}/tickets?criadoPorId=${u.id}&page=0&size=100`, { cache: "no-store" });
         if (!cRes.ok) throw new Error("Falha ao buscar tickets");
         const json = await cRes.json();
-        let cs: Chamado[] = [];
-        // GET /tickets responde { total, page, pageSize, items } — o array é
-        // 'items'. Sem essa chave, a lista ficava sempre vazia no detalhe.
-        if (Array.isArray(json)) cs = json;
-        else if (Array.isArray(json.items)) cs = json.items;
-        else if (Array.isArray(json.data)) cs = json.data;
-        else if (Array.isArray(json.tickets)) cs = json.tickets;
+        // GET /tickets responde em HAL: os chamados ficam em _embedded.tickets.
+        const cs = embedded<Chamado>(json as HalCollection<Chamado>, "tickets");
 
         if (active) { setAluno(u); setChamados(cs); }
       } catch (e) {
