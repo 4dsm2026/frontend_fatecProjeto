@@ -14,8 +14,10 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch, downloadAnexo, fetchAnexoImageUrl, extractApiError } from "../../../../../utils/api";
-import { embedded, followLink, hasLink, markMessagesRead } from "../../../../../utils/hal";
+import { apiFetch, extractApiError } from "../../../../../utils/api";
+import { collectPages, followLink, hasLink, markMessagesRead } from "../../../../../utils/hal";
+import { attachmentImageUrl, downloadTicketAttachment, listTicketAttachments, uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { TicketAttachment } from "../../../../../utils/ticket-attachments";
 import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
@@ -61,14 +63,7 @@ type Mensagem = {
   autor?: { id: string; nome?: string | null; emailPessoal?: string | null } | null;
 };
 
-type AnexoInfo = {
-  id: string;
-  nomeArquivo: string;
-  mimeType: string;
-  tamanhoBytes: number;
-  enviadoEm: string;
-  enviadoPor?: { id: string; nome?: string | null } | null;
-};
+type AnexoInfo = TicketAttachment;
 
 type DadosAcademicosUser = {
   ra?: string | null;
@@ -82,16 +77,22 @@ type DadosAcademicosUser = {
 };
 
 /** Imagem de anexo com download autenticado */
-function AnexoImagem({ anexoId, alt }: { anexoId: string; alt: string }) {
+function AnexoImagem({ anexo, alt }: { anexo: AnexoInfo; alt: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
-    fetchAnexoImageUrl(anexoId).then((u) => {
+    let active = true;
+    setSrc(null);
+    attachmentImageUrl(anexo).then((u) => {
+      if (!active) {
+        if (u) URL.revokeObjectURL(u);
+        return;
+      }
       url = u;
-      if (u) setSrc(u);
-    });
-    return () => { if (url) URL.revokeObjectURL(url); };
-  }, [anexoId]);
+      setSrc(u);
+    }).catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [anexo]);
   if (!src) return null;
   return (
     <img
@@ -235,7 +236,7 @@ function AnexoList({
       {anexos.map((a) => (
         <li key={a.id} className="border rounded-md bg-background overflow-hidden">
           {a.mimeType.startsWith("image/") && (
-            <AnexoImagem anexoId={a.id} alt={a.nomeArquivo} />
+            <AnexoImagem anexo={a} alt={a.nomeArquivo} />
           )}
           <div className="flex items-center justify-between gap-2 p-2 text-sm">
             <div className="min-w-0">
@@ -250,12 +251,14 @@ function AnexoList({
               type="button"
               onClick={async () => {
                 try {
-                  await downloadAnexo(a.id, a.nomeArquivo);
+                  await downloadTicketAttachment(a);
                 } catch {
                   toast.error("Não foi possível baixar o arquivo.");
                 }
               }}
-              className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
+              disabled={!hasLink(a, "content")}
+              title={hasLink(a, "content") ? "Baixar anexo" : "Download indisponível"}
+              className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0 disabled:opacity-50"
             >
               <Download className="size-3.5" /> Baixar
             </button>
@@ -325,16 +328,15 @@ export default function ChamadoDetalhePage() {
 
   /* ===== Fetch Mensagens ===== */
   const fetchMensagens = useCallback(async () => {
-    if (!id) { setMsgLoading(false); return; }
+    if (!chamado || !hasLink(chamado, "messages")) { setMsgLoading(false); return; }
     setMsgLoading(true);
     try {
-            const res = await apiFetch(
-        `${API}/tickets/${id}/messages?page=0&size=100&orderDir=asc`,
-      );
+      const res = await followLink(chamado, "messages", { cache: "no-store" });
       if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       const data = await res.json();
-      const lista = embedded<Mensagem>(data, "messages");
-      lista.forEach((m) => knownIds.current.add(m.id));
+      const lista = await collectPages<Mensagem>(data, "messages");
+      lista.sort((a, b) => +new Date(a.criadoEm) - +new Date(b.criadoEm));
+      knownIds.current = new Set(lista.map((m) => m.id));
       setMsgs(lista);
       scrollToEnd(false);
       void markMessagesRead(data);
@@ -343,7 +345,7 @@ export default function ChamadoDetalhePage() {
     } finally {
       setMsgLoading(false);
     }
-  }, [id]);
+  }, [chamado]);
 
   useEffect(() => { fetchMensagens(); }, [fetchMensagens]);
 
@@ -414,34 +416,32 @@ export default function ChamadoDetalhePage() {
       }
       setMsgText("");
       scrollToEnd();
+      await fetchChamado();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao enviar mensagem.");
     } finally {
       setMsgSending(false);
     }
-  }, [msgText, chamado]);
+  }, [msgText, chamado, fetchChamado]);
 
   /* ===== Fetch Anexos ===== */
   const fetchAnexos = useCallback(async () => {
-    if (!id) { setLoadingAnexos(false); return; }
+    if (!chamado) { setAnexos([]); setLoadingAnexos(false); return; }
     setLoadingAnexos(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${id}/anexos`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = await res.json();
-      setAnexos(Array.isArray(data) ? data : []);
+      setAnexos(await listTicketAttachments(chamado));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar anexos.");
     } finally {
       setLoadingAnexos(false);
     }
-  }, [id]);
+  }, [chamado]);
 
   useEffect(() => { fetchAnexos(); }, [fetchAnexos]);
 
   /* ===== Upload via apiFetch + validação ===== */
   const handleUpload = useCallback(async () => {
-    if (!selectedFile || !chamado?.id) return;
+    if (!selectedFile || !chamado || !hasLink(chamado, "upload")) return;
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
       toast.error("Arquivo muito grande. Máximo permitido: 10 MB.");
       return;
@@ -452,13 +452,7 @@ export default function ChamadoDetalhePage() {
     }
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      const res = await apiFetch(`${API}/tickets/${chamado.id}/anexos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+      await uploadTicketAttachment(chamado, selectedFile);
       toast.success(`"${selectedFile.name}" enviado com sucesso.`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -468,7 +462,7 @@ export default function ChamadoDetalhePage() {
     } finally {
       setUploading(false);
     }
-  }, [selectedFile, chamado?.id, fetchAnexos]);
+  }, [selectedFile, chamado, fetchAnexos]);
 
   /* ===== Alterar status ===== */
   /* ===== Ações do chamado: seguem os links que a API devolveu ===== */
@@ -561,7 +555,7 @@ export default function ChamadoDetalhePage() {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-foreground">Reabrir solicitação?</h3>
             <p className="text-sm text-muted-foreground mt-1 leading-snug">
-              Voltará para <b>"Em análise pelo setor responsável"</b> e poderá ser
+              Voltará para <b>&quot;Em análise pelo setor responsável&quot;</b> e poderá ser
               atualizada novamente.
             </p>
             <div className="mt-3 flex justify-end gap-2">

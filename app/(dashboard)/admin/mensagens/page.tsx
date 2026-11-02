@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiFetch, extractApiError } from "../../../../utils/api";
-import { collectPages, embedded, markMessagesRead } from "../../../../utils/hal";
-import type { HalCollection } from "../../../../utils/hal";
+import { collectPages, followLink, hasLink, markMessagesRead } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
+import { uploadTicketAttachment } from "../../../../utils/ticket-attachments";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { toast } from "sonner";
 import {
@@ -20,7 +21,7 @@ const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
    ========================= */
 type Status = "ABERTO" | "EM_ATENDIMENTO" | "AGUARDANDO_USUARIO" | "RESOLVIDO" | "ENCERRADO";
 
-type ChamadoSummary = {
+type ChamadoSummary = HalResource & {
   id: string;
   protocolo?: string | null;
   titulo: string;
@@ -52,7 +53,7 @@ function shortDateTime(iso?: string | null) {
    Página
    ========================= */
 export default function AdminMensagensPage() {
-  const API = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   const [me, setMe] = useState<Me | null>(null);
 
@@ -61,6 +62,12 @@ export default function AdminMensagensPage() {
   const [q, setQ] = useState("");
 
   const [currentId, setCurrentId] = useState<string | null>(null);
+  const [currentTicket, setCurrentTicket] = useState<(HalResource & { id: string }) | null>(null);
+  const currentIdRef = useRef(currentId);
+  currentIdRef.current = currentId;
+  const selectedTicket = currentTicket?.id === currentId ? currentTicket : null;
+  const canReply = hasLink(selectedTicket, "reply");
+  const canUpload = hasLink(selectedTicket, "upload");
 
   const [messages, setMessages] = useState<Mensagem[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
@@ -94,9 +101,12 @@ export default function AdminMensagensPage() {
       // naoLidas: a API soma, por chamado, as mensagens de outras pessoas que ainda não li
       const url = `${API}/tickets?include=setor,naoLidas&page=0&size=100&orderBy=criadoEm&orderDir=desc`;
       const res = await apiFetch(url, { cache: "no-store" });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao carregar conversas"));
       const data = await res.json();
 
-      const items: ChamadoSummary[] = embedded<ChamadoSummary & { criadoEm?: string | null }>(data, "tickets").map((c) => ({
+      const tickets = await collectPages<ChamadoSummary & { criadoEm?: string | null }>(data, "tickets");
+      const items: ChamadoSummary[] = tickets.map((c) => ({
+        _links: c._links,
         id: c.id,
         protocolo: c.protocolo,
         titulo: c.titulo,
@@ -112,6 +122,8 @@ export default function AdminMensagensPage() {
       setConversas(items);
       // se nada selecionado, seleciona a primeira
       if (!currentId && items.length > 0) setCurrentId(items[0].id);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao carregar conversas");
     } finally {
       setLoadingList(false);
     }
@@ -125,12 +137,19 @@ export default function AdminMensagensPage() {
   const fetchMessages = useCallback(async (id: string) => {
     try {
       setLoadingMsgs(true);
-      const res = await apiFetch(`${API}/tickets/${id}/messages?orderDir=asc&page=0&size=100`, {
+      const detail = await apiFetch(`${API}/tickets/${encodeURIComponent(id)}`, {
         cache: "no-store",
       });
+      if (!detail.ok) throw new Error(await extractApiError(detail, "Falha ao carregar chamado"));
+      const ticket: HalResource & { id: string } = await detail.json();
+      if (currentIdRef.current !== id) return;
+      setCurrentTicket(ticket);
+      const res = await followLink(ticket, "messages", { cache: "no-store" });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao carregar mensagens"));
       const data: HalCollection<Mensagem> = await res.json();
       // conversa com mais de 100 mensagens: segue o link `next` para não perder as mais recentes
       const todas = await collectPages<Mensagem>(data, "messages");
+      if (currentIdRef.current !== id) return;
       const list: Mensagem[] = todas.map((m) => ({
         id: m.id,
         chamadoId: m.chamadoId ?? id,
@@ -139,18 +158,27 @@ export default function AdminMensagensPage() {
         criadoEm: m.criadoEm,
         autor: m.autor ?? null,
       }));
+      list.sort((a, b) => +new Date(a.criadoEm) - +new Date(b.criadoEm));
       setMessages(list);
       // o link mark-read vem na primeira página e marca a conversa toda
       void markMessagesRead(data);
       setConversas((prev) => prev.map((c) => (c.id === id ? { ...c, mensagensNaoLidas: 0 } : c)));
       // scroll ao final
       setTimeout(() => chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight }), 0);
+    } catch (error: unknown) {
+      if (currentIdRef.current === id) {
+        setCurrentTicket(null);
+        setMessages([]);
+        toast.error(error instanceof Error ? error.message : "Falha ao carregar mensagens");
+      }
     } finally {
-      setLoadingMsgs(false);
+      if (currentIdRef.current === id) setLoadingMsgs(false);
     }
   }, [API]);
 
   useEffect(() => {
+    setCurrentTicket(null);
+    setMessages([]);
     if (currentId) fetchMessages(currentId);
   }, [currentId, fetchMessages]);
 
@@ -168,7 +196,7 @@ export default function AdminMensagensPage() {
   /* ---- Enviar mensagem ---- */
   const handleSend = async () => {
     const v = text.trim();
-    if (!v || !currentId || sending) return;
+    if (!v || !currentId || !selectedTicket || !canReply || sending) return;
     const tempId = `tmp-${Date.now()}`;
 
     // UI otimista
@@ -186,9 +214,7 @@ export default function AdminMensagensPage() {
 
     try {
       setSending(true);
-      // ✅ ajuste a rota real do seu backend:
-      const res = await apiFetch(`${API}/tickets/${currentId}/messages`, {
-        method: "POST",
+      const res = await followLink(selectedTicket, "reply", {
         body: JSON.stringify({ conteudo: v }),
       });
       // Sem checar res.ok, um erro (404/500) vira "mensagem" corrompida no chat.
@@ -212,33 +238,28 @@ export default function AdminMensagensPage() {
 
   /* ---- Anexar arquivo ao chamado da conversa atual ---- */
   const handleAttachClick = () => {
-    if (!currentId || uploading) return;
+    if (!currentId || !canUpload || uploading) return;
     attachRef.current?.click();
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (attachRef.current) attachRef.current.value = "";
-    if (!file || !currentId) return;
+    if (!file || !currentId || !selectedTicket || !canUpload) return;
     if (file.size > MAX_FILE_SIZE_BYTES) {
       toast.error("Arquivo muito grande. Máximo permitido: 10 MB.");
       return;
     }
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await apiFetch(`${API}/tickets/${currentId}/anexos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+      await uploadTicketAttachment(selectedTicket, file);
       toast.success(`"${file.name}" anexado ao chamado.`);
       // Registra a anexação como mensagem no fluxo, para ambos os lados verem.
-      await apiFetch(`${API}/tickets/${currentId}/messages`, {
-        method: "POST",
-        body: JSON.stringify({ conteudo: `📎 Anexou o arquivo: ${file.name}` }),
-      }).catch(() => { });
+      if (hasLink(selectedTicket, "reply")) {
+        await followLink(selectedTicket, "reply", {
+          body: JSON.stringify({ conteudo: `📎 Anexou o arquivo: ${file.name}` }),
+        }).catch(() => {});
+      }
       fetchMessages(currentId).catch(() => { });
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Falha ao anexar arquivo.");
@@ -259,6 +280,9 @@ export default function AdminMensagensPage() {
       );
     });
   }, [q, conversas]);
+
+  const selectedPlaceholder = canReply ? "Escreva uma mensagem…" : "Conversa disponível apenas para leitura";
+  const composerPlaceholder = currentId ? selectedPlaceholder : "Selecione uma conversa para escrever…";
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-4">
@@ -394,7 +418,7 @@ export default function AdminMensagensPage() {
               type="button"
               title="Anexar arquivo"
               onClick={handleAttachClick}
-              disabled={!currentId || uploading}
+              disabled={!canUpload || loadingMsgs || uploading}
               className="h-10 w-10 inline-grid place-items-center rounded-lg border border-[var(--border)] bg-background text-muted-foreground hover:bg-[var(--muted)] disabled:opacity-50"
             >
               {uploading ? <Loader2 className="size-4 animate-spin" /> : <Paperclip className="size-4" />}
@@ -404,8 +428,8 @@ export default function AdminMensagensPage() {
               rows={1}
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder={currentId ? "Escreva uma mensagem…" : "Selecione uma conversa para escrever…"}
-              disabled={!currentId || sending}
+              placeholder={composerPlaceholder}
+              disabled={!canReply || loadingMsgs || sending}
               className="flex-1 resize-none h-10 max-h-36 px-3 py-2 rounded-lg border border-[var(--border)] bg-input focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
@@ -418,7 +442,7 @@ export default function AdminMensagensPage() {
             <button
               type="button"
               onClick={handleSend}
-              disabled={!currentId || !text.trim() || sending}
+              disabled={!canReply || loadingMsgs || !text.trim() || sending}
               className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground disabled:opacity-60"
             >
               {sending ? <Loader2 className="size-4 animate-spin" /> : <SendHorizonal className="size-4" />}

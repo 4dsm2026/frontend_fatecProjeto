@@ -8,7 +8,9 @@ import {
   CheckCircle2, RotateCcw, Pencil, Save, MessageSquareText,
   Paperclip, Download, Upload, Route, GraduationCap, Archive, ArchiveRestore
 } from "lucide-react";
-import { apiFetch, downloadAnexo, extractApiError } from "../../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../../utils/api";
+import { downloadTicketAttachment, listTicketAttachments, uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { TicketAttachment } from "../../../../../utils/ticket-attachments";
 import { followLink, getLinks, hasLink, markTicketMessagesRead } from "../../../../../utils/hal";
 import type { HalLinks } from "../../../../../utils/hal";
 import { toast } from "sonner";
@@ -67,14 +69,7 @@ type Historico = {
   observacao?: string | null;
 };
 
-type AnexoInfo = {
-  id: string;
-  nomeArquivo: string;
-  mimeType: string;
-  tamanhoBytes: number;
-  enviadoEm: string;
-  enviadoPor?: { id: string; nome?: string | null } | null;
-};
+type AnexoInfo = TicketAttachment;
 
 type Ticket = {
   id: string;
@@ -130,6 +125,46 @@ if (process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_API_BASE_
   console.warn("[AdminChamadoPage] NEXT_PUBLIC_API_BASE_URL não está definida — chamadas de API e WS falharão.");
 }
 
+function nonEmptyEntries(fields?: Record<string, string> | null) {
+  return Object.entries(fields ?? {}).filter(([, value]) => value);
+}
+
+function AttachmentItems({ anexos }: { anexos: AnexoInfo[] }) {
+  return (
+              <ul className="space-y-2 mb-4">
+                {anexos.map((a) => (
+                  <li
+                    key={a.id}
+                    className="p-2 border rounded-md bg-background flex items-center justify-between gap-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-medium truncate block">{a.nomeArquivo}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {(a.tamanhoBytes / 1024).toFixed(1)} KB —{" "}
+                        {new Date(a.enviadoEm).toLocaleDateString("pt-BR")} por {a.enviadoPor?.nome ?? "Usuário"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await downloadTicketAttachment(a);
+                        } catch {
+                          toast.error("Não foi possível baixar o arquivo.");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
+                      disabled={!hasLink(a, "content")}
+                      title={hasLink(a, "content") ? "Baixar anexo" : "Download indisponível"}
+                    >
+                      <Download className="size-3.5" /> Baixar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+  );
+}
+
 /* ===== Página ===== */
 export default function AdminChamadoPage() {
   const { id } = useParams<{ id: string }>();
@@ -171,13 +206,10 @@ export default function AdminChamadoPage() {
     []
   );
 
-  const fetchAnexos = useCallback(async (ticketId: string) => {
+  const fetchAnexos = useCallback(async (resource: Ticket) => {
     setLoadingAnexos(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${ticketId}/anexos`);
-      if (!res.ok) throw new Error("Falha ao buscar anexos");
-      const data = await res.json();
-      setAnexos(Array.isArray(data) ? data : []);
+      setAnexos(await listTicketAttachments(resource));
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       toast.error("Falha ao carregar anexos.", { description: errMsg });
@@ -206,7 +238,7 @@ export default function AdminChamadoPage() {
       setNivel(data.nivel);
       setResponsavelId(data.responsavelId ?? data.responsavel?.id ?? "");
 
-      fetchAnexos(data.id);
+      void fetchAnexos(data);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar");
       setTicket(null);
@@ -220,7 +252,8 @@ export default function AdminChamadoPage() {
   /* ===== Perfil acadêmico do aluno (banco de dados) ===== */
   useEffect(() => {
     if (!ticket?.criadoPorId) return;
-    apiFetch(`${API}/usuarios/${ticket.criadoPorId}`, { cache: "no-store" })
+    setPerfilAluno(null);
+    apiFetch(`${API}/users/${encodeURIComponent(ticket.criadoPorId)}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((data: PerfilAcademico | null) => { if (data) setPerfilAluno(data); })
       .catch(() => { });
@@ -237,8 +270,10 @@ export default function AdminChamadoPage() {
     let ws: WebSocket | null = null;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let destroyed = false;
 
     function connect() {
+      if (destroyed) return;
       const token = typeof window !== "undefined" ? (localStorage.getItem("accessToken") ?? "") : "";
       if (!token) return;
       // Token NÃO vai na URL (evita vazamento em logs); é enviado no 1º frame.
@@ -249,7 +284,6 @@ export default function AdminChamadoPage() {
         attempt = 0;
         try {
           ws?.send(JSON.stringify({ type: "auth", token }));
-          ws?.send(JSON.stringify({ type: "hello", chamadoId: id }));
         } catch { }
       };
 
@@ -272,6 +306,7 @@ export default function AdminChamadoPage() {
       };
 
       ws.onclose = () => {
+        if (destroyed) return;
         const delay = Math.min(1_000 * 2 ** attempt, 30_000);
         attempt++;
         reconnectTimer = setTimeout(connect, delay);
@@ -280,6 +315,7 @@ export default function AdminChamadoPage() {
 
     connect();
     return () => {
+      destroyed = true;
       clearTimeout(reconnectTimer);
       ws?.close();
     };
@@ -364,6 +400,7 @@ export default function AdminChamadoPage() {
 
       setMsg("");
       endRef.current?.scrollIntoView({ behavior: "smooth" });
+      await load();
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : String(e);
       toast.error("Falha ao enviar mensagem", { description: errMsg });
@@ -373,32 +410,22 @@ export default function AdminChamadoPage() {
   }
 
   const handleUpload = useCallback(async () => {
-    if (!selectedFile || !ticket?.id) return;
+    if (!selectedFile || !ticket || !hasLink(ticket, "upload")) return;
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     try {
-      const res = await apiFetch(`${API}/tickets/${ticket.id}/anexos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
-        throw new Error(errorData.error || `Erro HTTP ${res.status}`);
-      }
+      await uploadTicketAttachment(ticket, selectedFile);
       toast.success(`Arquivo "${selectedFile.name}" enviado com sucesso!`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      await fetchAnexos(ticket.id);
+      await fetchAnexos(ticket);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       toast.error("Falha ao enviar arquivo.", { description: errMsg });
     } finally {
       setUploading(false);
     }
-  }, [selectedFile, ticket?.id, fetchAnexos]);
+  }, [selectedFile, ticket, fetchAnexos]);
 
   if (loading && !ticket) {
     return (
@@ -420,13 +447,8 @@ export default function AdminChamadoPage() {
     .slice()
     .sort((a, b) => +new Date(b.criadoEm) - +new Date(a.criadoEm));
 
-  const camposEspecificosEntries = ticket.camposEspecificos
-    ? Object.entries(ticket.camposEspecificos).filter(([, v]) => v)
-    : [];
-
-  const dadosAcademicosEntries = ticket.dadosAcademicos
-    ? Object.entries(ticket.dadosAcademicos).filter(([, v]) => v)
-    : [];
+  const camposEspecificosEntries = nonEmptyEntries(ticket.camposEspecificos);
+  const dadosAcademicosEntries = nonEmptyEntries(ticket.dadosAcademicos);
 
   const isWizardTicket = ticket.origem === "catalogo_wizard_aluno";
 
@@ -709,45 +731,18 @@ export default function AdminChamadoPage() {
               <Paperclip className="size-4" /> Anexos ({anexos.length})
             </h2>
 
-            {loadingAnexos ? (
+            {loadingAnexos && (
               <div className="text-sm text-muted-foreground">
                 <LoadingSpinner label="Carregando anexos..." />
               </div>
-            ) : anexos.length === 0 ? (
+            )}
+            {!loadingAnexos && anexos.length === 0 && (
               <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background">
                 Nenhum anexo encontrado.
               </div>
-            ) : (
-              <ul className="space-y-2 mb-4">
-                {anexos.map((a) => (
-                  <li
-                    key={a.id}
-                    className="p-2 border rounded-md bg-background flex items-center justify-between gap-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <span className="font-medium truncate block">{a.nomeArquivo}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {(a.tamanhoBytes / 1024).toFixed(1)} KB —{" "}
-                        {new Date(a.enviadoEm).toLocaleDateString("pt-BR")} por {a.enviadoPor?.nome ?? "Usuário"}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await downloadAnexo(a.id, a.nomeArquivo);
-                        } catch {
-                          toast.error("Não foi possível baixar o arquivo.");
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
-                      title="Baixar anexo"
-                    >
-                      <Download className="size-3.5" /> Baixar
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            )}
+            {!loadingAnexos && anexos.length > 0 && (
+              <AttachmentItems anexos={anexos} />
             )}
 
             {podeAnexar && (
