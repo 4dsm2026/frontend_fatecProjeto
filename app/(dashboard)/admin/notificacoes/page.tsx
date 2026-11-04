@@ -12,7 +12,6 @@ import {
   Check,
   Info,
 } from "lucide-react";
-import MobileSidebarTriggerAdmin from "../_components/MobileSidebarTriggerAdmin";
 import { cx } from '../../../../utils/cx'
 /* ---------- Tipos ---------- */
 type Tipo =
@@ -132,11 +131,6 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
 
   return (
     <div className="space-y-6">
-      {/* Topbar compacta */}
-      <div className="mb-2 flex items-center justify-between">
-        <MobileSidebarTriggerAdmin />
-      </div>
-
       {/* Botão de "Marcar todas como lidas" */}
       <div className="mb-4">
         <button type="button"

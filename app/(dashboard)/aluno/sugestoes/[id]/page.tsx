@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../../utils/api";
 import SugestaoDetalheLayout from "../../../../components/shared/SugestaoDetalheLayout";
+import SugestaoDocumentoView from "../../../../components/shared/SugestaoDocumentoView";
+import type { JSONContent } from "@tiptap/react";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -15,6 +17,7 @@ type SugestaoDetalhe = {
   emailContato: string;
   status: StatusSugestao;
   resposta: string | null;
+  respostaDocumento: JSONContent | null;
   criadoEm: string;
   respondidoPor?: { nome?: string | null } | null;
 };
@@ -70,9 +73,9 @@ export default function DetalheSugestaoAlunoPage() {
               : "Resposta do funcionário/professor"}
           </div>
 
-          <p className="whitespace-pre-wrap break-words text-sm text-muted-foreground">
-            {sugestao.resposta}
-          </p>
+          <div className="text-muted-foreground">
+            <SugestaoDocumentoView documento={sugestao.respostaDocumento} conteudo={sugestao.resposta} />
+          </div>
         </div>
       )}
     </SugestaoDetalheLayout>

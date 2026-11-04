@@ -1,11 +1,15 @@
-import "@testing-library/jest-dom/vitest";
+﻿import "@testing-library/jest-dom/vitest";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Pagination from "../app/components/shared/Pagination";
+import SugestaoDetalheLayout from "../app/components/shared/SugestaoDetalheLayout";
 
 afterEach(cleanup);
+
+const IMAGEM_VALIDA =
+  "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
 
 function ExemploComTresPaginas() {
   const [page, setPage] = useState(1);
@@ -18,8 +22,6 @@ function ExemploComTresPaginas() {
   );
 }
 
-// As setas do componente atual não têm nome acessível.
-// A primeira é "anterior" e a última é "próxima".
 function obterSetas() {
   const botoes = screen.getAllByRole("button");
 
@@ -87,5 +89,59 @@ describe("Pagination", () => {
 
     await user.click(obterSetas().proxima);
     expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("SugestaoDetalheLayout", () => {
+  it("renderiza documento formatado com negrito, itálico e imagem", () => {
+    render(
+      <SugestaoDetalheLayout
+        voltarHref="/aluno/sugestoes"
+        loading={false}
+        erro={null}
+        sugestao={{
+          conteudo: "Texto importante em itálico",
+          status: "NAO_RESPONDIDO",
+          documento: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  { type: "text", text: "Importante", marks: [{ type: "bold" }] },
+                  { type: "hardBreak" },
+                  { type: "text", text: "Detalhe", marks: [{ type: "italic" }] },
+                ],
+              },
+              {
+                type: "image",
+                attrs: { src: IMAGEM_VALIDA, alt: " Evidência " },
+              },
+            ],
+          },
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Importante").tagName).toBe("STRONG");
+    expect(screen.getByText("Detalhe").tagName).toBe("EM");
+    expect(screen.getByRole("img", { name: "Evidência" })).toBeInTheDocument();
+  });
+
+  it("usa o texto simples quando não há documento estruturado", () => {
+    render(
+      <SugestaoDetalheLayout
+        voltarHref="/admin/sugestoes"
+        loading={false}
+        erro={null}
+        sugestao={{
+          conteudo: "Sugestão antiga sem JSON",
+          status: "RESPONDIDO",
+          documento: null,
+        }}
+      />,
+    );
+
+    expect(screen.getByText("Sugestão antiga sem JSON")).toBeInTheDocument();
   });
 });

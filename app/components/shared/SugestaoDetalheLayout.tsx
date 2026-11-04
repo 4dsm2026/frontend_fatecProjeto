@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2 } from "lucide-react";
+import type { JSONContent } from "@tiptap/react";
 import SugestaoStatusBadge from "./SugestaoStatusBadge";
+import SugestaoDocumentoView from "./SugestaoDocumentoView";
 
 type SugestaoResumo = {
   conteudo: string;
+  documento?: JSONContent | null;
   status: "NAO_RESPONDIDO" | "RESPONDIDO";
 };
 
@@ -54,9 +57,7 @@ export default function SugestaoDetalheLayout({
             <SugestaoStatusBadge status={sugestao.status} />
           </div>
 
-          <p className="whitespace-pre-wrap break-words text-sm">
-            {sugestao.conteudo}
-          </p>
+          <SugestaoDocumentoView documento={sugestao.documento} conteudo={sugestao.conteudo} />
         </div>
 
         {children}
