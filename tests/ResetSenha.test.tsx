@@ -83,6 +83,23 @@ describe("reset-senha — PUT /password-resets/:token", () => {
     expect(window.location.href).toBe("/login");
   });
 
+  it("sair da tela antes do redirecionamento o cancela (não puxa o usuário de volta ao /login)", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    respond(204);
+    const { unmount } = render(<ResetPasswordContent />);
+    await userEvent.type(screen.getByLabelText("Nova senha"), SENHA);
+    await userEvent.type(screen.getByLabelText("Confirmar nova senha"), SENHA);
+    await userEvent.click(screen.getByRole("button", { name: /redefinir senha/i }));
+    await waitFor(() => expect(toast.success).toHaveBeenCalled());
+
+    unmount();
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    expect(window.location.href).toBe(LOGIN_URL);
+  });
+
   it("depois do sucesso o botão fica desabilitado (não dá para reenviar e gastar o token)", async () => {
     respond(204);
 

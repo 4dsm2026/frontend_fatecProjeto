@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   activationTokenFromProblem,
+  EMAIL_IN_USE_TYPE,
+  isEmailInUse,
   isPasswordChangeRequired,
   PASSWORD_CHANGE_REQUIRED_TYPE,
 } from "../utils/activation-link";
@@ -131,5 +133,20 @@ describe("isPasswordChangeRequired", () => {
 
   it("rejeita texto", () => {
     expect(isPasswordChangeRequired("texto")).toBe(false);
+  });
+});
+
+describe("isEmailInUse", () => {
+  it("reconhece o type de e-mail já em uso", () => {
+    expect(EMAIL_IN_USE_TYPE).toBe("/errors/email-already-in-use");
+    expect(isEmailInUse({ type: EMAIL_IN_USE_TYPE, status: 409 })).toBe(true);
+  });
+
+  it("o 409 de token já utilizado NÃO é e-mail em uso", () => {
+    expect(isEmailInUse({ type: "/errors/conflict", title: "Token já utilizado", status: 409 })).toBe(false);
+  });
+
+  it.each([[{}], [null], [undefined], ["texto"], [42]])("rejeita %p", (valor) => {
+    expect(isEmailInUse(valor)).toBe(false);
   });
 });

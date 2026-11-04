@@ -1,4 +1,5 @@
 export const PASSWORD_CHANGE_REQUIRED_TYPE = "/errors/password-change-required";
+export const EMAIL_IN_USE_TYPE = "/errors/email-already-in-use";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -7,6 +8,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /** true se o corpo do erro é o "primeiro acesso pendente" do backend. */
 export function isPasswordChangeRequired(problem: unknown): boolean {
   return isRecord(problem) && problem.type === PASSWORD_CHANGE_REQUIRED_TYPE;
+}
+
+/** true se o `409` é "e-mail pessoal já em uso" (e não "token já utilizado"). */
+export function isEmailInUse(problem: unknown): boolean {
+  return isRecord(problem) && problem.type === EMAIL_IN_USE_TYPE;
 }
 
 /** Extrai o token de `_links.activate.href` quando o link tem o formato esperado. */
