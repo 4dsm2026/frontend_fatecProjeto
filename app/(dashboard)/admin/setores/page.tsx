@@ -9,6 +9,8 @@ import {
 import { toast } from "sonner";
 import { cx } from '../../../../utils/cx'
 import { apiFetch } from "../../../../utils/api";
+import { collectPages, followLink, hasLink } from "../../../../utils/hal";
+import type { HalResource } from "../../../../utils/hal";
 import ConfirmDialog, { type ConfirmDialogProps } from "../../../components/ui/ConfirmDialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -31,14 +33,14 @@ type Usuario = {
   ativo: boolean;
 };
 
-type Setor = {
+type Setor = HalResource & {
   id: string;
   nome: string;
   descricao?: string | null;
 };
 
 /** Vínculo usuário↔setor, com usuário e papel embutidos (include do backend). */
-type Membro = {
+type Membro = HalResource & {
   id: string;           // id do vínculo (usuarioSetor)
   usuarioId: string;
   setorId: string;
@@ -69,6 +71,7 @@ function AtivoDot({ ativo }: { ativo: boolean }) {
 /* ===================== Página ===================== */
 export default function SetoresPage() {
   const [setores, setSetores] = useState<Setor[]>([]);
+  const [setoresCollection, setSetoresCollection] = useState<HalResource | null>(null);
   const [papeis, setPapeis] = useState<PapelCatalogo[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [membros, setMembros] = useState<Membro[]>([]);
@@ -88,14 +91,15 @@ export default function SetoresPage() {
   const carregarSetores = useCallback(async (selecionar?: string) => {
     setLoadingSetores(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/setores?perPage=100`, { cache: "no-store" });
+      const res = await apiFetch(`${API_URL}/admin/sectors?size=100`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Falha ao carregar setores (${res.status})`);
       const json = await res.json();
-      const lista: Setor[] = json?.data ?? [];
+      setSetoresCollection(json);
+      const lista = await collectPages<Setor>(json, "sectors");
       setSetores(lista);
       setCurrentSetorId(prev => selecionar ?? (lista.some(s => s.id === prev) ? prev : lista[0]?.id ?? ""));
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao carregar setores");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar setores");
     } finally {
       setLoadingSetores(false);
     }
@@ -104,17 +108,17 @@ export default function SetoresPage() {
   useEffect(() => {
     carregarSetores();
 
-    apiFetch(`${API_URL}/admin/papeis`, { cache: "no-store" })
+    apiFetch(`${API_URL}/admin/roles`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
-      .then((data) => setPapeis(Array.isArray(data) ? data : (data?.data ?? [])))
+      .then(async (data) => setPapeis(await collectPages<PapelCatalogo>(data, "roles")))
       .catch(() => {});
 
     // Candidatos para atribuição: apenas contas de equipe (não-aluno) e ativas.
-    apiFetch(`${API_URL}/usuarios?perPage=100&ativo=true`, { cache: "no-store" })
+    apiFetch(`${API_URL}/users?size=100&ativo=true`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((json) => {
-        const items: Usuario[] = json?.items ?? [];
-        setUsuarios(items.filter((u) => u.papel && u.papel !== "USUARIO"));
+      .then(async (json) => {
+        const items = json ? await collectPages<Usuario>(json, "users") : [];
+        setUsuarios(items.filter((u) => u.ativo && u.papel && u.papel !== "USUARIO"));
       })
       .catch(() => {});
   }, [carregarSetores]);
@@ -124,12 +128,12 @@ export default function SetoresPage() {
     if (!setorId) { setMembros([]); return; }
     setLoadingMembros(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/setores/${setorId}/usuarios?perPage=100`, { cache: "no-store" });
+      const res = await apiFetch(`${API_URL}/admin/sectors/${setorId}/users?size=100`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Falha ao carregar membros (${res.status})`);
       const json = await res.json();
-      setMembros(json?.data ?? []);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao carregar membros do setor");
+      setMembros(await collectPages<Membro>(json, "users"));
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao carregar membros do setor");
       setMembros([]);
     } finally {
       setLoadingMembros(false);
@@ -154,17 +158,15 @@ export default function SetoresPage() {
     if (!nome) return;
     setBusy(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/setores`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await followLink(setoresCollection, "create", {
         body: JSON.stringify({ nome }),
       });
       if (!res.ok) throw new Error(`Falha ao criar setor (${res.status})`);
       const novo = await res.json();
       toast.success("Setor criado.");
       await carregarSetores(novo?.id);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao criar setor");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao criar setor");
       throw e;
     } finally {
       setBusy(false);
@@ -175,16 +177,14 @@ export default function SetoresPage() {
     if (!currentSetor || !nome || nome === currentSetor.nome) return;
     setBusy(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/setores/${currentSetor.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const res = await followLink(currentSetor, "update", {
         body: JSON.stringify({ nome }),
       });
       if (!res.ok) throw new Error(`Falha ao renomear (${res.status})`);
       toast.success("Setor renomeado.");
       await carregarSetores(currentSetor.id);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao renomear setor");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao renomear setor");
       throw e;
     } finally {
       setBusy(false);
@@ -195,12 +195,12 @@ export default function SetoresPage() {
     if (!currentSetor) return;
     setBusy(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/setores/${currentSetor.id}`, { method: "DELETE" });
+      const res = await followLink(currentSetor, "delete");
       if (!res.ok) throw new Error(`Falha ao remover (${res.status})`);
       toast.success("Setor removido.");
       await carregarSetores();
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao remover setor");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao remover setor");
       throw e;
     } finally {
       setBusy(false);
@@ -256,15 +256,14 @@ export default function SetoresPage() {
   async function trocarPapel(usuarioSetorId: string, novoPapelId: string) {
     setBusy(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/usuarios-setores/${usuarioSetorId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+      const membro = membros.find((m) => m.id === usuarioSetorId);
+      const res = await followLink(membro, "update", {
         body: JSON.stringify({ papelId: novoPapelId || null }),
       });
       if (!res.ok) throw new Error(`Falha ao alterar papel (${res.status})`);
       await carregarMembros(currentSetorId);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao alterar papel");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao alterar papel");
     } finally {
       setBusy(false);
     }
@@ -273,12 +272,13 @@ export default function SetoresPage() {
   async function doRemoverMembro(usuarioSetorId: string) {
     setBusy(true);
     try {
-      const res = await apiFetch(`${API_URL}/admin/usuarios-setores/${usuarioSetorId}`, { method: "DELETE" });
+      const membro = membros.find((m) => m.id === usuarioSetorId);
+      const res = await followLink(membro, "delete");
       if (!res.ok) throw new Error(`Falha ao remover membro (${res.status})`);
       toast.success("Membro removido do setor.");
       await carregarMembros(currentSetorId);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao remover membro");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao remover membro");
       throw e;
     } finally {
       setBusy(false);
@@ -291,7 +291,7 @@ export default function SetoresPage() {
     try {
       const resultados = await Promise.allSettled(
         userIds.map((uid) =>
-          apiFetch(`${API_URL}/admin/usuarios/${uid}/setores`, {
+          apiFetch(`${API_URL}/admin/users/${encodeURIComponent(uid)}/sectors`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ setorId: currentSetor.id, papelId: papelId ?? null }),
@@ -305,8 +305,8 @@ export default function SetoresPage() {
       else toast.warning(`${userIds.length - falhas} atribuído(s), ${falhas} com erro.`);
       setDrawerOpen(false);
       await carregarMembros(currentSetorId);
-    } catch (e: any) {
-      toast.error(e?.message ?? "Erro ao atribuir funcionários");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Erro ao atribuir funcionários");
     } finally {
       setBusy(false);
     }
@@ -368,7 +368,7 @@ export default function SetoresPage() {
           <div className="mt-3 flex items-center justify-between px-2">
             <button type="button"
               onClick={criarSetor}
-              disabled={busy}
+              disabled={busy || !hasLink(setoresCollection, "create")}
               className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"
             >
               <Plus className="size-4" /> Novo setor
@@ -376,14 +376,14 @@ export default function SetoresPage() {
             <div className="flex items-center gap-2">
               <button type="button"
                 onClick={renomearSetor}
-                disabled={!currentSetor || busy}
+                disabled={busy || !hasLink(currentSetor, "update")}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 <Pencil className="size-4" /> Renomear
               </button>
               <button type="button"
                 onClick={removerSetor}
-                disabled={!currentSetor || busy}
+                disabled={busy || !hasLink(currentSetor, "delete")}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 <Trash2 className="size-4" /> Remover
@@ -468,7 +468,7 @@ export default function SetoresPage() {
                             <select
                               className="h-9 px-2 rounded-md border border-[var(--border)] bg-background text-sm disabled:opacity-50"
                               value={m.papelId ?? ""}
-                              disabled={busy}
+                              disabled={busy || !hasLink(m, "update")}
                               onChange={(e) => trocarPapel(m.id, e.target.value)}
                             >
                               <option value="">— sem papel —</option>
@@ -479,7 +479,7 @@ export default function SetoresPage() {
                             <button type="button"
                               className="h-9 px-3 rounded-md hover:bg-[var(--muted)] disabled:opacity-50"
                               onClick={() => removerMembro(m.id)}
-                              disabled={busy}
+                              disabled={busy || !hasLink(m, "delete")}
                               title="Remover do setor"
                             >
                               Remover

@@ -36,7 +36,7 @@ export default function DetalheSugestaoAlunoPage() {
     (async () => {
       try {
         setLoading(true);
-        const res = await apiFetch(`${API}/sugestoes/${id}`, {
+        const res = await apiFetch(`${API}/suggestions/${encodeURIComponent(id)}`, {
           cache: "no-store",
         });
 

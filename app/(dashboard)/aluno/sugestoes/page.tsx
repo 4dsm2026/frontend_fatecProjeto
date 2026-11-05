@@ -4,6 +4,7 @@ import { type FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
+import { embedded } from "../../../../utils/hal";
 import { apiFetch, extractApiError } from "../../../../utils/api";
 import { getCurrentUser } from "../../../../utils/current-user";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
@@ -55,7 +56,7 @@ export default function SugestoesPage() {
       setLoadingList(true);
 
       const res = await apiFetch(
-        `${API}/sugestoes?page=${targetPage}&pageSize=${PAGE_SIZE}`,
+        `${API}/suggestions?page=${targetPage - 1}&size=${PAGE_SIZE}`,
         { cache: "no-store" },
       );
 
@@ -66,8 +67,8 @@ export default function SugestoesPage() {
       }
 
       const data = await res.json();
-      setSugestoes(data?.items ?? []);
-      setTotal(data?.total ?? 0);
+      setSugestoes(embedded(data, "suggestions"));
+      setTotal(data?.page?.totalElements ?? 0);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error
@@ -110,7 +111,7 @@ export default function SugestoesPage() {
     setSubmitting(true);
 
     try {
-      const res = await apiFetch(`${API}/sugestoes`, {
+      const res = await apiFetch(`${API}/suggestions`, {
         method: "POST",
         body: JSON.stringify({
           emailContato: email,
@@ -230,16 +231,18 @@ export default function SugestoesPage() {
       <div className="rounded-xl border border-[var(--border)] bg-card p-5 space-y-3">
         <div className="text-sm font-semibold">Sugestões enviadas</div>
 
-        {loadingList ? (
+        {loadingList && (
           <div className="text-sm text-muted-foreground inline-flex items-center gap-2">
             <Loader2 className="size-4 animate-spin" /> Carregando…
           </div>
-        ) : sugestoes.length === 0 ? (
+        )}
+        {!loadingList && sugestoes.length === 0 && (
           <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-center text-sm text-muted-foreground inline-flex items-center gap-2 justify-center w-full">
             <Info className="size-4" />
             Você não enviou nenhuma sugestão.
           </div>
-        ) : (
+        )}
+        {!loadingList && sugestoes.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
             {sugestoes.map((s) => (
               <li key={s.id} className="py-3">
