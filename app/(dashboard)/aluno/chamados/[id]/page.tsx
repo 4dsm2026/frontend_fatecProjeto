@@ -14,12 +14,25 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch, downloadAnexo, fetchAnexoImageUrl } from "../../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../../utils/api";
+import { collectPages, followLink, hasLink, markMessagesRead } from "../../../../../utils/hal";
+import { attachmentImageUrl, downloadTicketAttachment, listTicketAttachments, uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { TicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { HalResource } from "../../../../../utils/hal";
+import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
 
 /* ================= Constantes ================= */
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+
+type ChamadoHal = Chamado & HalResource & { arquivadoEm?: string | null };
+
+function textoDeBloqueio(c: ChamadoHal, podeReabrir: boolean): string {
+  if (c.arquivadoEm) return "🔒 Solicitação arquivada. Disponível apenas para consulta.";
+  if (podeReabrir) return "🔒 Para enviar novas mensagens, reabra a solicitação.";
+  return "🔒 Atendimento finalizado. Solicitação disponível apenas para consulta.";
+}
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set([
@@ -50,14 +63,7 @@ type Mensagem = {
   autor?: { id: string; nome?: string | null; emailPessoal?: string | null } | null;
 };
 
-type AnexoInfo = {
-  id: string;
-  nomeArquivo: string;
-  mimeType: string;
-  tamanhoBytes: number;
-  enviadoEm: string;
-  enviadoPor?: { id: string; nome?: string | null } | null;
-};
+type AnexoInfo = TicketAttachment;
 
 type DadosAcademicosUser = {
   ra?: string | null;
@@ -71,16 +77,22 @@ type DadosAcademicosUser = {
 };
 
 /** Imagem de anexo com download autenticado */
-function AnexoImagem({ anexoId, alt }: { anexoId: string; alt: string }) {
+function AnexoImagem({ anexo, alt }: { anexo: AnexoInfo; alt: string }) {
   const [src, setSrc] = useState<string | null>(null);
   useEffect(() => {
     let url: string | null = null;
-    fetchAnexoImageUrl(anexoId).then((u) => {
+    let active = true;
+    setSrc(null);
+    attachmentImageUrl(anexo).then((u) => {
+      if (!active) {
+        if (u) URL.revokeObjectURL(u);
+        return;
+      }
       url = u;
-      if (u) setSrc(u);
-    });
-    return () => { if (url) URL.revokeObjectURL(url); };
-  }, [anexoId]);
+      setSrc(u);
+    }).catch(() => {});
+    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+  }, [anexo]);
   if (!src) return null;
   return (
     <img
@@ -173,11 +185,10 @@ function ChatMessages({
             return (
               <div
                 key={`${m.id}-${m.criadoEm}`}
-                className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${
-                  group.isAluno
-                    ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
-                    : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
-                }`}
+                className={`max-w-[75%] px-4 py-2 shadow-sm leading-relaxed ${group.isAluno
+                  ? "bg-gradient-to-br from-[#F87171] to-[#E74C3C] text-white rounded-2xl rounded-br-sm"
+                  : "bg-gray-200 text-gray-800 dark:bg-gray-700 dark:text-gray-100 rounded-2xl rounded-bl-sm"
+                  }`}
               >
                 <div className="whitespace-pre-wrap break-words">{m.conteudo}</div>
                 {isLast && (
@@ -225,7 +236,7 @@ function AnexoList({
       {anexos.map((a) => (
         <li key={a.id} className="border rounded-md bg-background overflow-hidden">
           {a.mimeType.startsWith("image/") && (
-            <AnexoImagem anexoId={a.id} alt={a.nomeArquivo} />
+            <AnexoImagem anexo={a} alt={a.nomeArquivo} />
           )}
           <div className="flex items-center justify-between gap-2 p-2 text-sm">
             <div className="min-w-0">
@@ -240,12 +251,14 @@ function AnexoList({
               type="button"
               onClick={async () => {
                 try {
-                  await downloadAnexo(a.id, a.nomeArquivo);
+                  await downloadTicketAttachment(a);
                 } catch {
                   toast.error("Não foi possível baixar o arquivo.");
                 }
               }}
-              className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
+              disabled={!hasLink(a, "content")}
+              title={hasLink(a, "content") ? "Baixar anexo" : "Download indisponível"}
+              className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0 disabled:opacity-50"
             >
               <Download className="size-3.5" /> Baixar
             </button>
@@ -261,7 +274,7 @@ export default function ChamadoDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
 
-  const [chamado, setChamado] = useState<Chamado | null>(null);
+  const [chamado, setChamado] = useState<ChamadoHal | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [msgs, setMsgs] = useState<Mensagem[]>([]);
@@ -308,34 +321,31 @@ export default function ChamadoDetalhePage() {
 
   /* ===== Dados acadêmicos básicos do aluno ===== */
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: DadosAcademicosUser | null) => {
-        if (data) setDadosAcademicos(data);
-      })
-      .catch(() => {});
+    getCurrentUser<DadosAcademicosUser>()
+      .then((data) => setDadosAcademicos(data))
+      .catch(() => { });
   }, []);
 
   /* ===== Fetch Mensagens ===== */
   const fetchMensagens = useCallback(async () => {
-    if (!id) { setMsgLoading(false); return; }
+    if (!chamado || !hasLink(chamado, "messages")) { setMsgLoading(false); return; }
     setMsgLoading(true);
     try {
-      const res = await apiFetch(
-        `${API}/tickets/${id}/mensagens?page=1&pageSize=100&orderDir=asc`,
-      );
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      const res = await followLink(chamado, "messages", { cache: "no-store" });
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       const data = await res.json();
-      const lista: Mensagem[] = data.mensagens || data.items || [];
-      lista.forEach((m) => knownIds.current.add(m.id));
+      const lista = await collectPages<Mensagem>(data, "messages");
+      lista.sort((a, b) => +new Date(a.criadoEm) - +new Date(b.criadoEm));
+      knownIds.current = new Set(lista.map((m) => m.id));
       setMsgs(lista);
       scrollToEnd(false);
+      void markMessagesRead(data);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar mensagens.");
     } finally {
       setMsgLoading(false);
     }
-  }, [id]);
+  }, [chamado]);
 
   useEffect(() => { fetchMensagens(); }, [fetchMensagens]);
 
@@ -372,7 +382,7 @@ export default function ChamadoDetalhePage() {
             setMsgs((prev) => [...prev, m]);
             scrollToEnd();
           }
-        } catch {}
+        } catch { }
       };
       ws.onclose = () => {
         if (destroyed) return;
@@ -392,14 +402,13 @@ export default function ChamadoDetalhePage() {
 
   /* ===== Enviar Mensagem ===== */
   const sendMensagem = useCallback(async () => {
-    if (!msgText.trim() || !chamado?.id) return;
+        if (!msgText.trim() || !chamado) return;
     setMsgSending(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${chamado.id}/mensagens`, {
-        method: "POST",
+      const res = await followLink(chamado, "reply", {
         body: JSON.stringify({ conteudo: msgText.trim() }),
       });
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       const novaMsg: Mensagem = await res.json();
       if (!knownIds.current.has(novaMsg.id)) {
         knownIds.current.add(novaMsg.id);
@@ -407,34 +416,32 @@ export default function ChamadoDetalhePage() {
       }
       setMsgText("");
       scrollToEnd();
+      await fetchChamado();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao enviar mensagem.");
     } finally {
       setMsgSending(false);
     }
-  }, [msgText, chamado?.id]);
+  }, [msgText, chamado, fetchChamado]);
 
   /* ===== Fetch Anexos ===== */
   const fetchAnexos = useCallback(async () => {
-    if (!id) { setLoadingAnexos(false); return; }
+    if (!chamado) { setAnexos([]); setLoadingAnexos(false); return; }
     setLoadingAnexos(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${id}/anexos`);
-      if (!res.ok) throw new Error(`Erro ${res.status}`);
-      const data = await res.json();
-      setAnexos(Array.isArray(data) ? data : []);
+      setAnexos(await listTicketAttachments(chamado));
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar anexos.");
     } finally {
       setLoadingAnexos(false);
     }
-  }, [id]);
+  }, [chamado]);
 
   useEffect(() => { fetchAnexos(); }, [fetchAnexos]);
 
   /* ===== Upload via apiFetch + validação ===== */
   const handleUpload = useCallback(async () => {
-    if (!selectedFile || !chamado?.id) return;
+    if (!selectedFile || !chamado || !hasLink(chamado, "upload")) return;
     if (selectedFile.size > MAX_FILE_SIZE_BYTES) {
       toast.error("Arquivo muito grande. Máximo permitido: 10 MB.");
       return;
@@ -445,13 +452,7 @@ export default function ChamadoDetalhePage() {
     }
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      const res = await apiFetch(`${API}/tickets/${chamado.id}/anexos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+      await uploadTicketAttachment(chamado, selectedFile);
       toast.success(`"${selectedFile.name}" enviado com sucesso.`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -461,18 +462,19 @@ export default function ChamadoDetalhePage() {
     } finally {
       setUploading(false);
     }
-  }, [selectedFile, chamado?.id, fetchAnexos]);
+  }, [selectedFile, chamado, fetchAnexos]);
 
   /* ===== Alterar status ===== */
-  const atualizarStatus = useCallback(
-    async (novoStatus: Status): Promise<boolean> => {
-      if (!chamado?.id) return false;
+  /* ===== Ações do chamado: seguem os links que a API devolveu ===== */
+  const executarAcao = useCallback(
+    async (rel: "transition" | "reopen", status: Status): Promise<boolean> => {
+      if (!chamado) return false;
       try {
-        const res = await apiFetch(`${API}/tickets/${chamado.id}`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: novoStatus }),
+        const res = await followLink(chamado, rel, {
+          name: status,
+          body: JSON.stringify({ status }),
         });
-        if (!res.ok) throw new Error(`Erro ${res.status}`);
+        if (!res.ok) throw new Error(await extractApiError(res, "Não foi possível concluir a ação"));
         await fetchChamado();
         return true;
       } catch (err: unknown) {
@@ -482,7 +484,7 @@ export default function ChamadoDetalhePage() {
         return false;
       }
     },
-    [chamado?.id, fetchChamado],
+    [chamado, fetchChamado],
   );
 
   /* ===== Drag-drop ===== */
@@ -513,8 +515,8 @@ export default function ChamadoDetalhePage() {
               Deseja finalizar esta solicitação acadêmica?
             </h3>
             <p className="text-sm text-muted-foreground mt-1 leading-snug">
-              Após finalizar, ficará <b>apenas para consulta</b> e{" "}
-              <b>não poderá ser reaberta</b>.
+              Após finalizar, ficará <b>apenas para consulta</b> e só poderá ser{" "}
+              <b>reaberta por um período limitado</b>.
             </p>
             <div className="mt-3 flex justify-end gap-2">
               <button type="button"
@@ -526,7 +528,7 @@ export default function ChamadoDetalhePage() {
               <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
-                  const ok = await atualizarStatus("ENCERRADO");
+                  const ok = await executarAcao("transition", "ENCERRADO");
                   if (ok)
                     toast.success("Solicitação finalizada.", {
                       description: "Disponível apenas para consulta no histórico.",
@@ -553,7 +555,7 @@ export default function ChamadoDetalhePage() {
           <div className="flex-1">
             <h3 className="text-sm font-semibold text-foreground">Reabrir solicitação?</h3>
             <p className="text-sm text-muted-foreground mt-1 leading-snug">
-              Voltará para <b>"Em análise pelo setor responsável"</b> e poderá ser
+              Voltará para <b>&quot;Em análise pelo setor responsável&quot;</b> e poderá ser
               atualizada novamente.
             </p>
             <div className="mt-3 flex justify-end gap-2">
@@ -566,7 +568,7 @@ export default function ChamadoDetalhePage() {
               <button type="button"
                 onClick={async () => {
                   toast.dismiss(t);
-                  const ok = await atualizarStatus("EM_ATENDIMENTO");
+                  const ok = await executarAcao("reopen", "EM_ATENDIMENTO");
                   if (ok)
                     toast.success("Solicitação reaberta.", {
                       description: "Em análise pelo setor responsável.",
@@ -598,7 +600,10 @@ export default function ChamadoDetalhePage() {
       </div>
     );
 
-  const isEncerrado = chamado.status === "ENCERRADO";
+  const podeFinalizar = hasLink(chamado, "transition", "ENCERRADO");
+  const podeReabrir = hasLink(chamado, "reopen");
+  const podeResponder = hasLink(chamado, "reply");
+  const podeAnexar = hasLink(chamado, "upload");;
   const groups = groupMensagens(msgs, chamado.criadoPorId ?? undefined);
 
   return (
@@ -689,27 +694,30 @@ export default function ChamadoDetalhePage() {
           </svg>
           <div>
             Esta solicitação foi marcada como <b>respondida.</b> <br />
-            Você pode <b>reabrir</b> se o problema não foi solucionado ou{" "}
-            <b>encerrar</b> definitivamente se estiver tudo certo.
+            Use os botões abaixo para <b>reabrir</b> ou <b>finalizar</b>, conforme disponível.
           </div>
         </div>
       )}
 
-      {/* Botões de ação */}
-      {chamado.status === "RESOLVIDO" && (
+      {/* Botões de ação: só aparecem os que a API ofereceu */}
+      {(podeFinalizar || podeReabrir) && (
         <div className="flex gap-3">
-          <button type="button"
-            onClick={confirmarEncerramento}
-            className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
-          >
-            Finalizar atendimento
-          </button>
-          <button type="button"
-            onClick={confirmarReabertura}
-            className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
-          >
-            Reabrir solicitação
-          </button>
+          {podeFinalizar && (
+            <button type="button"
+              onClick={confirmarEncerramento}
+              className="px-4 py-2 rounded-md bg-[#B91C1C] text-white text-sm font-medium hover:bg-[#991B1B] transition"
+            >
+              Finalizar atendimento
+            </button>
+          )}
+          {podeReabrir && (
+            <button type="button"
+              onClick={confirmarReabertura}
+              className="px-4 py-2 rounded-md bg-[#374151] text-white text-sm font-medium hover:bg-[#111827] transition"
+            >
+              Reabrir solicitação
+            </button>
+          )}
         </div>
       )}
 
@@ -725,9 +733,8 @@ export default function ChamadoDetalhePage() {
         </div>
 
         <div
-          className={`flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px] rounded-b-lg scrollbar-thin transition-colors ${
-            isDragging ? "bg-primary/5 border-2 border-dashed border-primary/40" : ""
-          }`}
+          className={`flex-1 p-4 space-y-3 overflow-y-auto max-h-[500px] rounded-b-lg scrollbar-thin transition-colors ${isDragging ? "bg-primary/5 border-2 border-dashed border-primary/40" : ""
+            }`}
         >
           {isDragging && (
             <div className="flex items-center justify-center h-full text-primary text-sm font-medium py-8">
@@ -744,7 +751,7 @@ export default function ChamadoDetalhePage() {
         </div>
 
         {/* Composer */}
-        {!isEncerrado ? (
+        {podeResponder ? (
           <div className="p-3 border-t border-[var(--border)]">
             <div className="flex items-end gap-2">
               <textarea
@@ -772,7 +779,7 @@ export default function ChamadoDetalhePage() {
           </div>
         ) : (
           <div className="p-3 border-t text-center text-sm text-muted-foreground">
-            🔒 Atendimento finalizado. Solicitação disponível apenas para consulta.
+            {textoDeBloqueio(chamado, podeReabrir)}
           </div>
         )}
       </section>
@@ -786,7 +793,7 @@ export default function ChamadoDetalhePage() {
         <AnexoList loadingAnexos={loadingAnexos} anexos={anexos} />
 
         {/* Upload */}
-        {!isEncerrado && (
+        {podeAnexar && (
           <div className="mt-4 pt-4 border-t">
             <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
             <input

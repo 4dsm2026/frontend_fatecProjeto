@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Search, ChevronRight, Ticket, User, FileChartColumn } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
+import { embedded } from "../../../../utils/hal";
+import type { HalCollection } from "../../../../utils/hal";
 import TicketStatusBadge from "../../../components/shared/TicketStatusBadge";
 import PriorityDot from "../../../components/shared/PriorityDot";
 import Alert from "../../../components/ui/Alert";
@@ -30,12 +32,7 @@ type Chamado = {
   criadoPor?: { nome?: string | null } | null;
 };
 
-type PageResp = {
-  total: number;
-  page: number;
-  pageSize: number;
-  items: Chamado[];
-};
+
 
 /* ----------------------------- Página ----------------------------- */
 export default function AdminHomePage() {
@@ -49,18 +46,13 @@ export default function AdminHomePage() {
   // dados
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pageData, setPageData] = useState<PageResp>({
-    total: 0,
-    page: 1,
-    pageSize: 50,
-    items: [],
-  });
+  const [items, setItems] = useState<Chamado[]>([]);
 
   // monta URL com filtros (alinhado com backend)
   const buildUrl = () => {
     const params = new URLSearchParams();
-    params.set("page", "1");
-    params.set("pageSize", "50"); // <= 100 (validação no backend)
+    params.set("page", "0");
+    params.set("size", "50"); // <= 100 (validação no backend)
     params.set("orderBy", "criadoEm");
     params.set("orderDir", "desc");
     params.set("include", "setor,criadoPor");
@@ -83,13 +75,8 @@ export default function AdminHomePage() {
         throw new Error(msg || `HTTP ${res.status}`);
       }
 
-      const data = (await res.json()) as PageResp;
-      setPageData({
-        total: Number(data?.total ?? 0),
-        page: Number(data?.page ?? 1),
-        pageSize: Number(data?.pageSize ?? 50),
-        items: Array.isArray(data?.items) ? data.items : [],
-      });
+      const data = (await res.json()) as HalCollection<Chamado>;
+      setItems(embedded(data, "tickets"));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Falha ao carregar chamados");
     } finally {
@@ -103,7 +90,6 @@ export default function AdminHomePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, status, prioridade, API]);
 
-  const items = pageData.items;
 
   return (
     <div className="min-h-dvh px-4 py-2 sm:px-6 lg:px-8">

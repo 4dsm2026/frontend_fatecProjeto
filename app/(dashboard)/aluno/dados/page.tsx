@@ -1,6 +1,6 @@
 "use client";
 
-import { apiFetch } from "../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../utils/api";
 import { useEffect, useMemo, useState } from "react";
 import {
   Accessibility,
@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
 import { logoutAndRedirect } from "../../../../utils/auth";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
 
 type Usuario = {
@@ -57,14 +58,6 @@ function valueOrDash(value?: string | number | boolean | null) {
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : undefined;
-}
-
-function getResponseErrorMessage(value: unknown) {
-  if (typeof value !== "object" || value === null) return undefined;
-  const data = value as { error?: unknown; message?: unknown };
-  if (typeof data.error === "string") return data.error;
-  if (typeof data.message === "string") return data.message;
-  return undefined;
 }
 
 function LoadingCard() {
@@ -143,8 +136,7 @@ export default function MeusDadosPage() {
     let alive = true;
     (async () => {
       try {
-        const res = await apiFetch(`${apiBase}/auth/me`, { cache: "no-store" });
-        const data: Usuario = await res.json();
+        const data = await getCurrentUser<Usuario>();
         if (!alive) return;
         setUser(data);
         setNome(data?.nome ?? "");
@@ -254,9 +246,8 @@ export default function MeusDadosPage() {
       setChanging(true);
 
       // Fluxo reautenticado: exige a senha atual e é validado no backend.
-      const res = await apiFetch(`${apiBase}/auth/trocar-senha`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await apiFetch(`${apiBase}/users/me/password`, {
+        method: "PUT",
         body: JSON.stringify({
           senhaAtual: currentPass,
           novaSenha: newPass,
@@ -275,8 +266,7 @@ export default function MeusDadosPage() {
           logoutAndRedirect();
         }, 4000);
       } else {
-        const errData: unknown = await res.json().catch(() => ({}));
-        throw new Error(getResponseErrorMessage(errData) || `Erro ${res.status} ao alterar senha`);
+        throw new Error(await extractApiError(res, `Erro ${res.status} ao alterar senha`));
       }
     } catch (e: unknown) {
       toast.error("Falha ao alterar senha", { description: getErrorMessage(e) });

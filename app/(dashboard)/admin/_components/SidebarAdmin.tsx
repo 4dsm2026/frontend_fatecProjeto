@@ -45,7 +45,7 @@ export default function SidebarAdmin({
   );
 
   useEffect(() => {
-    apiFetch(`${API_BASE}/tickets/stats`)
+    apiFetch(`${API_BASE}/ticket-stats`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return;
@@ -54,7 +54,7 @@ export default function SidebarAdmin({
         setPctResolvidos(data.pctResolvidos ?? null);
         setChamadosAbertosReal(data.porStatus?.ABERTO ?? null);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const chamadosBadge = chamadosAbertosReal ?? chamadosAbertosCount;

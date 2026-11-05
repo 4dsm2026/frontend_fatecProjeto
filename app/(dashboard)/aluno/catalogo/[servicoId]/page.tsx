@@ -23,6 +23,7 @@ import {
 } from "../../../../../utils/catalogo";
 import { cx } from "../../../../../utils/cx";
 import { apiFetch } from "../../../../../utils/api";
+import { getCurrentUser } from "../../../../../utils/current-user";
 
 type ServicoComCategoria = ServicoCatalogo & { categoriaNome: string };
 type DadosAcademicos = {
@@ -228,10 +229,15 @@ export default function SolicitacaoCatalogoPage() {
   }, []);
 
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    getCurrentUser<{
+      unidadeFatec?: string;
+      curso?: string;
+      turno?: string;
+      semestreAtual?: string;
+      turma?: string;
+      ra?: string;
+    }>()
       .then((data) => {
-        if (!data) return;
         setDadosAcademicos((prev) => ({
           unidadeFatec: data.unidadeFatec || prev.unidadeFatec,
           curso: data.curso || prev.curso,

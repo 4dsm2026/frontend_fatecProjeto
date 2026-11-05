@@ -47,6 +47,13 @@ export default function Button({
   disabled,
   ...rest
 }: Props) {
+  let leadingContent: ReactNode = null;
+  if (loading) {
+    leadingContent = <Loader2 className="size-4 animate-spin shrink-0" />;
+  } else if (icon) {
+    leadingContent = <span className="shrink-0">{icon}</span>;
+  }
+
   return (
     <button type="button"
       disabled={disabled || loading}
@@ -58,11 +65,7 @@ export default function Button({
       )}
       {...rest}
     >
-      {loading ? (
-        <Loader2 className="size-4 animate-spin shrink-0" />
-      ) : icon ? (
-        <span className="shrink-0">{icon}</span>
-      ) : null}
+      {leadingContent}
       {children}
       {iconRight && !loading && <span className="shrink-0">{iconRight}</span>}
     </button>

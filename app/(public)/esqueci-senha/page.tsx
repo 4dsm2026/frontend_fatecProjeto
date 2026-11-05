@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { MailCheck, Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { extractApiError } from "../../../utils/api";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -18,23 +19,22 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/esqueci-senha`, {
+      const res = await fetch(`${API_BASE}/password-resets`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
 
       if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || "Erro ao solicitar redefinição de senha.");
+        throw new Error(await extractApiError(res, "Erro ao solicitar redefinição de senha."));
       }
 
       toast.success(
         "Se existir uma conta com esse e-mail, enviaremos um link de redefinição."
       );
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("Não foi possível enviar o link de redefinição.", {
-        description: err?.message ?? "Tente novamente em instantes.",
+        description: err instanceof Error ? err.message : "Tente novamente em instantes.",
       });
     } finally {
       setLoading(false);
