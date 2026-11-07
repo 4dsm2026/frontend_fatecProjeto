@@ -155,6 +155,16 @@ Para chamar a API, use `apiFetch` (`utils/api.ts`): ele envia o token, renova a 
 
 `Dockerfile` com build `standalone` (Node 20). Versões: cada merge em `main` gera uma release automática (veja [Releases](https://github.com/4dsm2026/frontend_fatecProjeto/releases)).
 
+## 📚 Documentação
+
+Toda a documentação do WorkFlow FATEC fica no site: **<https://4dsm2026.github.io/docs_fatecProjeto/>**
+
+- Manual do usuário e processos
+- Arquitetura (diagramas C4 e BPMN)
+- Plano de testes e UX/UI
+
+A documentação da API (Swagger) fica em `/docs` quando o servidor está rodando.
+
 ## Contribuindo
 
 Siga o [guia de contribuição da organização](https://github.com/4dsm2026/.github/blob/main/CONTRIBUTING.md): issue → branch `<tipo>/issue-<número>-<descrição>` → PR para `develop`. Mudou uma tela? Atualize a página correspondente do [manual do usuário](https://github.com/4dsm2026/docs_fatecProjeto). O `pnpm install` ativa os hooks do git.
