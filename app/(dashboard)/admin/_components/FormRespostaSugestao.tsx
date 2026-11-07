@@ -3,24 +3,23 @@
 import { useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
-import { apiFetch, extractApiError } from "../../../../utils/api";
+import { extractApiError } from "../../../../utils/api";
+import { followLink } from "../../../../utils/hal";
+import type { HalResource } from "../../../../utils/hal";
 import SugestaoEditor, { type SugestaoEditorValor } from "../../../components/shared/SugestaoEditor";
 import SugestaoDocumentoView from "../../../components/shared/SugestaoDocumentoView";
 import type { JSONContent } from "@tiptap/react";
-
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 const RESPOSTA_MAX = 500;
 
 type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
 
 type Props = Readonly<{
-  sugestaoId: string;
+  sugestao: HalResource | null;
   resposta: string;
   respostaDocumento: JSONContent | null;
   onRespostaChange: (value: SugestaoEditorValor) => void;
   status: StatusSugestao;
-  onStatusChange: (value: StatusSugestao) => void;
   respostaBloqueada: boolean;
   statusBloqueado: boolean;
   statusFinal: boolean;
@@ -29,12 +28,11 @@ type Props = Readonly<{
 }>;
 
 export default function FormRespostaSugestao({
-  sugestaoId,
+  sugestao,
   resposta,
   respostaDocumento,
   onRespostaChange,
   status,
-  onStatusChange,
   respostaBloqueada,
   statusBloqueado,
   statusFinal,
@@ -46,6 +44,10 @@ export default function FormRespostaSugestao({
   async function handleSalvar() {
     const texto = resposta.trim();
 
+    if (!texto) {
+      toast.error("Escreva uma resposta antes de salvar.");
+      return;
+    }
     if (texto.length > RESPOSTA_MAX) {
       toast.error(`A resposta deve ter no máximo ${RESPOSTA_MAX} caracteres.`);
       return;
@@ -54,12 +56,8 @@ export default function FormRespostaSugestao({
     setSaving(true);
 
     try {
-      const res = await apiFetch(`${API}/sugestoes/${sugestaoId}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          ...(texto && !respostaJaSalva ? { resposta: texto, respostaDocumento } : {}),
-          ...(!statusBloqueado ? { status } : {}),
-        }),
+      const res = await followLink(sugestao, "answer", {
+        body: JSON.stringify({ resposta: texto, ...(respostaDocumento ? { respostaDocumento } : {}) }),
       });
 
       if (!res.ok) {
@@ -101,25 +99,7 @@ export default function FormRespostaSugestao({
         )}
       </div>
 
-      <label className="space-y-1 text-sm block">
-        <span className="font-medium">Status</span>
-
-        <select
-          value={status}
-          onChange={(e) => onStatusChange(e.target.value as StatusSugestao)}
-          disabled={statusBloqueado}
-          className="w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          <option value="NAO_RESPONDIDO">Não respondido</option>
-          <option value="RESPONDIDO">Respondido</option>
-        </select>
-
-        {statusBloqueado && (
-          <span className="block text-xs text-muted-foreground">
-            Status &quot;Respondido&quot; é definitivo e não pode mais ser alterado.
-          </span>
-        )}
-      </label>
+      <p className="text-sm">Status: {status === "RESPONDIDO" ? "Respondido" : "Não respondido"}. Ao enviar a resposta, a sugestão será marcada como respondida.</p>
 
       {!statusBloqueado && (
         <div className="flex justify-end">

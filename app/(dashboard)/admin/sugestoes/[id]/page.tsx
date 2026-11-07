@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../../utils/api";
+import { hasLink } from "../../../../../utils/hal";
+import type { HalResource } from "../../../../../utils/hal";
 import SugestaoDetalheLayout from "../../../../components/shared/SugestaoDetalheLayout";
 import FormRespostaSugestao from "../../_components/FormRespostaSugestao";
 import type { SugestaoEditorValor } from "../../../../components/shared/SugestaoEditor";
@@ -12,7 +14,7 @@ const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
 
-type SugestaoDetalhe = {
+type SugestaoDetalhe = HalResource & {
   id: string;
   conteudo: string;
   emailContato: string;
@@ -33,7 +35,6 @@ export default function DetalheSugestaoAdminPage() {
 
   const [resposta, setResposta] = useState("");
   const [respostaDocumento, setRespostaDocumento] = useState<JSONContent | null>(null);
-  const [status, setStatus] = useState<StatusSugestao>("NAO_RESPONDIDO");
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -41,7 +42,7 @@ export default function DetalheSugestaoAdminPage() {
     try {
       setLoading(true);
 
-      const res = await apiFetch(`${API}/sugestoes/${id}`, {
+      const res = await apiFetch(`${API}/suggestions/${encodeURIComponent(id)}`, {
         cache: "no-store",
       });
 
@@ -58,7 +59,6 @@ export default function DetalheSugestaoAdminPage() {
       setSugestao(data);
       setResposta(data.resposta ?? "");
       setRespostaDocumento(data.respostaDocumento ?? null);
-      setStatus(data.status);
     } catch {
       setErro("Não foi possível carregar a sugestão.");
     } finally {
@@ -72,8 +72,8 @@ export default function DetalheSugestaoAdminPage() {
 
   const statusFinal = sugestao?.status === "RESPONDIDO";
   const respostaJaSalva = !!sugestao?.resposta;
-  const respostaBloqueada = statusFinal || respostaJaSalva;
-  const statusBloqueado = statusFinal;
+  const respostaBloqueada = !hasLink(sugestao, "answer");
+  const statusBloqueado = !hasLink(sugestao, "answer");
 
   return (
     <SugestaoDetalheLayout
@@ -92,15 +92,14 @@ export default function DetalheSugestaoAdminPage() {
       }
     >
       <FormRespostaSugestao
-        sugestaoId={id}
+        sugestao={sugestao}
         resposta={resposta}
         respostaDocumento={respostaDocumento}
         onRespostaChange={(valor: SugestaoEditorValor) => {
           setResposta(valor.texto);
           setRespostaDocumento(valor.documento);
         }}
-        status={status}
-        onStatusChange={setStatus}
+        status={sugestao?.status ?? "NAO_RESPONDIDO"}
         respostaBloqueada={respostaBloqueada}
         statusBloqueado={statusBloqueado}
         statusFinal={statusFinal}

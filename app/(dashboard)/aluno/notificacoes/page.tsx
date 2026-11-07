@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { apiFetch } from "../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../utils/api";
+import { collectPages, followLink, hasLink } from "../../../../utils/hal";
+import type { HalResource } from "../../../../utils/hal";
 import {
   Bell,
   Loader2,
@@ -26,7 +28,7 @@ type Tipo =
   | "ANEXO_NOVO"
   | "SISTEMA";
 
-type Notificacao = {
+type Notificacao = HalResource & {
   id: string;
   titulo: string;
   mensagem: string;
@@ -38,12 +40,7 @@ type Notificacao = {
   meta?: Record<string, unknown> | null;
 };
 
-type PageResp = {
-  total: number;
-  page: number;
-  pageSize: number;
-  items: Notificacao[];
-};
+
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -74,25 +71,28 @@ export default function NotificacoesAlunoPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notifs, setNotifs] = useState<Notificacao[]>([]);
+  const [collection, setCollection] = useState<HalResource | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
   const [markingAll, setMarkingAll] = useState(false);
 
   const unread = useMemo(() => notifs.filter((n) => !n.lidaEm).length, [notifs]);
+  const unreadLabel = unread === 1 ? "1 não lida" : `${unread} não lidas`;
 
   async function load() {
     setLoading(true);
     setError(null);
     try {
       const res = await apiFetch(
-        `${API_BASE}/notifications?orderDir=desc&page=1&pageSize=100`,
+        `${API_BASE}/notifications?page=0&size=100`,
         { cache: "no-store" },
       );
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error ?? `Erro ${res.status}`);
       }
-      const data: PageResp = await res.json();
-      setNotifs(data.items ?? []);
+      const data = await res.json();
+      setCollection(data);
+      setNotifs(await collectPages<Notificacao>(data, "notifications"));
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Não foi possível carregar as notificações.");
       setNotifs([]);
@@ -110,11 +110,16 @@ export default function NotificacoesAlunoPage() {
   async function markAsRead(id: string) {
     setMarking(id);
     try {
-      await apiFetch(`${API_BASE}/notifications/${id}/lida`, { method: "PATCH" });
+      const item = notifs.find((n) => n.id === id);
+      if (!hasLink(item, "mark-read")) return;
+      const res = await followLink(item, "mark-read", { body: JSON.stringify({ lida: true }) });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao marcar como lida."));
       setNotifs((xs) =>
         xs.map((n) => (n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n))
       );
       dispatchRead();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Falha ao marcar como lida.");
     } finally {
       setMarking(null);
     }
@@ -123,13 +128,15 @@ export default function NotificacoesAlunoPage() {
   async function markAllAsRead() {
     setMarkingAll(true);
     try {
-      await apiFetch(`${API_BASE}/notifications/read-all`, { method: "POST" });
+      if (!hasLink(collection, "mark-all-read")) return;
+      const res = await followLink(collection, "mark-all-read", { body: JSON.stringify({ lida: true }) });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao marcar notificações."));
       setNotifs((xs) =>
         xs.map((n) => ({ ...n, lidaEm: n.lidaEm ?? new Date().toISOString() }))
       );
       dispatchRead();
-    } catch {
-      /* silent — UI já foi atualizada de forma otimista */
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Falha ao marcar notificações.");
     } finally {
       setMarkingAll(false);
     }
@@ -140,7 +147,7 @@ export default function NotificacoesAlunoPage() {
     const byTicket = new Map<string, Notificacao[]>();
     const general: Notificacao[] = [];
     for (const n of notifs) {
-      if (n.chamadoId) {
+      if (n.chamadoId && hasLink(n, "ticket")) {
         const arr = byTicket.get(n.chamadoId) ?? [];
         arr.push(n);
         byTicket.set(n.chamadoId, arr);
@@ -163,13 +170,11 @@ export default function NotificacoesAlunoPage() {
           <h1 className="font-grotesk text-2xl font-semibold tracking-tight">Notificações</h1>
           {!loading && (
             <p className="text-sm text-muted-foreground mt-0.5">
-              {unread > 0
-                ? `${unread} não lida${unread > 1 ? "s" : ""}`
-                : "Tudo em dia"}
+              {unread > 0 ? unreadLabel : "Tudo em dia"}
             </p>
           )}
         </div>
-        {unread > 0 && (
+        {unread > 0 && hasLink(collection, "mark-all-read") && (
           <button type="button"
             onClick={markAllAsRead}
             disabled={markingAll}
@@ -192,16 +197,18 @@ export default function NotificacoesAlunoPage() {
       )}
 
       {/* Loading */}
-      {loading ? (
+      {loading && (
         <div className="flex items-center gap-2 text-muted-foreground text-sm">
           <Loader2 className="size-4 animate-spin" /> Carregando…
         </div>
-      ) : notifs.length === 0 ? (
+      )}
+        {!loading && notifs.length === 0 && (
         <div className="rounded-xl border border-[var(--border)] bg-card p-10 flex flex-col items-center gap-2 text-center">
           <Bell className="size-8 text-muted-foreground" />
           <p className="text-sm text-muted-foreground">Nenhuma notificação no momento.</p>
         </div>
-      ) : (
+      )}
+        {!loading && notifs.length > 0 && (
         <div className="space-y-4">
 
           {/* Blocos por chamado */}
@@ -317,7 +324,7 @@ function NotifItem({
         </time>
       </div>
 
-      {!n.lidaEm && (
+      {!n.lidaEm && hasLink(n, "mark-read") && (
         <button type="button"
           onClick={() => onMark(n.id)}
           disabled={marking === n.id}

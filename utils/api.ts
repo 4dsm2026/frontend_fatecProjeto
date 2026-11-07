@@ -137,7 +137,7 @@ export async function extractApiError(res: Response, fallback?: string): Promise
  * Cria um URL temporário a partir do blob e dispara o download no browser.
  */
 export async function downloadAnexo(anexoId: string, fileName: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/anexos/${anexoId}/download`);
+  const res = await apiFetch(`${API_BASE}/attachments/${encodeURIComponent(anexoId)}/content`);
   if (!res.ok) throw new Error(`Erro ao baixar arquivo (${res.status})`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -156,7 +156,7 @@ export async function downloadAnexo(anexoId: string, fileName: string): Promise<
  */
 export async function fetchAnexoImageUrl(anexoId: string): Promise<string | null> {
   try {
-    const res = await apiFetch(`${API_BASE}/anexos/${anexoId}/download`);
+    const res = await apiFetch(`${API_BASE}/attachments/${encodeURIComponent(anexoId)}/content`);
     if (!res.ok) return null;
     const blob = await res.blob();
     return URL.createObjectURL(blob);

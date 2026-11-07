@@ -82,7 +82,7 @@ export default function ConfiguracoesAlunoPage() {
     try {
       setSaving(true);
       // Tema é local (visual); a preferência de notificações persiste no backend.
-      const res = await apiFetch(`${API}/usuarios/${userId}`, {
+      const res = await apiFetch(`${API}/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificacoesInApp: platNotif }),

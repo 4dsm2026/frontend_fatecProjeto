@@ -126,7 +126,7 @@ export default function SistemaTopbar({
   notificationsHref = "/admin/notificacoes",
   pollMs = 60_000,
 }: Props) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   const [mounted, setMounted] = useState(false);
 
@@ -178,11 +178,12 @@ export default function SistemaTopbar({
     try {
       setLoadingUnread(true);
       const res = await apiFetch(
-        `${apiBase}/notifications?apenasNaoLidas=1&page=1&pageSize=1`,
+        `${apiBase}/notifications?apenasNaoLidas=true&page=0&size=1`,
         { cache: "no-store" }
       );
+      if (!res.ok) throw new Error("Falha ao carregar notificações");
       const data = await res.json();
-      setUnread(Number(data?.total ?? 0));
+      setUnread(Number(data?.page?.totalElements ?? 0));
     } catch {
       setUnread(0);
     } finally {
