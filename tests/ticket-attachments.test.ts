@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { attachmentImageUrl, downloadTicketAttachment, listTicketAttachments, uploadTicketAttachment } from "../utils/ticket-attachments";
 import type { TicketAttachment } from "../utils/ticket-attachments";
+import type { HalResource } from "../utils/hal";
 import { json, stubApi } from "./helpers-api";
 
 const attachment: TicketAttachment = {
@@ -8,7 +9,7 @@ const attachment: TicketAttachment = {
   tamanhoBytes: 4, enviadoEm: "2026-11-02T12:00:00Z",
   _links: { content: { href: "/files/custom-content", method: "GET" } },
 };
-const ticket = { _links: {
+const ticket: HalResource = { _links: {
   attachments: { href: "/files/custom-list", method: "GET" },
   upload: { href: "/files/custom-upload", method: "POST" },
 } };
@@ -65,7 +66,7 @@ describe("anexos dos chamados pelo contrato HAL", () => {
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: revoke });
     localStorage.setItem("accessToken", "token-de-teste");
     const api = stubApi({ "GET /files/custom-content": () => new Response("test") });
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function () {
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (this: HTMLAnchorElement) {
       expect(this.download).toBe("comprovante.pdf");
       expect(this.href).toBe("blob:test");
     });

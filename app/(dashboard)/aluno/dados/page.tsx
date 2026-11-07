@@ -195,7 +195,7 @@ export default function MeusDadosPage() {
 
     try {
       setSaving(true);
-      const res = await apiFetch(`${apiBase}/usuarios/${user.id}`, {
+      const res = await apiFetch(`${apiBase}/users/${user.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           nome: nome.trim(),

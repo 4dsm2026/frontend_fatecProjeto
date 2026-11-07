@@ -1,10 +1,22 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterAll, beforeAll, describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import ModeloEmailEditor from "../app/(dashboard)/admin/_components/ModeloEmailEditor";
 
 const CORPO_ATUAL = "Olá {{aluno.nome}},<br/><br/>Seja bem-vindo(a).";
 const exemplo = (html: string) => html.replaceAll("{{aluno.nome}}", "Maria Souza");
+
+// O editor pede geometria da seleção, que o jsdom não calcula.
+const clientRects = Object.getOwnPropertyDescriptor(Range.prototype, "getClientRects");
+const boundingRect = Object.getOwnPropertyDescriptor(Range.prototype, "getBoundingClientRect");
+beforeAll(() => {
+  if (!clientRects) Object.defineProperty(Range.prototype, "getClientRects", { configurable: true, value: () => [] });
+  if (!boundingRect) Object.defineProperty(Range.prototype, "getBoundingClientRect", { configurable: true, value: () => new DOMRect() });
+});
+afterAll(() => {
+  if (!clientRects) Reflect.deleteProperty(Range.prototype, "getClientRects");
+  if (!boundingRect) Reflect.deleteProperty(Range.prototype, "getBoundingClientRect");
+});
 
 function renderizar(onChange = vi.fn()) {
   render(

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, MessageSquareText } from "lucide-react";
-import { apiFetch } from "../../../../utils/api";
+import { embedded } from "../../../../utils/hal";
+import { apiFetch, extractApiError } from "../../../../utils/api";
+import { toast } from "sonner";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
 import Pagination from "../../../components/shared/Pagination";
 
@@ -33,21 +35,23 @@ export default function AdminSugestoesPage() {
         setLoading(true);
 
         const qs = new URLSearchParams({
-          page: String(targetPage),
-          pageSize: String(PAGE_SIZE),
+          page: String(targetPage - 1),
+          size: String(PAGE_SIZE),
         });
 
         if (status) qs.set("status", status);
 
-        const res = await apiFetch(`${API}/sugestoes?${qs.toString()}`, {
+        const res = await apiFetch(`${API}/suggestions?${qs.toString()}`, {
           cache: "no-store",
         });
 
-        if (!res.ok) return;
+        if (!res.ok) throw new Error(await extractApiError(res, "Não foi possível carregar as sugestões."));
 
         const data = await res.json();
-        setSugestoes(data?.items ?? []);
-        setTotal(data?.total ?? 0);
+        setSugestoes(embedded(data, "suggestions"));
+        setTotal(data?.page?.totalElements ?? 0);
+      } catch (error: unknown) {
+        toast.error(error instanceof Error ? error.message : "Não foi possível carregar as sugestões.");
       } finally {
         setLoading(false);
       }
@@ -89,17 +93,19 @@ export default function AdminSugestoesPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-card">
-        {loading ? (
+        {loading && (
           <div className="p-6 text-center text-muted-foreground">
             <Loader2 className="size-4 animate-spin inline-block mr-2" />
             Carregando…
           </div>
-        ) : sugestoes.length === 0 ? (
+        )}
+        {!loading && sugestoes.length === 0 && (
           <div className="p-6 text-center text-sm text-muted-foreground inline-flex items-center gap-2 justify-center w-full">
             <MessageSquareText className="size-4" />
             Nenhuma sugestão encontrada.
           </div>
-        ) : (
+        )}
+        {!loading && sugestoes.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
             {sugestoes.map((s) => (
               <li key={s.id}>
