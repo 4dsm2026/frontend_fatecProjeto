@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { apiFetch } from "../../../../../utils/api";
+import { getCurrentUser } from "../../../../../utils/current-user";
 import {
-  CATALOGO_INSTITUCIONAL,
   enriquecerCatalogo,
   type CatalogResponse,
   type ServicoCatalogo,
@@ -98,7 +98,7 @@ function sugerirServicos(descricao: string, catalog: CatalogResponse): Sugestao[
 export default function OutrosPage() {
   const router = useRouter();
 
-  const [catalog, setCatalog] = useState<CatalogResponse>(CATALOGO_INSTITUCIONAL);
+  const [catalog, setCatalog] = useState<CatalogResponse>({ categorias: [] });
   const [descricao, setDescricao] = useState("");
   const [titulo, setTitulo] = useState("");
   const [step, setStep] = useState<"descrever" | "sugestoes" | "formulario" | "sucesso">("descrever");
@@ -111,17 +111,15 @@ export default function OutrosPage() {
 
   /* Busca catálogo e dados acadêmicos do aluno */
   useEffect(() => {
-    apiFetch(`${API}/catalogo`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
+    apiFetch(`${API}/catalog`, { cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error("Falha ao carregar catálogo"); return r.json(); })
       .then((data: CatalogResponse | null) => {
         if (data?.categorias) setCatalog(enriquecerCatalogo(data));
       })
-      .catch(() => {});
+      .catch(() => { setCatalog({ categorias: [] }); toast.error("Não foi possível carregar o catálogo."); });
 
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: Partial<DadosAcademicos & { semestreAtual?: string | number }> | null) => {
-        if (!data) return;
+    getCurrentUser<Partial<DadosAcademicos & { semestreAtual?: string | number }>>()
+      .then((data) => {
         setDadosAcademicos((prev) => ({
           ra: String(data.ra ?? prev.ra),
           unidadeFatec: data.unidadeFatec ?? prev.unidadeFatec,

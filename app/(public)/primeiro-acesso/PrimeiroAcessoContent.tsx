@@ -1,33 +1,36 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, Info, LockKeyhole, MailCheck, Loader2, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
-import Cookies from "js-cookie";
-
-type Usuario = {
-  id: string;
-  nome?: string | null;
-  ra?: string | null;
-  papel?: "USUARIO" | "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR";
-};
+import { extractApiError } from "../../../utils/api";
+import { isEmailInUse } from "../../../utils/activation-link";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-/** rota pós-login baseada no papel */
-function getRedirectPath(user?: Usuario | null) {
-  switch (user?.papel) {
-    case "ADMINISTRADOR":
-    case "BACKOFFICE":
-      return "/admin/home";
-    case "TECNICO":
-      return "/admin";
-    case "USUARIO":
-    default:
-      return "/aluno/home";
+/** Tempo para o aviso de sucesso ser lido antes de ir para o login. */
+const REDIRECT_DELAY_MS = 2500;
+
+const LINK_INVALIDO =
+  "Este link é inválido ou expirou. Volte ao login e entre novamente para receber um novo.";
+
+type Falha = { jaConcluido: true } | { jaConcluido: false; mensagem: string };
+
+/**
+ * O 409 tem dois sentidos: token já utilizado (a conta já foi ativada) e e-mail
+ * pessoal de outra conta. Só o `type` do problema os distingue com segurança.
+ */
+async function classificarFalha(res: Response): Promise<Falha> {
+  if (res.status === 404) return { jaConcluido: false, mensagem: LINK_INVALIDO };
+  if (res.status === 409 && !isEmailInUse(await res.clone().json().catch(() => null))) {
+    return { jaConcluido: true };
   }
+  return {
+    jaConcluido: false,
+    mensagem: await extractApiError(res, `Falha ao concluir primeiro acesso (${res.status})`),
+  };
 }
 
 /** força simples de senha (0-4) com dicas */
@@ -52,6 +55,11 @@ export default function PrimeiroAcessoContent() {
   const [confirm, setConfirm] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  const redirectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  // Sair da tela antes do tempo cancela o redirecionamento.
+  useEffect(() => () => clearTimeout(redirectTimer.current), []);
 
   useEffect(() => {
     const fromQuery = q.get("token"); // ?token=... na URL
@@ -73,7 +81,7 @@ export default function PrimeiroAcessoContent() {
 
   const tokenOk = Boolean(token);
   const senhasIguais = newPassword === confirm;
-  const podeEnviar = !loading;
+  const podeEnviar = !loading && !done;
   const canSubmit = tokenOk && meetsPolicy && validEmail && senhasIguais && podeEnviar;
 
   async function onSubmit(e: React.FormEvent) {
@@ -94,59 +102,36 @@ export default function PrimeiroAcessoContent() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/primeiro-acesso`, {
-        method: "POST",
+      const res = await fetch(`${API_BASE}/account-activations/${encodeURIComponent(token)}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          token, // 🔁 antes: userId; agora: token
-          newPassword,
-          personalEmail: personalEmail || undefined,
-        }),
+        body: JSON.stringify({ novaSenha: newPassword, emailPessoal: personalEmail || undefined }),
       });
 
       if (!res.ok) {
-        if (res.status === 409) {
-          // 409 = token já usado / primeiro acesso concluído
+        const falha = await classificarFalha(res);
+        if (falha.jaConcluido) {
           toast.info("Primeiro acesso já concluído. Faça login normalmente.");
           window.location.href = "/login";
           return;
         }
-        const txt = await res.text().catch(() => "");
-        throw new Error(txt || `Falha ao concluir primeiro acesso (${res.status})`);
+        throw new Error(falha.mensagem);
       }
 
-      const data = await res.json();
-      const user: Usuario | undefined = data?.user;
-
-      if (data?.accessToken) {
-        Cookies.set("accessToken", data.accessToken, {
-          expires: 7,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("accessToken", data.accessToken);
-      }
-
-      if (data?.refreshToken) {
-        Cookies.set("refreshToken", data.refreshToken, {
-          expires: 30,
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-        localStorage.setItem("refreshToken", data.refreshToken);
-      }
-
+      // 204 sem corpo e sem sessão: o login acontece na tela de login.
+      setDone(true);
       toast.success("Senha atualizada com sucesso!", {
         description: personalEmail
           ? "Pronto! Seu e-mail pessoal foi vinculado à sua conta."
           : "Você pode adicionar seu e-mail pessoal depois nas configurações.",
       });
 
-      window.location.href = getRedirectPath(user);
-    } catch (err: any) {
+      redirectTimer.current = setTimeout(() => {
+        window.location.href = "/login";
+      }, REDIRECT_DELAY_MS);
+    } catch (err: unknown) {
       toast.error("Não foi possível concluir o primeiro acesso.", {
-        description: err?.message ?? "Tente novamente em instantes.",
+        description: err instanceof Error ? err.message : "Tente novamente em instantes.",
       });
     } finally {
       setLoading(false);

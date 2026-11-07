@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
 import { cx } from "../../../../utils/cx";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -50,10 +51,8 @@ export default function ConfiguracoesAlunoPage() {
 
   // Preferência de notificações vem do backend (usuario.notificacoesInApp).
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
+    getCurrentUser<{ id?: string; notificacoesInApp?: boolean }>()
       .then((data) => {
-        if (!data) return;
         setUserId(data.id ?? null);
         if (typeof data.notificacoesInApp === "boolean") setPlatNotif(data.notificacoesInApp);
       })
@@ -83,7 +82,7 @@ export default function ConfiguracoesAlunoPage() {
     try {
       setSaving(true);
       // Tema é local (visual); a preferência de notificações persiste no backend.
-      const res = await apiFetch(`${API}/usuarios/${userId}`, {
+      const res = await apiFetch(`${API}/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notificacoesInApp: platNotif }),

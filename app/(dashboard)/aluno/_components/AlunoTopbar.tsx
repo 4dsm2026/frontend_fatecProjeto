@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Loader2, Moon, Sun, User } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
 
 type Props = {
@@ -19,7 +20,7 @@ export default function AlunoTopbar({
   greetingFallback = "Olá 👋",
   pollMs = 60_000,
 }: Props) {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   const [loadingUser, setLoadingUser] = useState(true);
   const [saudacao, setSaudacao] = useState(greetingFallback);
@@ -45,8 +46,7 @@ export default function AlunoTopbar({
     let alive = true;
     (async () => {
       try {
-        const res = await apiFetch(`${apiBase}/auth/me`, { cache: "no-store" });
-        const data = await res.json();
+        const data = await getCurrentUser<{ nome?: string }>();
         if (!alive) return;
         if (data?.nome) {
           const primeiro = String(data.nome).split(" ")[0];
@@ -68,11 +68,12 @@ export default function AlunoTopbar({
     try {
       setLoadingUnread(true);
       const res = await apiFetch(
-        `${apiBase}/notifications?apenasNaoLidas=1&page=1&pageSize=1`,
+        `${apiBase}/notifications?apenasNaoLidas=true&page=0&size=1`,
         { cache: "no-store" },
       );
+      if (!res.ok) throw new Error("Falha ao carregar notificações");
       const data = await res.json();
-      setUnread(Number(data?.total ?? 0));
+      setUnread(Number(data?.page?.totalElements ?? 0));
     } catch {
       setUnread(0);
     } finally {

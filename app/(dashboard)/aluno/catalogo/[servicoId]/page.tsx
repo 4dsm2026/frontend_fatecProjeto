@@ -23,6 +23,9 @@ import {
 } from "../../../../../utils/catalogo";
 import { cx } from "../../../../../utils/cx";
 import { apiFetch } from "../../../../../utils/api";
+import { uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { HalResource } from "../../../../../utils/hal";
+import { getCurrentUser } from "../../../../../utils/current-user";
 
 type ServicoComCategoria = ServicoCatalogo & { categoriaNome: string };
 type DadosAcademicos = {
@@ -34,7 +37,7 @@ type DadosAcademicos = {
   ra: string;
 };
 type CampoWizard = FormularioCampo & { placeholder?: string };
-type TicketResponse = { id?: string | number; ticket?: { id?: string | number } };
+type TicketResponse = HalResource & { id?: string | number };
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const TOTAL_STEPS = 5;
@@ -215,11 +218,12 @@ export default function SolicitacaoCatalogoPage() {
   useEffect(() => {
     async function fetchCatalog() {
       try {
-        const res = await apiFetch(`${API}/catalogo`, { cache: "no-store" });
+        const res = await apiFetch(`${API}/catalog`, { cache: "no-store" });
         if (!res.ok) throw new Error("fallback");
         setCatalog(normalizeCatalog((await res.json()) as CatalogResponse));
       } catch {
-        setCatalog(CATALOGO_INSTITUCIONAL);
+        setCatalog({ categorias: [] });
+        toast.error("Não foi possível carregar o catálogo. Tente novamente.");
       } finally {
         setLoadingCatalog(false);
       }
@@ -228,10 +232,15 @@ export default function SolicitacaoCatalogoPage() {
   }, []);
 
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
+    getCurrentUser<{
+      unidadeFatec?: string;
+      curso?: string;
+      turno?: string;
+      semestreAtual?: string;
+      turma?: string;
+      ra?: string;
+    }>()
       .then((data) => {
-        if (!data) return;
         setDadosAcademicos((prev) => ({
           unidadeFatec: data.unidadeFatec || prev.unidadeFatec,
           curso: data.curso || prev.curso,
@@ -292,18 +301,17 @@ export default function SolicitacaoCatalogoPage() {
 
   function removeFile(index: number) { setAnexos((prev) => prev.filter((_, i) => i !== index)); }
 
-  async function uploadAnexos(ticketId: string | number) {
-    if (anexos.length === 0) return;
+  async function uploadAnexos(ticket: TicketResponse): Promise<number> {
+    let falhas = 0;
     for (const file of anexos) {
-      const formData = new FormData();
-      formData.append("file", file);
       try {
-        const res = await apiFetch(`${API}/tickets/${ticketId}/anexos`, { method: "POST", body: formData });
-        if (!res.ok) throw new Error(`Erro HTTP ${res.status}`);
+        await uploadTicketAttachment(ticket, file);
       } catch {
-        toast.error(`Falha ao enviar o anexo "${file.name}". Os outros foram enviados.`);
+        falhas++;
+        toast.error(`Falha ao enviar o anexo "${file.name}". Você pode reenviá-lo na página do chamado.`);
       }
     }
+    return falhas;
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -336,10 +344,11 @@ export default function SolicitacaoCatalogoPage() {
         throw new Error((err as { message?: string }).message || "Erro ao criar solicitação acadêmica");
       }
       const data = (await res.json()) as TicketResponse;
-      const ticketId = data.id ?? data.ticket?.id;
+      const ticketId = data.id;
       if (!ticketId) throw new Error("Solicitação criada, mas o backend não retornou o ID do ticket.");
-      await uploadAnexos(ticketId);
-      toast.success("Solicitação acadêmica criada com sucesso!");
+      const falhas = await uploadAnexos(data);
+      if (falhas === 0) toast.success("Solicitação acadêmica criada com sucesso!");
+      else toast.warning("Solicitação criada, mas alguns anexos não foram enviados.");
       router.push(`/aluno/chamados/${ticketId}`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Falha ao criar solicitação acadêmica");

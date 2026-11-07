@@ -1,6 +1,6 @@
 import { logoutAndRedirect } from "./auth";
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 // Garante que múltiplos requests 401 simultâneos compartilhem o mesmo refresh
 let refreshPromise: Promise<string | null> | null = null;
@@ -16,7 +16,7 @@ async function tryRefreshToken(): Promise<string | null> {
           : null;
       if (!refreshToken) return null;
 
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
+      const res = await fetch(`${API_BASE}/tokens`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),
@@ -44,10 +44,12 @@ async function tryRefreshToken(): Promise<string | null> {
       return data.accessToken;
     } catch {
       return null;
-    } finally {
-      refreshPromise = null;
     }
-  })();
+  })().finally(() => {
+    // Fora do async: com `return` síncrono (sem refresh token) um `finally` interno
+    // rodaria ANTES da atribuição acima e deixaria a promise presa para sempre.
+    refreshPromise = null;
+  });
 
   return refreshPromise;
 }
@@ -111,8 +113,18 @@ export async function extractApiError(res: Response, fallback?: string): Promise
   if (!text) return base;
   try {
     const json = JSON.parse(text);
-    if (Array.isArray(json?.issues) && json.issues.length) {
+    // RFC 7807 (application/problem+json): { type, title, status, detail?, errors?: [{ field, message }] }
+        if (Array.isArray(json?.issues) && json.issues.length) {
       return json.issues.map((i: any) => `${i.path}: ${i.message}`).join(" | ");
+    }
+    // RFC 7807 (application/problem+json): { type, title, status, detail?, errors?: [{ field, message }] }
+    if (typeof json?.title === "string" && typeof json?.status === "number") {
+      if (Array.isArray(json.errors) && json.errors.length) {
+        return json.errors
+          .map((e: { field?: string; message: string }) => (e.field ? `${e.field}: ${e.message}` : e.message))
+          .join(" | ");
+      }
+      return json.detail || json.title;
     }
     return json?.error || json?.message || base;
   } catch {
@@ -125,7 +137,7 @@ export async function extractApiError(res: Response, fallback?: string): Promise
  * Cria um URL temporário a partir do blob e dispara o download no browser.
  */
 export async function downloadAnexo(anexoId: string, fileName: string): Promise<void> {
-  const res = await apiFetch(`${API_BASE}/anexos/${anexoId}/download`);
+  const res = await apiFetch(`${API_BASE}/attachments/${encodeURIComponent(anexoId)}/content`);
   if (!res.ok) throw new Error(`Erro ao baixar arquivo (${res.status})`);
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
@@ -144,7 +156,7 @@ export async function downloadAnexo(anexoId: string, fileName: string): Promise<
  */
 export async function fetchAnexoImageUrl(anexoId: string): Promise<string | null> {
   try {
-    const res = await apiFetch(`${API_BASE}/anexos/${anexoId}/download`);
+    const res = await apiFetch(`${API_BASE}/attachments/${encodeURIComponent(anexoId)}/content`);
     if (!res.ok) return null;
     const blob = await res.blob();
     return URL.createObjectURL(blob);

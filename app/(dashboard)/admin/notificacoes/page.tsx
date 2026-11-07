@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { apiFetch } from "../../../../utils/api";
+import { toast } from "sonner";
+import { apiFetch, extractApiError } from "../../../../utils/api";
+import { collectPages, followLink, hasLink } from "../../../../utils/hal";
+import type { HalResource } from "../../../../utils/hal";
 import {
   Bell,
   Loader2,
@@ -12,7 +15,6 @@ import {
   Check,
   Info,
 } from "lucide-react";
-import MobileSidebarTriggerAdmin from "../_components/MobileSidebarTriggerAdmin";
 import { cx } from '../../../../utils/cx'
 /* ---------- Tipos ---------- */
 type Tipo =
@@ -24,7 +26,7 @@ type Tipo =
   | "ANEXO_NOVO"
   | "SISTEMA";
 
-type Notificacao = {
+type Notificacao = HalResource & {
   id: string;
   titulo: string;
   mensagem: string;
@@ -33,15 +35,10 @@ type Notificacao = {
   lidaEm?: string | null;
   arquivadaEm?: string | null;
   chamadoId?: string | null;
-  meta?: Record<string, any> | null;
+  meta?: { url?: string } | null;
 };
 
-type PageResp = {
-  total: number;
-  page: number;
-  pageSize: number;
-  items: Notificacao[];
-};
+
 
 
 function TipoIcon({ tipo }: { tipo: Tipo }) {
@@ -67,39 +64,44 @@ function TipoIcon({ tipo }: { tipo: Tipo }) {
 export default function NotificacoesAlunoPage() {
   const [loading, setLoading] = useState(true);
   const [notifs, setNotifs] = useState<Notificacao[]>([]);
+  const [collection, setCollection] = useState<HalResource | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL;
+  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   // carregar notificações
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiFetch(`${apiBase}/notifications?orderDir=desc&page=1&pageSize=100`, {
+      const res = await apiFetch(`${apiBase}/notifications?page=0&size=100`, {
         cache: "no-store",
       });
-      const data: PageResp = await res.json();
-      const items = data.items ?? [];
-      setNotifs(items);
-    } catch {
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao carregar notificações."));
+      const data = await res.json();
+      setCollection(data);
+      setNotifs(await collectPages<Notificacao>(data, "notifications"));
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao carregar notificações.");
       setNotifs([]);
     } finally {
       setLoading(false);
     }
-  }
+  }, [apiBase]);
 
   useEffect(() => {
-    load();
-  }, [apiBase]);
+    void load();
+  }, [load]);
 
   // Marcar notificação como lida
   async function markAsRead(id: string) {
     try {
       setMarking(id);
-      await apiFetch(`${apiBase}/notifications/${id}/lida`, {
-        method: "PATCH",
-        body: JSON.stringify({ lida: true }),
-      });
+      const item = notifs.find((n) => n.id === id);
+      if (!hasLink(item, "mark-read")) return;
+      const res = await followLink(item, "mark-read", { body: JSON.stringify({ lida: true }) });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao marcar como lida."));
       setNotifs((xs) => xs.map((n) => (n.id === id ? { ...n, lidaEm: new Date().toISOString() } : n)));
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao marcar como lida.");
     } finally {
       setMarking(null);
     }
@@ -109,22 +111,16 @@ export default function NotificacoesAlunoPage() {
   async function markAllAsRead() {
     try {
       setLoading(true);
-      // Enviar corpo com JSON
-await apiFetch(`${apiBase}/notifications/read-all`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json", // Especificar o tipo do conteúdo
-  },
-  body: JSON.stringify({ lida: true }), // Enviar corpo com a chave lida
-});
-
+      if (!hasLink(collection, "mark-all-read")) return;
+      const res = await followLink(collection, "mark-all-read", { body: JSON.stringify({ lida: true }) });
+      if (!res.ok) throw new Error(await extractApiError(res, "Falha ao marcar notificações."));
 
       // Atualizar todas as notificações no estado como lidas
       setNotifs((prevNotifs) =>
         prevNotifs.map((n) => ({ ...n, lidaEm: new Date().toISOString() }))
       );
     } catch (error) {
-      console.error("Erro ao marcar todas as notificações como lidas", error);
+      toast.error(error instanceof Error ? error.message : "Falha ao marcar notificações.");
     } finally {
       setLoading(false);
     }
@@ -132,15 +128,11 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
 
   return (
     <div className="space-y-6">
-      {/* Topbar compacta */}
-      <div className="mb-2 flex items-center justify-between">
-        <MobileSidebarTriggerAdmin />
-      </div>
-
       {/* Botão de "Marcar todas como lidas" */}
       <div className="mb-4">
         <button type="button"
           onClick={markAllAsRead}
+          disabled={!hasLink(collection, "mark-all-read") || loading}
           className="bg-[#D91F2B] text-white px-4 py-2 rounded hover:bg-[#B11D22]" // Vermelho mais escuro
 
 
@@ -156,16 +148,18 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
           <h2 className="text-base font-semibold">Novidades e alertas</h2>
         </div>
 
-        {loading ? (
+        {loading && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm">
             <Loader2 className="size-4 animate-spin" />
             Carregando notificações…
           </div>
-        ) : notifs.length === 0 ? (
+        )}
+        {!loading && notifs.length === 0 && (
           <div className="text-sm text-muted-foreground">
             Nenhuma notificação no momento.
           </div>
-        ) : (
+        )}
+        {!loading && notifs.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
             {notifs.map((n) => (
               <li
@@ -193,9 +187,9 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
                     </p>
                     <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
                       <time>{new Date(n.criadoEm).toLocaleString("pt-BR")}</time>
-                      {n.chamadoId && (
+                      {n.chamadoId && hasLink(n, "ticket") && (
                         <Link
-                          href={`/aluno/chamados/${n.chamadoId}`}
+                          href={`/admin/chamados/${encodeURIComponent(n.chamadoId)}`}
                           className="text-[var(--brand-cyan)] hover:underline"
                         >
                           Ver chamado →
@@ -214,7 +208,7 @@ await apiFetch(`${apiBase}/notifications/read-all`, {
 
                   <button type="button"
                     onClick={() => markAsRead(n.id)}
-                    disabled={!!n.lidaEm || marking === n.id}
+                    disabled={!!n.lidaEm || !hasLink(n, "mark-read") || marking === n.id}
                     title="Marcar como lida"
                     className={cx(
                       "shrink-0 inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border text-[#4B5563] text-xs", // Cor de texto mais forte

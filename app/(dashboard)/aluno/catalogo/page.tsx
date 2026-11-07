@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Layers, BookOpen, Plus, Loader2, ArrowRight, HelpCircle } from "lucide-react";
 import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
-import { CATALOGO_INSTITUCIONAL, enriquecerCatalogo, type CatalogResponse, type ServicoCatalogo } from "../../../../utils/catalogo";
+import { enriquecerCatalogo, type CatalogResponse, type ServicoCatalogo } from "../../../../utils/catalogo";
 import { cx } from "../../../../utils/cx";
 import { apiFetch } from "../../../../utils/api";
+import { toast } from "sonner";
 
 type Servico = ServicoCatalogo & { categoriaNome?: string };
-
-const MOCK: CatalogResponse = CATALOGO_INSTITUCIONAL;
 
 function CategoriaPill({ label, active, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
@@ -68,7 +67,7 @@ function ServicoCard({ s }: { s: Servico }) {
 
 export default function CatalogoAlunoPage() {
   const [loading, setLoading] = useState(true);
-  const [catalog, setCatalog] = useState<CatalogResponse>(MOCK);
+  const [catalog, setCatalog] = useState<CatalogResponse>({ categorias: [] });
   const [q, setQ] = useState("");
   const [catId, setCatId] = useState<string | "ALL">("ALL");
 
@@ -76,7 +75,7 @@ export default function CatalogoAlunoPage() {
     async function fetchCatalog() {
       try {
         const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const url = apiBaseUrl ? `${apiBaseUrl}/catalogo` : "/catalogo";
+        const url = `${apiBaseUrl ?? ""}/catalog`;
         const res = await apiFetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("fallback");
         const data = (await res.json()) as CatalogResponse;
@@ -84,7 +83,8 @@ export default function CatalogoAlunoPage() {
           categorias: (data.categorias ?? []).map((c) => ({ ...c, servicos: c.servicos ?? [] })),
         }));
       } catch {
-        setCatalog(MOCK);
+        setCatalog({ categorias: [] });
+        toast.error("Não foi possível carregar o catálogo. Tente novamente.");
       } finally {
         setLoading(false);
       }

@@ -3,19 +3,24 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../../utils/api";
+import { hasLink } from "../../../../../utils/hal";
+import type { HalResource } from "../../../../../utils/hal";
 import SugestaoDetalheLayout from "../../../../components/shared/SugestaoDetalheLayout";
 import FormRespostaSugestao from "../../_components/FormRespostaSugestao";
+import type { SugestaoEditorValor } from "../../../../components/shared/SugestaoEditor";
+import type { JSONContent } from "@tiptap/react";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
 
-type SugestaoDetalhe = {
+type SugestaoDetalhe = HalResource & {
   id: string;
   conteudo: string;
   emailContato: string;
   status: StatusSugestao;
   resposta: string | null;
+  respostaDocumento: JSONContent | null;
   criadoEm: string;
   usuario?: { nome?: string | null; ra?: string | null } | null;
 };
@@ -29,7 +34,7 @@ export default function DetalheSugestaoAdminPage() {
   const [erro, setErro] = useState<string | null>(null);
 
   const [resposta, setResposta] = useState("");
-  const [status, setStatus] = useState<StatusSugestao>("NAO_RESPONDIDO");
+  const [respostaDocumento, setRespostaDocumento] = useState<JSONContent | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -37,7 +42,7 @@ export default function DetalheSugestaoAdminPage() {
     try {
       setLoading(true);
 
-      const res = await apiFetch(`${API}/sugestoes/${id}`, {
+      const res = await apiFetch(`${API}/suggestions/${encodeURIComponent(id)}`, {
         cache: "no-store",
       });
 
@@ -53,7 +58,7 @@ export default function DetalheSugestaoAdminPage() {
       const data: SugestaoDetalhe = await res.json();
       setSugestao(data);
       setResposta(data.resposta ?? "");
-      setStatus(data.status);
+      setRespostaDocumento(data.respostaDocumento ?? null);
     } catch {
       setErro("Não foi possível carregar a sugestão.");
     } finally {
@@ -67,8 +72,8 @@ export default function DetalheSugestaoAdminPage() {
 
   const statusFinal = sugestao?.status === "RESPONDIDO";
   const respostaJaSalva = !!sugestao?.resposta;
-  const respostaBloqueada = statusFinal || respostaJaSalva;
-  const statusBloqueado = statusFinal;
+  const respostaBloqueada = !hasLink(sugestao, "answer");
+  const statusBloqueado = !hasLink(sugestao, "answer");
 
   return (
     <SugestaoDetalheLayout
@@ -87,11 +92,14 @@ export default function DetalheSugestaoAdminPage() {
       }
     >
       <FormRespostaSugestao
-        sugestaoId={id}
+        sugestao={sugestao}
         resposta={resposta}
-        onRespostaChange={setResposta}
-        status={status}
-        onStatusChange={setStatus}
+        respostaDocumento={respostaDocumento}
+        onRespostaChange={(valor: SugestaoEditorValor) => {
+          setResposta(valor.texto);
+          setRespostaDocumento(valor.documento);
+        }}
+        status={sugestao?.status ?? "NAO_RESPONDIDO"}
         respostaBloqueada={respostaBloqueada}
         statusBloqueado={statusBloqueado}
         statusFinal={statusFinal}

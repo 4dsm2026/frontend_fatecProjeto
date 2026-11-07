@@ -1,12 +1,17 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Info, Loader2, MessageSquarePlus, Send } from "lucide-react";
 import { toast } from "sonner";
+import { embedded } from "../../../../utils/hal";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import SugestaoStatusBadge from "../../../components/shared/SugestaoStatusBadge";
 import Pagination from "../../../components/shared/Pagination";
+import SugestaoEditor, {
+  type SugestaoEditorValor,
+} from "../../../components/shared/SugestaoEditor";
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -25,7 +30,9 @@ type SugestaoResumo = {
 export default function SugestoesPage() {
   const [ra, setRa] = useState("");
   const [emailContato, setEmailContato] = useState("");
-  const [conteudo, setConteudo] = useState("");
+  const [editorValor, setEditorValor] =
+    useState<SugestaoEditorValor | null>(null);
+  const [editorKey, setEditorKey] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
   const [sugestoes, setSugestoes] = useState<SugestaoResumo[]>([]);
@@ -33,11 +40,13 @@ export default function SugestoesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
+  const texto = editorValor?.texto.trim() ?? "";
+  const excedeuLimite = texto.length > CONTEUDO_MAX;
+
   useEffect(() => {
-    apiFetch(`${API}/auth/me`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data: { ra?: string | number } | null) => {
-        if (data?.ra != null) setRa(String(data.ra));
+    getCurrentUser<{ ra?: string | number }>()
+      .then((data) => {
+        if (data.ra != null) setRa(String(data.ra));
       })
       .catch(() => {});
   }, []);
@@ -47,30 +56,41 @@ export default function SugestoesPage() {
       setLoadingList(true);
 
       const res = await apiFetch(
-        `${API}/sugestoes?page=${targetPage}&pageSize=${PAGE_SIZE}`,
+        `${API}/suggestions?page=${targetPage - 1}&size=${PAGE_SIZE}`,
         { cache: "no-store" },
       );
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        throw new Error(
+          await extractApiError(res, "Não foi possível carregar as sugestões."),
+        );
+      }
 
       const data = await res.json();
-      setSugestoes(data?.items ?? []);
-      setTotal(data?.total ?? 0);
+      setSugestoes(embedded(data, "suggestions"));
+      setTotal(data?.page?.totalElements ?? 0);
+    } catch (err: unknown) {
+      toast.error(
+        err instanceof Error
+          ? err.message
+          : "Não foi possível carregar as sugestões.",
+      );
     } finally {
       setLoadingList(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchSugestoes(page);
+    void fetchSugestoes(page);
   }, [page, fetchSugestoes]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
-  async function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const texto = conteudo.trim();
+    if (submitting) return;
+
     const email = emailContato.trim();
 
     if (!email) {
@@ -78,12 +98,12 @@ export default function SugestoesPage() {
       return;
     }
 
-    if (texto.length < 3) {
-      toast.error("Escreva sua sugestão antes de enviar.");
+    if (!editorValor || texto.length < 3) {
+      toast.error("Escreva uma sugestão com pelo menos 3 caracteres.");
       return;
     }
 
-    if (texto.length > CONTEUDO_MAX) {
+    if (excedeuLimite) {
       toast.error(`A sugestão deve ter no máximo ${CONTEUDO_MAX} caracteres.`);
       return;
     }
@@ -91,11 +111,12 @@ export default function SugestoesPage() {
     setSubmitting(true);
 
     try {
-      const res = await apiFetch(`${API}/sugestoes`, {
+      const res = await apiFetch(`${API}/suggestions`, {
         method: "POST",
         body: JSON.stringify({
           emailContato: email,
           conteudo: texto,
+          documento: editorValor.documento,
         }),
       });
 
@@ -106,10 +127,15 @@ export default function SugestoesPage() {
       }
 
       toast.success("Sugestão enviada com sucesso!");
-      setConteudo("");
+      setEditorValor(null);
+      setEditorKey((atual) => atual + 1);
       setEmailContato("");
-      setPage(1);
-      fetchSugestoes(1);
+
+      if (page === 1) {
+        void fetchSugestoes(1);
+      } else {
+        setPage(1);
+      }
     } catch (err: unknown) {
       toast.error(
         err instanceof Error ? err.message : "Falha ao enviar sugestão.",
@@ -154,32 +180,42 @@ export default function SugestoesPage() {
             type="email"
             value={emailContato}
             onChange={(e) => setEmailContato(e.target.value)}
+            disabled={submitting}
             placeholder="Insira e-mail para contato"
             className="w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           />
         </label>
 
-        <label className="space-y-1 text-sm block">
-          <span className="font-medium">
+        <div className="space-y-1 text-sm">
+          <p className="font-medium">
             Sugestão <span className="text-destructive">*</span>
-          </span>
-          <textarea
-            value={conteudo}
-            onChange={(e) => setConteudo(e.target.value)}
-            rows={6}
-            maxLength={CONTEUDO_MAX}
-            placeholder="Escreva aqui sua sugestão…"
-            className="w-full rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
+          </p>
+
+          <SugestaoEditor
+            key={editorKey}
+            disabled={submitting}
+            onChange={setEditorValor}
           />
-          <span className="block text-right text-xs text-muted-foreground">
-            {conteudo.length}/{CONTEUDO_MAX}
-          </span>
-        </label>
+
+          <p
+            className={`text-right text-xs ${
+              excedeuLimite ? "text-destructive" : "text-muted-foreground"
+            }`}
+          >
+            {texto.length}/{CONTEUDO_MAX}
+          </p>
+
+          {excedeuLimite && (
+            <p role="alert" className="text-xs text-destructive">
+              Reduza o texto para até {CONTEUDO_MAX} caracteres antes de enviar.
+            </p>
+          )}
+        </div>
 
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || excedeuLimite}
             className="inline-flex items-center gap-2 h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60"
           >
             {submitting ? (
@@ -195,16 +231,18 @@ export default function SugestoesPage() {
       <div className="rounded-xl border border-[var(--border)] bg-card p-5 space-y-3">
         <div className="text-sm font-semibold">Sugestões enviadas</div>
 
-        {loadingList ? (
+        {loadingList && (
           <div className="text-sm text-muted-foreground inline-flex items-center gap-2">
             <Loader2 className="size-4 animate-spin" /> Carregando…
           </div>
-        ) : sugestoes.length === 0 ? (
+        )}
+        {!loadingList && sugestoes.length === 0 && (
           <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-6 text-center text-sm text-muted-foreground inline-flex items-center gap-2 justify-center w-full">
             <Info className="size-4" />
             Você não enviou nenhuma sugestão.
           </div>
-        ) : (
+        )}
+        {!loadingList && sugestoes.length > 0 && (
           <ul className="divide-y divide-[var(--border)]">
             {sugestoes.map((s) => (
               <li key={s.id} className="py-3">
@@ -212,9 +250,7 @@ export default function SugestoesPage() {
                   href={`/aluno/sugestoes/${s.id}`}
                   className="flex items-center justify-between gap-3 hover:underline"
                 >
-                  <span className="line-clamp-1 text-sm">
-                    {s.conteudo}
-                  </span>
+                  <span className="line-clamp-1 text-sm">{s.conteudo}</span>
                   <SugestaoStatusBadge status={s.status} />
                 </Link>
               </li>
@@ -222,7 +258,7 @@ export default function SugestoesPage() {
           </ul>
         )}
 
-              {totalPages > 1 && (
+        {totalPages > 1 && (
           <div className="pt-2">
             <Pagination
               page={page}

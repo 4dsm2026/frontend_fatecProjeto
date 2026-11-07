@@ -4,9 +4,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search, Filter, Plus, Upload, Download,
-  Mail, BadgeCheck, Building2, User as UserIcon
+  BadgeCheck, Building2, User as UserIcon
 } from "lucide-react";
-import { apiFetch } from "../../../../utils/api";
+import { API_BASE, apiFetch, extractApiError } from "../../../../utils/api";
+import { getEntry } from "../../../../utils/entry";
+import { embedded, followLink, getLink, hasLink } from "../../../../utils/hal";
+import type { HalCollection, HalPage, HalResource } from "../../../../utils/hal";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { cx } from '../../../../utils/cx';
 import { toast } from "sonner";
@@ -15,7 +18,7 @@ import { toast } from "sonner";
 type Papel = "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR" | "USUARIO";
 type StatusAtivo = "ATIVO" | "INATIVO";
 
-type UsuarioApi = {
+type UsuarioApi = HalResource & {
   id: string;
   nome: string | null;
   emailPessoal: string | null;
@@ -28,7 +31,7 @@ type UsuarioApi = {
   criadoEm: string;
 };
 
-type FuncionarioRow = {
+type FuncionarioRow = Omit<UsuarioApi, "ra" | "ativo"> & {
   id: string;
   emailEducacional: string;
   emailPessoal?: string | null;
@@ -39,8 +42,42 @@ type FuncionarioRow = {
   criadoEm: string;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 const FUNC_DETAIL_PREFIX = "/admin/funcionarios";
+const PAGE_SIZE = 20;
+
+type UsersCollection = HalCollection<UsuarioApi> & {
+  _embedded: { users: UsuarioApi[] };
+  page: HalPage;
+};
+
+async function requestUsersPage(
+  query: string,
+  page: number,
+  status: StatusAtivo | "ALL",
+): Promise<UsersCollection> {
+  const entry = await getEntry();
+  const usersHref = getLink(entry, "users")?.href;
+  if (!usersHref) throw new Error("A lista de usuários não está disponível para esta conta.");
+
+  const url = new URL(usersHref, API_BASE || window.location.origin);
+  url.searchParams.set("page", String(page));
+  url.searchParams.set("size", String(PAGE_SIZE));
+  if (status !== "ALL") url.searchParams.set("ativo", String(status === "ATIVO"));
+  if (query.trim()) url.searchParams.set("q", query.trim());
+
+  const response = await apiFetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(await extractApiError(response, `Falha ao buscar funcionários (${response.status})`));
+  }
+  return (await response.json()) as UsersCollection;
+}
+
+function paginationSummary(page: HalPage | undefined, visibleCount: number): string {
+  if (!page || page.totalElements === 0) return `Mostrando ${visibleCount}`;
+  const first = page.number * page.size + 1;
+  const last = Math.min((page.number + 1) * page.size, page.totalElements);
+  return `Mostrando ${first}-${last} de ${page.totalElements}`;
+}
 
 function StatusBadge({ status }: { status: StatusAtivo }) {
   const map: Record<StatusAtivo, string> = {
@@ -71,11 +108,12 @@ function mapRow(u: UsuarioApi): FuncionarioRow | null {
   const p = extrairPapel(u);
   if (!p || p === "USUARIO") return null;
   return {
+    _links: u._links,
     id: u.id,
     emailEducacional: u.emailEducacional ?? u.emailPessoal ?? "",
     emailPessoal: u.emailPessoal ?? null,
     nome: u.nome ?? null,
-    papel: p as Exclude<Papel, "USUARIO">,
+    papel: p,
     setores: normalizarSetores(u.setores),
     status: u.ativo ? "ATIVO" : "INATIVO",
     criadoEm: u.criadoEm,
@@ -89,46 +127,24 @@ export default function AdminFuncionariosPage() {
 
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<FuncionarioRow[]>([]);
-  const [total, setTotal] = useState<number>(0);
+  const [collection, setCollection] = useState<UsersCollection | null>(null);
   const [error, setError] = useState<null | string>(null);
-
-  const [page, setPage] = useState(1);
-  const perPage = 20;
 
   const fileRef = useRef<HTMLInputElement | null>(null);
 
-  async function fetchFuncionarios() {
+  async function fetchFuncionarios(requestedPage = 0) {
     try {
       setLoading(true);
       setError(null);
-
-      const qs = new URLSearchParams();
-      if (q) qs.set("search", q);
-      if (status !== "ALL") qs.set("ativo", String(status === "ATIVO"));
-      qs.set("page", String(page));
-      qs.set("perPage", String(perPage));
-
-      const res = await apiFetch(`${API_URL}/usuarios?${qs}`, { cache: "no-store" });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `Falha ao buscar funcionários (${res.status})`);
-      }
-
-      const json = await res.json();
-      const usuarios: UsuarioApi[] = Array.isArray(json)
-        ? json
-        : (json.items ?? json.data ?? []);
-      const totalCount: number = Array.isArray(json)
-        ? usuarios.length
-        : (typeof json.total === "number" ? json.total : usuarios.length);
-
-      // filtra funcionários (não-alunos) no client
-      const mapped = usuarios.map(mapRow).filter((x): x is FuncionarioRow => !!x);
+      const result = await requestUsersPage(q, requestedPage, status);
+      const mapped = embedded(result, "users")
+        .map(mapRow)
+        .filter((user): user is FuncionarioRow => user !== null);
+      setCollection(result);
       setRows(mapped);
-      setTotal(totalCount);
     } catch (e: unknown) {
       setRows([]);
-      setTotal(0);
+      setCollection(null);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
@@ -136,27 +152,45 @@ export default function AdminFuncionariosPage() {
   }
 
   useEffect(() => {
-    fetchFuncionarios();
+    void fetchFuncionarios(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status, page]);
+  }, [q, status]);
 
+  async function movePage(rel: "prev" | "next") {
+    if (!collection || !hasLink(collection, rel)) return;
+    try {
+      setLoading(true);
+      const response = await followLink(collection, rel, { cache: "no-store" });
+      if (!response.ok) {
+        throw new Error(await extractApiError(response, `Falha ao buscar funcionários (${response.status})`));
+      }
+      const result = (await response.json()) as UsersCollection;
+      const mapped = embedded(result, "users")
+        .map(mapRow)
+        .filter((user): user is FuncionarioRow => user !== null);
+      setCollection(result);
+      setRows(mapped);
+      setError(null);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Falha ao carregar funcionários.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // /users accepts one papel value; keep the three-role selector local, so totals include every staff role.
   const visibleRows = useMemo(() => {
-    const query = q.trim().toLowerCase();
     return rows.filter((f) => {
-      const matchQ =
-        !query ||
-        f.emailEducacional.toLowerCase().includes(query) ||
-        (f.emailPessoal?.toLowerCase().includes(query) ?? false) ||
-        (f.nome?.toLowerCase().includes(query) ?? false) ||
-        f.setores.some((s) => s.toLowerCase().includes(query));
-      const matchStatus = status === "ALL" || f.status === status;
       const matchPapel = papel === "ALL" || f.papel === papel;
-      return matchQ && matchStatus && matchPapel;
+      return matchPapel;
     });
-  }, [rows, q, status, papel]);
+  }, [rows, papel]);
 
-  const prevEnabled = page > 1;
-  const nextEnabled = total ? page * perPage < total : rows.length === perPage;
+  const page = collection?.page.number ?? 0;
+  const totalPages = collection?.page.totalPages ?? 0;
+  const prevEnabled = hasLink(collection, "prev");
+  const nextEnabled = hasLink(collection, "next");
+  const canCreate = hasLink(collection, "create");
 
   function onImportClick() { fileRef.current?.click(); }
 
@@ -191,12 +225,14 @@ export default function AdminFuncionariosPage() {
       <div className="rounded-xl border border-[var(--border)] bg-card p-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-2">
-            <Link
-              href="/admin/funcionarios/novo"
-              className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
-            >
-              <Plus className="size-4" /> Cadastrar funcionário
-            </Link>
+            {canCreate && (
+              <Link
+                href="/admin/funcionarios/novo"
+                className="inline-flex items-center gap-2 h-10 px-3 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
+              >
+                <Plus className="size-4" /> Cadastrar funcionário
+              </Link>
+            )}
             <button type="button" onClick={onImportClick}
               className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-[var(--border)] bg-background text-sm hover:bg-[var(--muted)]">
               <Upload className="size-4" /> Importar planilha
@@ -215,7 +251,7 @@ export default function AdminFuncionariosPage() {
                 placeholder="Buscar por e-mail, nome, setor…"
                 className="w-full h-10 rounded-lg border border-[var(--border)] bg-input px-9 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                 value={q}
-                onChange={(e) => { setPage(1); setQ(e.target.value); }}
+                onChange={(e) => setQ(e.target.value)}
               />
             </div>
             <div className="flex gap-2">
@@ -224,7 +260,7 @@ export default function AdminFuncionariosPage() {
                 <select
                   className="h-10 w-[200px] pl-9 pr-8 rounded-lg border border-[var(--border)] bg-background focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                   value={papel}
-                  onChange={(e) => { setPage(1); setPapel(e.target.value as any); }}
+                  onChange={(e) => setPapel(e.target.value as Exclude<Papel, "USUARIO"> | "ALL")}
                 >
                   <option value="ALL">Todos os papéis</option>
                   <option value="BACKOFFICE">Backoffice</option>
@@ -235,7 +271,7 @@ export default function AdminFuncionariosPage() {
               <select
                 className="h-10 w-[160px] px-3 rounded-lg border border-[var(--border)] bg-background focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                 value={status}
-                onChange={(e) => { setPage(1); setStatus(e.target.value as any); }}
+                onChange={(e) => setStatus(e.target.value as StatusAtivo | "ALL")}
               >
                 <option value="ALL">Todos</option>
                 <option value="ATIVO">Ativos</option>
@@ -310,15 +346,14 @@ export default function AdminFuncionariosPage() {
 
         <div className="flex items-center justify-between p-3 text-xs text-muted-foreground border-t border-[var(--border)]">
           <div>
-            {total
-              ? <>Mostrando {(page - 1) * perPage + 1}-{Math.min(page * perPage, total)} de {total}</>
-              : <>Mostrando {visibleRows.length}{visibleRows.length === perPage ? "+" : ""}</>}
+            {paginationSummary(collection?.page, visibleRows.length)}
+            {" · "}Página {page + 1} de {Math.max(totalPages, 1)}
           </div>
           <div className="inline-flex items-center gap-1">
             <button type="button" className={cx("h-8 px-2 rounded-md", prevEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
-              disabled={!prevEnabled} onClick={() => setPage((p) => Math.max(1, p - 1))}>Anterior</button>
+              disabled={!prevEnabled || loading} onClick={() => void movePage("prev")}>Anterior</button>
             <button type="button" className={cx("h-8 px-2 rounded-md", nextEnabled ? "hover:bg-[var(--muted)]" : "opacity-50 cursor-not-allowed")}
-              disabled={!nextEnabled} onClick={() => setPage((p) => p + 1)}>Próximo</button>
+              disabled={!nextEnabled || loading} onClick={() => void movePage("next")}>Próximo</button>
           </div>
         </div>
       </div>

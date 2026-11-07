@@ -62,12 +62,12 @@ const POLICY: Record<ResourceKey, LinhaRecurso> = {
   },
   CHAMADO_COMENTAR: {
     label: "Chamado — mensagens",
-    rota: { metodo: "GET/POST", caminho: "/tickets/:id/mensagens" },
+    rota: { metodo: "GET/POST", caminho: "/tickets/:id/messages" },
     perfis: { USUARIO: "proprios", BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   CHAMADO_ANEXAR: {
     label: "Chamado — anexos",
-    rota: { metodo: "GET/POST", caminho: "/tickets/:id/anexos" },
+    rota: { metodo: "GET/POST", caminho: "/tickets/:id/attachments" },
     perfis: { USUARIO: "proprios", BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   CHAMADO_EDITAR: {
@@ -82,42 +82,42 @@ const POLICY: Record<ResourceKey, LinhaRecurso> = {
   },
   CATALOGO_LISTAR: {
     label: "Catálogo de serviços — listar",
-    rota: { metodo: "GET", caminho: "/catalogo" },
+    rota: { metodo: "GET", caminho: "/catalog" },
     perfis: { USUARIO: "todos", BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   USUARIOS_LISTAR: {
     label: "Usuários — listar / ver",
-    rota: { metodo: "GET", caminho: "/usuarios" },
+    rota: { metodo: "GET", caminho: "/users" },
     perfis: { BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   USUARIOS_CRIAR: {
     label: "Usuários — criar",
-    rota: { metodo: "POST", caminho: "/usuarios" },
+    rota: { metodo: "POST", caminho: "/users" },
     perfis: { ADMINISTRADOR: "todos" },
   },
   USUARIOS_EDITAR: {
     label: "Usuários — editar",
-    rota: { metodo: "PATCH", caminho: "/usuarios/:id" },
+    rota: { metodo: "PATCH", caminho: "/users/:id" },
     perfis: { USUARIO: "proprios", BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   USUARIOS_REMOVER: {
     label: "Usuários — remover",
-    rota: { metodo: "DELETE", caminho: "/usuarios/:id" },
+    rota: { metodo: "DELETE", caminho: "/users/:id" },
     perfis: { ADMINISTRADOR: "todos" },
   },
   SETORES_GERENCIAR: {
     label: "Setores — criar / editar / remover",
-    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/setores" },
+    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/sectors" },
     perfis: { ADMINISTRADOR: "todos" },
   },
   VINCULAR_USUARIO_SETOR: {
     label: "Vincular usuário ⇄ setor",
-    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/usuarios-setores" },
+    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/user-sectors" },
     perfis: { TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
   PAPEIS_GERENCIAR: {
     label: "Papéis (catálogo) — gerenciar",
-    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/papeis" },
+    rota: { metodo: "POST/PATCH/DELETE", caminho: "/admin/roles" },
     perfis: { ADMINISTRADOR: "todos" },
   },
   COMUNICACOES_GERENCIAR: {
@@ -132,7 +132,7 @@ const POLICY: Record<ResourceKey, LinhaRecurso> = {
   },
   RELATORIOS: {
     label: "Relatórios / estatísticas",
-    rota: { metodo: "GET", caminho: "/tickets/stats" },
+    rota: { metodo: "GET", caminho: "/ticket-stats" },
     perfis: { BACKOFFICE: "todos", TECNICO: "todos", ADMINISTRADOR: "todos" },
   },
 };
@@ -190,7 +190,7 @@ export default function ConfiguracoesPermissoesPage() {
       {/* Filtro */}
       <div className="rounded-xl border border-[var(--border)] bg-card p-4">
         <input
-          placeholder="Filtrar por recurso ou rota (ex.: chamado, /usuarios...)"
+          placeholder="Filtrar por recurso ou rota (ex.: chamado, /users...)"
           className="w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
@@ -259,11 +259,11 @@ export default function ConfiguracoesPermissoesPage() {
             <p>
               Para alunos (papel <b>Usuário</b>), o backend restringe as ações de chamado aos
               próprios registros (verificação de posse por <code>criadoPorId</code>), e o
-              <code> PATCH /usuarios/:id</code> permite editar apenas o próprio cadastro, sem os
+              <code> PATCH /users/:id</code> permite editar apenas o próprio cadastro, sem os
               campos privilegiados (papel, ativo, senha).
             </p>
             <p>
-              <b>Relatórios</b> (<code>/tickets/stats</code>) são restritos à equipe
+              <b>Relatórios</b> (<code>/ticket-stats</code>) são restritos à equipe
               (Backoffice, Técnico e Administrador); o aluno não acessa estatísticas globais.
             </p>
           </div>

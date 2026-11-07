@@ -11,6 +11,8 @@ import { SkeletonKpi, SkeletonTable } from "../../../components/ui/Skeleton";
 import EmptyState from "../../../components/ui/EmptyState";
 import Button from "../../../components/ui/Button";
 import { apiFetch } from "../../../../utils/api";
+import { embedded, followLink, hasLink } from "../../../../utils/hal";
+import type { HalCollection } from "../../../../utils/hal";
 
 type Status = "ABERTO" | "EM_ATENDIMENTO" | "AGUARDANDO_USUARIO" | "RESOLVIDO" | "ENCERRADO";
 type Prioridade = "BAIXA" | "MEDIA" | "ALTA" | "URGENTE";
@@ -35,21 +37,16 @@ export default function AlunoHomePage() {
       try {
         setLoading(true);
 
-        const base = `${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""}/tickets?include=setor`;
-        const pageSize = 100;
-        let page = 1;
-        let total = 0;
+        const base = `${process.env.NEXT_PUBLIC_API_BASE_URL ?? ""}/tickets?include=setor&page=0&size=100`;
         const all: Chamado[] = [];
 
+        let res = await apiFetch(base, { cache: "no-store" });
         while (true) {
-          const res = await apiFetch(`${base}&page=${page}&pageSize=${pageSize}`, { cache: "no-store" });
           if (!res.ok) throw new Error("Erro ao buscar solicitações");
-          const data = await res.json();
-          if (page === 1) total = data.total ?? 0;
-          const items: Chamado[] = Array.isArray(data.items) ? data.items : [];
-          all.push(...items);
-          if (all.length >= total || items.length < pageSize) break;
-          page += 1;
+          const data: HalCollection<Chamado> = await res.json();
+          all.push(...embedded(data, "tickets"));
+          if (!hasLink(data, "next")) break;
+          res = await followLink(data, "next", { cache: "no-store" });
         }
 
         setChamados(all);
@@ -67,10 +64,10 @@ export default function AlunoHomePage() {
   }, []);
 
   const kpi = useMemo(() => ({
-    abertos:      chamados.filter((d) => ["ABERTO", "EM_ATENDIMENTO"].includes(d.status)).length,
+    abertos: chamados.filter((d) => ["ABERTO", "EM_ATENDIMENTO"].includes(d.status)).length,
     aguardandoEu: chamados.filter((d) => d.status === "AGUARDANDO_USUARIO").length,
-    emAtendimento:chamados.filter((d) => d.status === "EM_ATENDIMENTO").length,
-    resolvidos:   chamados.filter((d) => d.status === "RESOLVIDO").length,
+    emAtendimento: chamados.filter((d) => d.status === "EM_ATENDIMENTO").length,
+    resolvidos: chamados.filter((d) => d.status === "RESOLVIDO").length,
   }), [chamados]);
 
   const chamadosAtivos = chamados.filter((d) =>

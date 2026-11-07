@@ -1,6 +1,9 @@
 "use client";
-import { apiFetch, extractApiError } from "../../../../utils/api";
-import { useMemo, useState } from "react";
+import { extractApiError } from "../../../../utils/api";
+import { getEntry } from "../../../../utils/entry";
+import { followLink, hasLink } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   CheckCircle2,
@@ -13,8 +16,6 @@ import {
   Shield,
 } from "lucide-react";
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
-
 const PAPEIS = [
   { value: "BACKOFFICE",    label: "Backoffice",    desc: "Atende chamados e gerencia solicitações." },
   { value: "TECNICO",       label: "Técnico",       desc: "Resolve chamados técnicos atribuídos ao setor." },
@@ -23,8 +24,11 @@ const PAPEIS = [
 
 type PapelValue = (typeof PAPEIS)[number]["value"];
 
+type UserResource = HalResource & { id: string; nome?: string | null };
+type UsersCollection = HalCollection<UserResource>;
+
 type Props = {
-  onSuccess?: (createdUser: any) => void;
+  onSuccess?: (createdUser: UserResource) => void;
   onCancel?: () => void;
 };
 
@@ -35,11 +39,28 @@ type SuccessInfo = {
   senha: string;
 };
 
+function isEmailAddress(value: string): boolean {
+  const parts = value.split("@");
+  if (parts.length !== 2) return false;
+  const [local, domain] = parts;
+  const dotIndex = domain.indexOf(".", 1);
+  return Boolean(
+    local &&
+      domain &&
+      !/\s/.test(local) &&
+      !/\s/.test(domain) &&
+      dotIndex > 0 &&
+      dotIndex < domain.length - 1,
+  );
+}
+
 const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
 
 export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
+  const [collection, setCollection] = useState<UsersCollection | null>(null);
+  const [collectionError, setCollectionError] = useState<string | null>(null);
   const [nome, setNome] = useState("");
   const [emailPessoal, setEmailPessoal] = useState("");
   const [papel, setPapel] = useState<PapelValue | "">("");
@@ -49,14 +70,33 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
 
   const [submitting, setSubmitting] = useState(false);
   const [successInfo, setSuccessInfo] = useState<SuccessInfo | null>(null);
-  const [lastCreated, setLastCreated] = useState<any>(null);
+  const [lastCreated, setLastCreated] = useState<UserResource | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCollection() {
+      try {
+        const entry = await getEntry();
+        const response = await followLink(entry, "users", { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error(await extractApiError(response, `Erro ${response.status} ao carregar usuários`));
+        }
+        const users = (await response.json()) as UsersCollection;
+        if (active) setCollection(users);
+      } catch (error: unknown) {
+        if (active) setCollectionError(error instanceof Error ? error.message : "Falha ao carregar usuários.");
+      }
+    }
+    void loadCollection();
+    return () => { active = false; };
+  }, []);
 
   const senhaValida = senha.trim().length >= 8;
 
   const canSubmit = useMemo(() => {
     const nomeOk = nome.trim().length >= 2;
-    const mailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailPessoal);
+    const mailOk = isEmailAddress(emailPessoal);
     const papelOk = papel !== "";
     const senhaOk = senhaValida;
     const livre = !submitting;
@@ -82,7 +122,7 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
     try {
       setSubmitting(true);
 
-      const payload: Record<string, any> = {
+      const payload: Record<string, string | boolean> = {
         nome: nome.trim(),
         emailPessoal: emailPessoal.trim(),
         papel,
@@ -90,8 +130,11 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         senha: senha.trim(),
       };
 
-      const res = await apiFetch(`${API_URL}/usuarios`, {
-        method: "POST",
+      if (!collection || !hasLink(collection, "create")) {
+        throw new Error("A criação de usuários não está disponível.");
+      }
+
+      const res = await followLink(collection, "create", {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -100,8 +143,8 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         throw new Error(await extractApiError(res, `Falha ao criar funcionário (${res.status})`));
       }
 
-      const created = await res.json();
-      const papelLabel = PAPEIS.find((p) => p.value === payload.papel)?.label ?? payload.papel;
+      const created = (await res.json()) as UserResource;
+      const papelLabel = PAPEIS.find((option) => option.value === papel)?.label ?? papel;
 
       setLastCreated(created);
       setSuccessInfo({
@@ -110,9 +153,9 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         papel: papelLabel,
         senha: senha.trim(),
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      toast.error(err?.message ?? "Erro ao criar funcionário");
+      toast.error(err instanceof Error ? err.message : "Erro ao criar funcionário");
     } finally {
       setSubmitting(false);
     }
@@ -175,7 +218,7 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
           {(onSuccess || onCancel) && (
             <button
               type="button"
-              onClick={() => onSuccess ? onSuccess(lastCreated) : onCancel?.()}
+              onClick={() => (lastCreated && onSuccess ? onSuccess(lastCreated) : onCancel?.())}
               className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-sm hover:brightness-95"
             >
               Concluído
@@ -184,6 +227,12 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
         </div>
       </div>
     );
+  }
+
+  if (collectionError) return <p role="alert">{collectionError}</p>;
+  if (!collection) return <p role="status">Carregando permissões de cadastro…</p>;
+  if (!hasLink(collection, "create")) {
+    return <p role="alert">A criação de usuários não está disponível para esta conta.</p>;
   }
 
   return (

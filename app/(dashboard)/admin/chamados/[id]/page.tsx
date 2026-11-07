@@ -6,9 +6,13 @@ import Link from "next/link";
 import {
   ArrowLeft, Loader2, Send, User, Building2, Tag, Clock,
   CheckCircle2, RotateCcw, Pencil, Save, MessageSquareText,
-  Paperclip, Download, Upload, Route, GraduationCap,
+  Paperclip, Download, Upload, Route, GraduationCap, Archive, ArchiveRestore
 } from "lucide-react";
-import { apiFetch, downloadAnexo } from "../../../../../utils/api";
+import { apiFetch, extractApiError } from "../../../../../utils/api";
+import { downloadTicketAttachment, listTicketAttachments, uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
+import type { TicketAttachment } from "../../../../../utils/ticket-attachments";
+import { followLink, getLinks, hasLink, markTicketMessagesRead } from "../../../../../utils/hal";
+import type { HalLinks } from "../../../../../utils/hal";
 import { toast } from "sonner";
 
 import { cx } from '../../../../../utils/cx'
@@ -65,14 +69,7 @@ type Historico = {
   observacao?: string | null;
 };
 
-type AnexoInfo = {
-  id: string;
-  nomeArquivo: string;
-  mimeType: string;
-  tamanhoBytes: number;
-  enviadoEm: string;
-  enviadoPor?: { id: string; nome?: string | null } | null;
-};
+type AnexoInfo = TicketAttachment;
 
 type Ticket = {
   id: string;
@@ -104,6 +101,16 @@ type Ticket = {
   contrato?: ContratoMin | null;
   mensagens?: Mensagem[];
   historico?: Historico[];
+  arquivadoEm?: string | null;
+  _links?: HalLinks;
+};
+
+const STATUS_LABEL: Record<Status, string> = {
+  ABERTO: "Aberto",
+  EM_ATENDIMENTO: "Em atendimento",
+  AGUARDANDO_USUARIO: "Aguardando usuário",
+  RESOLVIDO: "Resolvido",
+  ENCERRADO: "Encerrado",
 };
 
 function formatarChave(key: string): string {
@@ -116,6 +123,46 @@ function formatarChave(key: string): string {
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 if (process.env.NODE_ENV === "development" && !process.env.NEXT_PUBLIC_API_BASE_URL) {
   console.warn("[AdminChamadoPage] NEXT_PUBLIC_API_BASE_URL não está definida — chamadas de API e WS falharão.");
+}
+
+function nonEmptyEntries(fields?: Record<string, string> | null) {
+  return Object.entries(fields ?? {}).filter(([, value]) => value);
+}
+
+function AttachmentItems({ anexos }: { anexos: AnexoInfo[] }) {
+  return (
+              <ul className="space-y-2 mb-4">
+                {anexos.map((a) => (
+                  <li
+                    key={a.id}
+                    className="p-2 border rounded-md bg-background flex items-center justify-between gap-2 text-sm"
+                  >
+                    <div className="min-w-0">
+                      <span className="font-medium truncate block">{a.nomeArquivo}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {(a.tamanhoBytes / 1024).toFixed(1)} KB —{" "}
+                        {new Date(a.enviadoEm).toLocaleDateString("pt-BR")} por {a.enviadoPor?.nome ?? "Usuário"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await downloadTicketAttachment(a);
+                        } catch {
+                          toast.error("Não foi possível baixar o arquivo.");
+                        }
+                      }}
+                      className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
+                      disabled={!hasLink(a, "content")}
+                      title={hasLink(a, "content") ? "Baixar anexo" : "Download indisponível"}
+                    >
+                      <Download className="size-3.5" /> Baixar
+                    </button>
+                  </li>
+                ))}
+              </ul>
+  );
 }
 
 /* ===== Página ===== */
@@ -159,13 +206,10 @@ export default function AdminChamadoPage() {
     []
   );
 
-  const fetchAnexos = useCallback(async (ticketId: string) => {
+  const fetchAnexos = useCallback(async (resource: Ticket) => {
     setLoadingAnexos(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${ticketId}/anexos`);
-      if (!res.ok) throw new Error("Falha ao buscar anexos");
-      const data = await res.json();
-      setAnexos(Array.isArray(data) ? data : []);
+      setAnexos(await listTicketAttachments(resource));
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       toast.error("Falha ao carregar anexos.", { description: errMsg });
@@ -182,21 +226,19 @@ export default function AdminChamadoPage() {
       const res = await apiFetch(`${API}/tickets/${id}?include=${encodeURIComponent(include)}`, {
         cache: "no-store",
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
       const data: Ticket = await res.json();
 
       (data.mensagens ?? []).forEach((m) => knownIds.current.add(m.id));
 
       setTicket(data);
+      void markTicketMessagesRead(data);
       setStatus(data.status);
       setPrioridade(data.prioridade);
       setNivel(data.nivel);
       setResponsavelId(data.responsavelId ?? data.responsavel?.id ?? "");
 
-      fetchAnexos(data.id);
+      void fetchAnexos(data);
     } catch (e: unknown) {
       toast.error(e instanceof Error ? e.message : "Falha ao carregar");
       setTicket(null);
@@ -210,10 +252,11 @@ export default function AdminChamadoPage() {
   /* ===== Perfil acadêmico do aluno (banco de dados) ===== */
   useEffect(() => {
     if (!ticket?.criadoPorId) return;
-    apiFetch(`${API}/usuarios/${ticket.criadoPorId}`, { cache: "no-store" })
+    setPerfilAluno(null);
+    apiFetch(`${API}/users/${encodeURIComponent(ticket.criadoPorId)}`, { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
       .then((data: PerfilAcademico | null) => { if (data) setPerfilAluno(data); })
-      .catch(() => {});
+      .catch(() => { });
   }, [ticket?.criadoPorId]);
 
   useEffect(() => {
@@ -227,8 +270,10 @@ export default function AdminChamadoPage() {
     let ws: WebSocket | null = null;
     let attempt = 0;
     let reconnectTimer: ReturnType<typeof setTimeout>;
+    let destroyed = false;
 
     function connect() {
+      if (destroyed) return;
       const token = typeof window !== "undefined" ? (localStorage.getItem("accessToken") ?? "") : "";
       if (!token) return;
       // Token NÃO vai na URL (evita vazamento em logs); é enviado no 1º frame.
@@ -239,8 +284,7 @@ export default function AdminChamadoPage() {
         attempt = 0;
         try {
           ws?.send(JSON.stringify({ type: "auth", token }));
-          ws?.send(JSON.stringify({ type: "hello", chamadoId: id }));
-        } catch {}
+        } catch { }
       };
 
       ws.onmessage = (event) => {
@@ -262,6 +306,7 @@ export default function AdminChamadoPage() {
       };
 
       ws.onclose = () => {
+        if (destroyed) return;
         const delay = Math.min(1_000 * 2 ** attempt, 30_000);
         attempt++;
         reconnectTimer = setTimeout(connect, delay);
@@ -270,52 +315,81 @@ export default function AdminChamadoPage() {
 
     connect();
     return () => {
+      destroyed = true;
       clearTimeout(reconnectTimer);
       ws?.close();
     };
   }, [id]);
 
-  async function saveEdits(newStatus?: Status) {
+  async function garantirOk(res: Response) {
+    if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
+  }
+
+  /** Dados pelo link `update`, status pelo link `transition`. Só envia o que mudou. */
+  async function saveEdits(alvo?: Status) {
     if (!ticket) return;
+    const novoStatus = alvo ?? status;
+
+    const campos: Record<string, unknown> = {};
+    if (prioridade !== ticket.prioridade) campos.prioridade = prioridade;
+    if (nivel !== ticket.nivel) campos.nivel = nivel;
+    const responsavelAtual = ticket.responsavelId ?? ticket.responsavel?.id ?? null;
+    if ((responsavelId || null) !== responsavelAtual) campos.responsavelId = responsavelId || null;
+
+    const mudouDados = Object.keys(campos).length > 0;
+    const mudouStatus = novoStatus !== ticket.status;
+    if (!mudouDados && !mudouStatus) {
+      toast.info("Nada para salvar.");
+      return;
+    }
+
     try {
       setSaving(true);
-      const body = {
-        status: newStatus ?? status,
-        prioridade,
-        nivel,
-        responsavelId: responsavelId || null,
-      };
-      const res = await apiFetch(`${API}/tickets/${ticket.id}`, {
-        method: "PATCH",
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
+      if (mudouDados) {
+        await garantirOk(await followLink(ticket, "update", { body: JSON.stringify(campos) }));
+      }
+      if (mudouStatus) {
+        await garantirOk(
+          await followLink(ticket, "transition", {
+            name: novoStatus,
+            body: JSON.stringify({ status: novoStatus }),
+          }),
+        );
       }
       toast.success("Alterações salvas!");
       await load();
     } catch (e: unknown) {
-      const errMsg = e instanceof Error ? e.message : String(e);
-      toast.error("Falha ao salvar", { description: errMsg });
+      toast.error("Falha ao salvar", { description: e instanceof Error ? e.message : String(e) });
     } finally {
       setSaving(false);
     }
   }
 
+  /** Reabrir, arquivar e desarquivar: um link, um corpo, uma mensagem. */
+  async function seguirAcao(rel: string, corpo: object, sucesso: string, name?: string) {
+    if (!ticket) return;
+    try {
+      setSaving(true);
+      await garantirOk(await followLink(ticket, rel, { name, body: JSON.stringify(corpo) }));
+      toast.success(sucesso);
+      await load();
+    } catch (e: unknown) {
+      toast.error("Não foi possível concluir a ação", {
+        description: e instanceof Error ? e.message : String(e),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
   async function sendMessage() {
     if (!ticket || !msg.trim()) return;
     setSending(true);
     try {
-      const res = await apiFetch(`${API}/tickets/${ticket.id}/mensagens`, {
-        method: "POST",
+      const res = await followLink(ticket, "reply", {
         body: JSON.stringify({ conteudo: msg.trim() }),
       });
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        throw new Error(e?.error || `Erro HTTP ${res.status}`);
-      }
-      const nova = await res.json();
+      if (!res.ok) throw new Error(await extractApiError(res, `Erro HTTP ${res.status}`));
+      const nova: Mensagem = await res.json();
 
       if (!knownIds.current.has(nova.id)) {
         knownIds.current.add(nova.id);
@@ -326,6 +400,7 @@ export default function AdminChamadoPage() {
 
       setMsg("");
       endRef.current?.scrollIntoView({ behavior: "smooth" });
+      await load();
     } catch (e: unknown) {
       const errMsg = e instanceof Error ? e.message : String(e);
       toast.error("Falha ao enviar mensagem", { description: errMsg });
@@ -335,32 +410,22 @@ export default function AdminChamadoPage() {
   }
 
   const handleUpload = useCallback(async () => {
-    if (!selectedFile || !ticket?.id) return;
+    if (!selectedFile || !ticket || !hasLink(ticket, "upload")) return;
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
     try {
-      const res = await apiFetch(`${API}/tickets/${ticket.id}/anexos`, {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({ error: `Erro HTTP ${res.status}` }));
-        throw new Error(errorData.error || `Erro HTTP ${res.status}`);
-      }
+      await uploadTicketAttachment(ticket, selectedFile);
       toast.success(`Arquivo "${selectedFile.name}" enviado com sucesso!`);
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      await fetchAnexos(ticket.id);
+      await fetchAnexos(ticket);
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : String(err);
       toast.error("Falha ao enviar arquivo.", { description: errMsg });
     } finally {
       setUploading(false);
     }
-  }, [selectedFile, ticket?.id, fetchAnexos]);
+  }, [selectedFile, ticket, fetchAnexos]);
 
   if (loading && !ticket) {
     return (
@@ -382,15 +447,22 @@ export default function AdminChamadoPage() {
     .slice()
     .sort((a, b) => +new Date(b.criadoEm) - +new Date(a.criadoEm));
 
-  const camposEspecificosEntries = ticket.camposEspecificos
-    ? Object.entries(ticket.camposEspecificos).filter(([, v]) => v)
-    : [];
-
-  const dadosAcademicosEntries = ticket.dadosAcademicos
-    ? Object.entries(ticket.dadosAcademicos).filter(([, v]) => v)
-    : [];
+  const camposEspecificosEntries = nonEmptyEntries(ticket.camposEspecificos);
+  const dadosAcademicosEntries = nonEmptyEntries(ticket.dadosAcademicos);
 
   const isWizardTicket = ticket.origem === "catalogo_wizard_aluno";
+
+  const podeEditar = hasLink(ticket, "update");
+  const podeResponder = hasLink(ticket, "reply");
+  const podeAnexar = hasLink(ticket, "upload");
+  const podeReabrir = hasLink(ticket, "reopen");
+  const podeResolver = hasLink(ticket, "transition", "RESOLVIDO");
+  const podeArquivar = hasLink(ticket, "archive");
+  const podeDesarquivar = hasLink(ticket, "unarchive");
+  const statusPermitidos = Array.from(
+    new Set<Status>([ticket.status, ...getLinks(ticket, "transition").map((l) => l.name as Status)]),
+  );
+  const podeSalvar = podeEditar || statusPermitidos.length > 1;
 
   return (
     <div className="px-4 py-2 sm:px-6 lg:px-8">
@@ -551,27 +623,35 @@ export default function AdminChamadoPage() {
               <div ref={endRef} />
             </div>
 
-            <div className="p-3 border-t border-[var(--border)]">
-              <div className="flex items-end gap-2">
-                <textarea
-                  value={msg}
-                  onChange={(e) => setMsg(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); } }}
-                  rows={2}
-                  placeholder="Escreva uma mensagem… (Ctrl+Enter para enviar)"
-                  className="flex-1 max-h-32 rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
-                  disabled={sending}
-                />
-                <button type="button"
-                  onClick={sendMessage}
-                  disabled={sending || !msg.trim()}
-                  className="h-[56px] px-3 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center shrink-0"
-                  title="Enviar"
-                >
-                  {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                </button>
+            {podeResponder ? (
+              <div className="p-3 border-t border-[var(--border)]">
+                <div className="flex items-end gap-2">
+                  <textarea
+                    value={msg}
+                    onChange={(e) => setMsg(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendMessage(); } }}
+                    rows={2}
+                    placeholder="Escreva uma mensagem… (Ctrl+Enter para enviar)"
+                    className="flex-1 max-h-32 rounded-lg border border-[var(--border)] bg-input px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--ring)] resize-none"
+                    disabled={sending}
+                  />
+                  <button type="button"
+                    onClick={sendMessage}
+                    disabled={sending || !msg.trim()}
+                    className="h-[56px] px-3 rounded-lg bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 inline-flex items-center justify-center shrink-0"
+                    title="Enviar"
+                  >
+                    {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 border-t text-center text-sm text-muted-foreground">
+                {ticket.arquivadoEm
+                  ? "🔒 Chamado arquivado. Somente leitura."
+                  : "🔒 Respostas indisponíveis neste estado do chamado."}
+              </div>
+            )}
           </section>
 
           {/* CAMPOS ESPECÍFICOS DO SERVIÇO */}
@@ -651,85 +731,62 @@ export default function AdminChamadoPage() {
               <Paperclip className="size-4" /> Anexos ({anexos.length})
             </h2>
 
-            {loadingAnexos ? (
+            {loadingAnexos && (
               <div className="text-sm text-muted-foreground">
                 <LoadingSpinner label="Carregando anexos..." />
               </div>
-            ) : anexos.length === 0 ? (
+            )}
+            {!loadingAnexos && anexos.length === 0 && (
               <div className="text-sm text-muted-foreground border rounded-md p-3 bg-background">
                 Nenhum anexo encontrado.
               </div>
-            ) : (
-              <ul className="space-y-2 mb-4">
-                {anexos.map((a) => (
-                  <li
-                    key={a.id}
-                    className="p-2 border rounded-md bg-background flex items-center justify-between gap-2 text-sm"
-                  >
-                    <div className="min-w-0">
-                      <span className="font-medium truncate block">{a.nomeArquivo}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {(a.tamanhoBytes / 1024).toFixed(1)} KB —{" "}
-                        {new Date(a.enviadoEm).toLocaleDateString("pt-BR")} por {a.enviadoPor?.nome ?? "Usuário"}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          await downloadAnexo(a.id, a.nomeArquivo);
-                        } catch {
-                          toast.error("Não foi possível baixar o arquivo.");
-                        }
-                      }}
-                      className="inline-flex items-center gap-1 h-8 px-2 rounded-md border hover:bg-[var(--muted)] text-xs shrink-0"
-                      title="Baixar anexo"
-                    >
-                      <Download className="size-3.5" /> Baixar
-                    </button>
-                  </li>
-                ))}
-              </ul>
+            )}
+            {!loadingAnexos && anexos.length > 0 && (
+              <AttachmentItems anexos={anexos} />
             )}
 
-            <div className="mt-4 pt-4 border-t">
-              <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-                className="hidden"
-              />
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background hover:bg-[var(--muted)] text-sm"
-                  disabled={uploading}
-                >
-                  <Paperclip className="size-4" /> Escolher arquivo...
-                </button>
-                {selectedFile && (
-                  <span className="text-sm text-muted-foreground truncate max-w-xs">
-                    {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
-                  </span>
-                )}
-              </div>
+            {podeAnexar && (
+              <div className="mt-4 pt-4 border-t">
+                <h3 className="text-base font-medium mb-2">Adicionar anexo</h3>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
+                  className="hidden"
+                />
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="inline-flex items-center gap-2 h-9 px-3 rounded-md border bg-background hover:bg-[var(--muted)] text-sm"
+                    disabled={uploading}
+                  >
+                    <Paperclip className="size-4" /> Escolher arquivo...
+                  </button>
+                  {selectedFile && (
+                    <span className="text-sm text-muted-foreground truncate max-w-xs">
+                      {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                    </span>
+                  )}
+                </div>
 
-              {selectedFile && (
-                <button type="button"
-                  onClick={handleUpload}
-                  disabled={!selectedFile || uploading}
-                  className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"
-                >
-                  {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
-                  {uploading ? "Enviando..." : "Enviar arquivo"}
-                </button>
-              )}
-              <p className="text-xs text-muted-foreground mt-2">Limite por arquivo: 10MB.</p>
-            </div>
+
+                {selectedFile && (
+                  <button type="button"
+                    onClick={handleUpload}
+                    disabled={!selectedFile || uploading}
+                    className="mt-2 inline-flex items-center justify-center gap-2 h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm hover:opacity-90 disabled:opacity-60 min-w-[140px]"
+                  >
+                    {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+                    {uploading ? "Enviando..." : "Enviar arquivo"}
+                  </button>
+                )}
+                <p className="text-xs text-muted-foreground mt-2">Limite por arquivo: 10MB.</p>
+              </div>
+            )}
           </section>
         </div>
+
 
         {/* DIREITA: Gestão + Histórico */}
         <aside className="xl:col-span-4 space-y-6">
@@ -739,6 +796,11 @@ export default function AdminChamadoPage() {
               <div className="font-semibold">Atribuição & Status</div>
             </div>
             <div className="p-4 space-y-3">
+              {ticket.arquivadoEm && (
+                <div className="rounded-md border border-yellow-400/30 bg-yellow-100/20 px-3 py-2 text-xs text-yellow-700 dark:text-yellow-300">
+                  Chamado arquivado: somente leitura.
+                </div>
+              )}
               <label className="text-sm block">
                 <span className="text-muted-foreground">Status</span>
                 <select
@@ -746,11 +808,9 @@ export default function AdminChamadoPage() {
                   value={status}
                   onChange={(e) => setStatus(e.target.value as Status)}
                 >
-                  <option value="ABERTO">Aberto</option>
-                  <option value="EM_ATENDIMENTO">Em atendimento</option>
-                  <option value="AGUARDANDO_USUARIO">Aguardando usuário</option>
-                  <option value="RESOLVIDO">Resolvido</option>
-                  <option value="ENCERRADO">Encerrado</option>
+                  {statusPermitidos.map((s) => (
+                    <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+                  ))}
                 </select>
               </label>
 
@@ -760,6 +820,7 @@ export default function AdminChamadoPage() {
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 focus:ring-2 focus:ring-[var(--ring)]"
                   value={prioridade}
                   onChange={(e) => setPrioridade(e.target.value as Prioridade)}
+                  disabled={!podeEditar}
                 >
                   <option value="BAIXA">Baixa</option>
                   <option value="MEDIA">Média</option>
@@ -774,6 +835,7 @@ export default function AdminChamadoPage() {
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 focus:ring-2 focus:ring-[var(--ring)]"
                   value={nivel}
                   onChange={(e) => setNivel(e.target.value as Nivel)}
+                  disabled={!podeEditar}
                 >
                   <option value="N1">N1</option>
                   <option value="N2">N2</option>
@@ -787,30 +849,57 @@ export default function AdminChamadoPage() {
                   value={responsavelId}
                   onChange={(e) => setResponsavelId(e.target.value)}
                   placeholder="cuid_xxx"
+                  disabled={!podeEditar}
                   className="mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-input px-3 focus:ring-2 focus:ring-[var(--ring)]"
                 />
               </label>
 
               <div className="flex flex-col gap-2 pt-2">
-                <button type="button"
-                  onClick={() => saveEdits("RESOLVIDO")}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
-                >
-                  <CheckCircle2 className="size-4" /> Marcar como resolvido
-                </button>
-                <button type="button"
-                  onClick={() => saveEdits("ABERTO")}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"
-                >
-                  <RotateCcw className="size-4" /> Reabrir
-                </button>
-                <button type="button"
-                  onClick={() => saveEdits()}
-                  disabled={saving}
-                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 text-sm"
-                >
-                  {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Salvar
-                </button>
+                {podeResolver && (
+                  <button type="button"
+                    onClick={() => saveEdits("RESOLVIDO")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <CheckCircle2 className="size-4" /> Marcar como resolvido
+                  </button>
+                )}
+                {podeReabrir && (
+                  <button type="button"
+                    onClick={() => seguirAcao("reopen", { status: "EM_ATENDIMENTO" }, "Chamado reaberto.", "EM_ATENDIMENTO")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <RotateCcw className="size-4" /> Reabrir
+                  </button>
+                )}
+                {podeSalvar && (
+                  <button type="button"
+                    onClick={() => saveEdits()}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md bg-gradient-to-r from-[#F87171] to-[#E74C3C] text-white dark:from-[#B91C1C] dark:to-[#7F1D1D] hover:brightness-95 disabled:opacity-60 text-sm"
+                  >
+                    {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />} Salvar
+                  </button>
+                )}
+                {podeArquivar && (
+                  <button type="button"
+                    onClick={() => seguirAcao("archive", { arquivado: true }, "Chamado arquivado.")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <Archive className="size-4" /> Arquivar
+                  </button>
+                )}
+                {podeDesarquivar && (
+                  <button type="button"
+                    onClick={() => seguirAcao("unarchive", { arquivado: false }, "Chamado desarquivado.")}
+                    disabled={saving}
+                    className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm disabled:opacity-60"
+                  >
+                    <ArchiveRestore className="size-4" /> Desarquivar
+                  </button>
+                )}
               </div>
             </div>
           </div>
