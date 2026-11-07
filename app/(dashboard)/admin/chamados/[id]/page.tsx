@@ -798,6 +798,14 @@ export default function AdminChamadoPage() {
                 >
                   <CheckCircle2 className="size-4" /> Marcar como resolvido
                 </button>
+                <button
+                  type="button"
+                  onClick={() => saveEdits("ENCERRADO")}
+                  disabled={saving || status === "ENCERRADO"}
+                  className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border border-red-500 text-red-600 hover:bg-red-500/10 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                >
+                  <CheckCircle2 className="size-4" /> Encerrar chamado
+                </button>
                 <button type="button"
                   onClick={() => saveEdits("ABERTO")}
                   className="w-full inline-flex items-center justify-center gap-2 h-10 rounded-md border hover:bg-[var(--muted)] text-sm"

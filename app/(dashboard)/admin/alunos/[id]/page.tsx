@@ -119,6 +119,7 @@ export default function PageAlunoDetalhe() {
 
   const [loading, setLoading] = useState(true);
   const [aluno, setAluno] = useState<Usuario | null>(null);
+  const [alterandoAtivo, setAlterandoAtivo] = useState(false);
   const [chamados, setChamados] = useState<Chamado[]>([]);
 
   const [q, setQ] = useState("");
@@ -192,7 +193,52 @@ export default function PageAlunoDetalhe() {
       setDelConfirmText("");
     }
   }
+async function onAlternarAtivo() {
+  if (!aluno || alterandoAtivo) return;
 
+  const novoAtivo = !aluno.ativo;
+  const acao = novoAtivo ? "ativar" : "desativar";
+
+  if (!window.confirm(`Deseja realmente ${acao} este aluno?`)) {
+    return;
+  }
+
+  setAlterandoAtivo(true);
+
+  try {
+    const res = await apiFetch(
+      `${API_URL}/usuarios/${encodeURIComponent(aluno.id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ ativo: novoAtivo }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(
+        await extractApiError(res, `Erro HTTP ${res.status}`)
+      );
+    }
+
+    setAluno((anterior) =>
+      anterior ? { ...anterior, ativo: novoAtivo } : anterior
+    );
+
+    toast.success(
+      novoAtivo
+        ? "Aluno ativado com sucesso."
+        : "Aluno desativado com sucesso."
+    );
+  } catch (erro: unknown) {
+    toast.error(
+      erro instanceof Error
+        ? erro.message
+        : "Não foi possível alterar a situação do aluno."
+    );
+  } finally {
+    setAlterandoAtivo(false);
+  }
+}
   async function onResetSenha() {
     if (!aluno) return;
     const email = aluno.emailPessoal || aluno.emailEducacional;
@@ -274,6 +320,21 @@ export default function PageAlunoDetalhe() {
             onClick={() => setDelOpen(true)}
           >
             <Trash2 className="size-4" /> Excluir
+            <button
+  type="button"
+  onClick={onAlternarAtivo}
+  disabled={alterandoAtivo}
+  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+>
+  {alterandoAtivo ? (
+    <Loader2 className="size-4 animate-spin" />
+  ) : aluno.ativo ? (
+    <XCircle className="size-4" />
+  ) : (
+    <CheckCircle2 className="size-4" />
+  )}
+  {aluno.ativo ? "Desativar" : "Ativar"}
+</button>
           </button>
         </div>
       </div>

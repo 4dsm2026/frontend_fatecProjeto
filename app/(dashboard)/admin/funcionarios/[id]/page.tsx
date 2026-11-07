@@ -76,6 +76,7 @@ export default function FuncionarioDetalhePage() {
 
   const [loading, setLoading] = useState(true);
   const [func, setFunc] = useState<Funcionario | null>(null);
+  const [alterandoAtivo, setAlterandoAtivo] = useState(false);
   const [setores, setSetores] = useState<SetorLite[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -137,7 +138,50 @@ export default function FuncionarioDetalhePage() {
     if (id) load();
     return () => { alive = false; };
   }, [id]);
+async function onAlternarAtivo() {
+  if (!func || alterandoAtivo) return;
 
+  const novoAtivo = !func.ativo;
+  const acao = novoAtivo ? "ativar" : "desativar";
+
+  if (!window.confirm(`Deseja realmente ${acao} este funcionário?`)) {
+    return;
+  }
+
+  setAlterandoAtivo(true);
+
+  try {
+    const res = await apiFetch(
+      `${API_URL}/usuarios/${encodeURIComponent(func.id)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ ativo: novoAtivo }),
+      }
+    );
+
+    if (!res.ok) {
+      throw new Error(`Erro ao alterar funcionário: ${res.status}`);
+    }
+
+    setFunc((anterior) =>
+      anterior ? { ...anterior, ativo: novoAtivo } : anterior
+    );
+
+    showToast(
+      novoAtivo
+        ? "Funcionário ativado com sucesso."
+        : "Funcionário desativado com sucesso."
+    );
+  } catch (erro: unknown) {
+    showToast(
+      erro instanceof Error
+        ? erro.message
+        : "Não foi possível alterar a situação do funcionário."
+    );
+  } finally {
+    setAlterandoAtivo(false);
+  }
+}
   async function onResetSenha() {
     if (!func) return;
     const email = func.emailPessoal ?? func.emailEducacional;
@@ -263,6 +307,21 @@ export default function FuncionarioDetalhePage() {
           <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] text-sm" onClick={onResetSenha}>
             Resetar senha
           </button>
+          <button
+  type="button"
+  onClick={onAlternarAtivo}
+  disabled={alterandoAtivo}
+  className="inline-flex items-center gap-2 h-9 px-3 rounded-md border hover:bg-[var(--muted)] disabled:opacity-50 text-sm"
+>
+  {alterandoAtivo ? (
+    <Loader2 className="size-4 animate-spin" />
+  ) : func.ativo ? (
+    <XCircle className="size-4" />
+  ) : (
+    <CheckCircle2 className="size-4" />
+  )}
+  {func.ativo ? "Desativar" : "Ativar"}
+</button>
           <button type="button" className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-red-300 text-red-600 hover:bg-red-50 text-sm" onClick={() => setDelOpen(true)}>
             <Trash2 className="size-4" /> Excluir
           </button>
