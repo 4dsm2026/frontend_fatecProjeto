@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, Mail, Eye, Send, Download, Upload, Save, Check, X,
+  Search, Mail, Send, Download, Upload, Save, Check, X,
   ToggleLeft, ToggleRight, FileText
 } from "lucide-react";
 import { toast } from "sonner";

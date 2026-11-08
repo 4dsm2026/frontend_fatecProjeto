@@ -170,19 +170,22 @@ export default function AdminHomePage() {
 
       {/* Tabela */}
       <section className="rounded-xl border border-[var(--border)] bg-card overflow-hidden">
-        {loading ? (
+        {loading && (
           <SkeletonTable rows={6} cols={6} />
-        ) : error ? (
+        )}
+        {!loading && !!error && (
           <div className="p-4">
             <Alert variant="error" title="Erro ao carregar chamados">{error}</Alert>
           </div>
-        ) : items.length === 0 ? (
+        )}
+        {!loading && !error && items.length === 0 && (
           <EmptyState
             icon={<Ticket className="size-6" />}
             title="Nenhum chamado encontrado"
             description="Tente ajustar os filtros de busca."
           />
-        ) : (
+        )}
+        {!loading && !error && items.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-[var(--muted)]/60 border-b border-[var(--border)]">

@@ -14,6 +14,13 @@ type Props = {
   pollMs?: number;
 };
 
+function formatarBadge(unread: number | null): string {
+  if (unread === null) return "";
+  if (unread > 99) return "99+";
+  if (unread > 0) return String(unread);
+  return "";
+}
+
 export default function AlunoTopbar({
   notificationsHref = "/aluno/notificacoes",
   profileHref = "/aluno/dados",
@@ -94,8 +101,7 @@ export default function AlunoTopbar({
     return () => window.removeEventListener("notificacoes-lidas", handler);
   }, [fetchUnread]);
 
-  const badgeText =
-    unread === null ? "" : unread > 99 ? "99+" : unread > 0 ? String(unread) : "";
+  const badgeText = formatarBadge(unread);
   const hasUnread = !loadingUnread && !!unread && unread > 0;
 
   return (
@@ -137,15 +143,16 @@ export default function AlunoTopbar({
           title={hasUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
         >
           <Bell className={cx("size-4", hasUnread && "text-red-500 dark:text-red-400")} />
-          {loadingUnread ? (
+          {loadingUnread && (
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
               <Loader2 className="size-3 animate-spin" />
             </span>
-          ) : hasUnread ? (
+          )}
+          {!loadingUnread && hasUnread && (
             <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
               {badgeText}
             </span>
-          ) : null}
+          )}
         </Link>
 
         {/* Profile */}

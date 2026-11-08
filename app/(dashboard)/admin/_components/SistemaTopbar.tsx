@@ -109,15 +109,16 @@ function NotificationLink({
       title={titleUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
     >
       <Bell className={cx("size-4", hasUnread ? "text-red-500 dark:text-red-400" : "")} />
-      {loadingUnread ? (
+      {loadingUnread && (
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
           <Loader2 className="size-3 animate-spin" />
         </span>
-      ) : titleUnread ? (
+      )}
+      {!loadingUnread && titleUnread && (
         <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
           {badgeText}
         </span>
-      ) : null}
+      )}
     </Link>
   );
 }

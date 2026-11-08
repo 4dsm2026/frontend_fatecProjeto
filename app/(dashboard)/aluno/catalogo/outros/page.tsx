@@ -57,6 +57,11 @@ function tokenize(texto: string): string[] {
     .filter((w) => w.length >= 3 && !STOP_WORDS.has(w));
 }
 
+function pontosDoToken(haystack: string, token: string): number {
+  if (!haystack.includes(token)) return 0;
+  return token.length >= 6 ? 2 : 1;
+}
+
 function scoreServico(tokens: string[], ...campos: string[]): number {
   const haystack = campos
     .join(" ")
@@ -64,10 +69,7 @@ function scoreServico(tokens: string[], ...campos: string[]): number {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "");
 
-  return tokens.reduce(
-    (score, token) => score + (haystack.includes(token) ? (token.length >= 6 ? 2 : 1) : 0),
-    0,
-  );
+  return tokens.reduce((score, token) => score + pontosDoToken(haystack, token), 0);
 }
 
 function sugerirServicos(descricao: string, catalog: CatalogResponse): Sugestao[] {
@@ -112,7 +114,10 @@ export default function OutrosPage() {
   /* Busca catálogo e dados acadêmicos do aluno */
   useEffect(() => {
     apiFetch(`${API}/catalog`, { cache: "no-store" })
-      .then((r) => { if (!r.ok) throw new Error("Falha ao carregar catálogo"); return r.json(); })
+      .then((r) => {
+        if (!r.ok) throw new Error("Falha ao carregar catálogo");
+        return r.json();
+      })
       .then((data: CatalogResponse | null) => {
         if (data?.categorias) setCatalog(enriquecerCatalogo(data));
       })

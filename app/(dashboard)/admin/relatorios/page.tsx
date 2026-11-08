@@ -526,13 +526,17 @@ function BarTable({ rows, total, normalizeByMax = false }: {
   normalizeByMax?: boolean;
 }) {
   const max = Math.max(...rows.map((r) => r.value), 1);
+  const percentual = (valor: number) => {
+    if (normalizeByMax) return valor;
+    return total ? (valor / total) * 100 : 0;
+  };
   return (
     <div className="space-y-3">
       {rows.map((r) => (
         <div key={r.label} className="grid grid-cols-12 items-center gap-2">
           <div className="col-span-5 truncate">{r.label}</div>
           <div className="col-span-5">
-            <Bar value={normalizeByMax ? r.value : (total ? (r.value / total) * 100 : 0)} max={normalizeByMax ? max : 100} />
+            <Bar value={percentual(r.value)} max={normalizeByMax ? max : 100} />
           </div>
           <div className="col-span-2 text-right text-sm">
             <span className="font-medium">{r.value}</span>
@@ -559,7 +563,9 @@ function MiniBar({ title, rows, valueSuffix = "", clamp100 = false }: {
       {title && <div className="text-xs uppercase tracking-wide text-muted-foreground mb-2">{title}</div>}
       <div className="space-y-3">
         {rows.map((r) => {
-          const pct = clamp100 ? Math.min(100, r.value) : (max ? (r.value / max) * 100 : 0);
+          let pct = 0;
+          if (clamp100) pct = Math.min(100, r.value);
+          else if (max) pct = (r.value / max) * 100;
           return (
             <div key={r.label}>
               <div className="flex items-center justify-between text-sm">

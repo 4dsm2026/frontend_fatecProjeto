@@ -105,9 +105,10 @@ export default function AlunoHomePage() {
           </Link>
         </div>
 
-        {loading ? (
+        {loading && (
           <SkeletonTable rows={4} cols={5} />
-        ) : chamadosVisiveis.length === 0 ? (
+        )}
+        {!loading && chamadosVisiveis.length === 0 && (
           <EmptyState
             icon={<Ticket className="size-6" />}
             title="Nenhuma solicitação em aberto"
@@ -118,7 +119,8 @@ export default function AlunoHomePage() {
               </Link>
             }
           />
-        ) : (
+        )}
+        {!loading && chamadosVisiveis.length > 0 && (
           <div className="overflow-x-auto">
             <table className="min-w-full text-sm">
               <thead className="bg-[var(--muted)]/60">

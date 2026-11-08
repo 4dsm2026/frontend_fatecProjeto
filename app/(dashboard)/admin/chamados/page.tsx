@@ -250,15 +250,18 @@ export default function AdminChamadosPage() {
       </div>
 
       {/* Conteúdo */}
-      {loading ? (
+      {loading && (
         <SkeletonTable rows={6} cols={5} />
-      ) : error ? (
+      )}
+      {!loading && !!error && (
         <div className="rounded-xl border border-[var(--border)] bg-card p-10 text-center text-destructive">
           Falha ao carregar: {error}
         </div>
-      ) : view === "LIST" ? (
+      )}
+      {!loading && !error && view === "LIST" && (
         <Lista dados={dados} sortDesc={sortDesc} setSortDesc={setSortDesc} />
-      ) : (
+      )}
+      {!loading && !error && view !== "LIST" && (
         <Kanban dados={dados} />
       )}
     </div>

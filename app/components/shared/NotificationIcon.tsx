@@ -1,5 +1,5 @@
 import {
-  Bell, Mail, MessageSquareText, Paperclip, Check, Info,
+  Bell, Mail, MessageSquareText, Paperclip, Info,
 } from "lucide-react";
 
 // (Idealmente, este tipo viria de um arquivo central)

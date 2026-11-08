@@ -33,6 +33,7 @@ describe("safeRedirect — bloqueia redirecionamento para outro site", () => {
     ["tab escondido (o navegador remove)", "/\t/evil.com"],
     ["enter escondido (o navegador remove)", "/\n/evil.com"],
     ["URL absoluta de outro site", "https://evil.com/login"],
+    // eslint-disable-next-line sonarjs/no-clear-text-protocols -- caso de ataque: o teste prova que http de outro site é recusado
     ["http de outro site", "http://app.exemplo.com.evil.com"],
     ["esquema javascript:", "javascript:alert(1)"],
     ["esquema data:", "data:text/html,<script>alert(1)</script>"],

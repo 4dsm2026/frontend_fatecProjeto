@@ -6,7 +6,7 @@ export type Handler = (init: RequestInit) => Response | Promise<Response>;
 export function stubApi(routes: Record<string, Handler>) {
   const calls: { key: string; auth: string | null }[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
-    const key = `${(init.method ?? "GET").toUpperCase()} ${new URL(String(input), "http://x").pathname}`;
+    const key = `${(init.method ?? "GET").toUpperCase()} ${new URL(String(input), "https://x").pathname}`;
     calls.push({ key, auth: new Headers(init.headers).get("Authorization") });
     const handler = routes[key];
     if (!handler) throw new Error(`rota não simulada: ${key}`);

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, Layers, BookOpen, Plus, Loader2, ArrowRight, HelpCircle } from "lucide-react";
-import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno";
 import { enriquecerCatalogo, type CatalogResponse, type ServicoCatalogo } from "../../../../utils/catalogo";
 import { cx } from "../../../../utils/cx";
 import { apiFetch } from "../../../../utils/api";
@@ -189,15 +188,17 @@ export default function CatalogoAlunoPage() {
       </div>
 
       <div className="rounded-xl border border-[var(--border)] bg-card p-4">
-        {loading ? (
+        {loading && (
           <div className="flex items-center justify-center py-10 text-muted-foreground gap-2">
             <Loader2 className="size-4 animate-spin" /> Carregando catálogo...
           </div>
-        ) : filtrados.length === 0 ? (
+        )}
+        {!loading && filtrados.length === 0 && (
           <div className="py-10 text-center text-muted-foreground">
             Nenhum serviço encontrado com os filtros atuais.
           </div>
-        ) : (
+        )}
+        {!loading && filtrados.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             {filtrados.map((s) => (
               <ServicoCard key={s.id} s={s} />

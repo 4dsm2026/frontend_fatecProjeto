@@ -19,6 +19,7 @@ import { storeSession } from "../../../utils/session";
 import { safeRedirect } from "../../../utils/safe-redirect";
 import { extractApiError } from "../../../utils/api";
 import { activationTokenFromProblem, isPasswordChangeRequired } from "../../../utils/activation-link";
+import { isEmailValido } from "../../../utils/email";
 
 type Mode = "email" | "ra";
 
@@ -61,7 +62,7 @@ export default function LoginContent() {
     const id = identifier.trim();
     const senhaOk = password.trim().length >= 8;
     const idOk = mode === "email"
-      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)
+      ? isEmailValido(id)
       : raRegex.test(id);
     return senhaOk && idOk;
   }, [identifier, password, mode]);
