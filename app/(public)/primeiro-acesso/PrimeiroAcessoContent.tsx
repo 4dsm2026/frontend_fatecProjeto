@@ -7,6 +7,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { extractApiError } from "../../../utils/api";
 import { isEmailInUse } from "../../../utils/activation-link";
+import { isEmailAddress } from "../../../utils/email";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -69,7 +70,7 @@ export default function PrimeiroAcessoContent() {
   const score = useMemo(() => passwordScore(newPassword), [newPassword]);
 
   const validEmail =
-    !personalEmail || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(personalEmail);
+    !personalEmail || isEmailAddress(personalEmail);
 
   const meetsPolicy = [
     newPassword.length >= 8,

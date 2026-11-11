@@ -21,6 +21,7 @@ import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno"
 import { logoutAndRedirect } from "../../../../utils/auth";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
+import { isEmailAddress } from "../../../../utils/email";
 
 type Usuario = {
   id: string;
@@ -173,7 +174,7 @@ export default function MeusDadosPage() {
     ] as const;
     const changed = campos.some(([atual, original]) => atual !== (original ?? ""));
     const acessivelMudou = necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel);
-    const emailOk = !emailPessoal || /\S+@\S+\.\S+/.test(emailPessoal);
+    const emailOk = !emailPessoal || isEmailAddress(emailPessoal);
     const nomeOk = nome.trim().length > 0;
     return (changed || acessivelMudou) && nomeOk && emailOk;
   }, [

@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Shield,
 } from "lucide-react";
+import { isEmailAddress } from "../../../../utils/email";
 
 const PAPEIS = [
   { value: "BACKOFFICE",    label: "Backoffice",    desc: "Atende chamados e gerencia solicitações." },
@@ -38,21 +39,6 @@ type SuccessInfo = {
   papel: string;
   senha: string;
 };
-
-function isEmailAddress(value: string): boolean {
-  const parts = value.split("@");
-  if (parts.length !== 2) return false;
-  const [local, domain] = parts;
-  const dotIndex = domain.indexOf(".", 1);
-  return Boolean(
-    local &&
-      domain &&
-      !/\s/.test(local) &&
-      !/\s/.test(domain) &&
-      dotIndex > 0 &&
-      dotIndex < domain.length - 1,
-  );
-}
 
 const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
