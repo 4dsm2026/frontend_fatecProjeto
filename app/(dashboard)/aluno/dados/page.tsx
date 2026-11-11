@@ -63,7 +63,7 @@ function getErrorMessage(error: unknown) {
 function LoadingCard() {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" />
+      <Loader2 className="size-4 animate-spin" />{" "}
       Carregando dados…
     </div>
   );
@@ -423,7 +423,7 @@ export default function MeusDadosPage() {
                     className="size-4 rounded border-[var(--border)]"
                     checked={necessitaAtendimentoAcessivel}
                     onChange={(e) => setNecessitaAtendimentoAcessivel(e.target.checked)}
-                  />
+                  />{" "}
                   Necessito de atendimento acessível
                 </label>
                 <p className="text-xs text-muted-foreground">

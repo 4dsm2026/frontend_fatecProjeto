@@ -562,7 +562,7 @@ export default function ComunicacoesPage() {
                 </button>
                 {dirty.has(current.id) && (
                   <span className="inline-flex items-center gap-1.5 text-xs text-amber-600">
-                    <span className="size-1.5 rounded-full bg-amber-500" />
+                    <span className="size-1.5 rounded-full bg-amber-500" />{" "}
                     Alterações não salvas
                   </span>
                 )}
