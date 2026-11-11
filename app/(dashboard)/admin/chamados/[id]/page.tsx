@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { cx } from '../../../../../utils/cx'
 import TicketStatusBadge from "../../../../components/shared/TicketStatusBadge";
 import LoadingSpinner from "../../../../components/shared/LoadingSpinner";
+import { rotuloProtocolo } from "../../../../../utils/protocolo";
 
 /* ===== Tipos ===== */
 type Nivel = "N1" | "N2" | "N3";
@@ -479,7 +480,7 @@ export default function AdminChamadoPage() {
       <div className="rounded-xl border border-[var(--border)] bg-card p-4 mb-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">{ticket.protocolo ?? `#${ticket.id}`}</div>
+            <div className="text-xs text-muted-foreground">{rotuloProtocolo(ticket.protocolo)}</div>
             <h1 className="font-grotesk text-xl sm:text-2xl font-semibold tracking-tight line-clamp-2">
               {ticket.titulo}
             </h1>

@@ -11,6 +11,7 @@ import PriorityDot from "../../../components/shared/PriorityDot";
 import Alert from "../../../components/ui/Alert";
 import EmptyState from "../../../components/ui/EmptyState";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 /* ----------------------------- Tipos ----------------------------- */
 type Status =
@@ -201,7 +202,7 @@ export default function AdminHomePage() {
                 {items.map((c) => (
                   <tr key={c.id} className="hover:bg-[var(--muted)]/20 transition">
                     <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                      {c.protocolo ?? `#${c.id.slice(0, 8)}`}
+                      {rotuloProtocolo(c.protocolo)}
                     </td>
                     <td className="px-4 py-3 max-w-[360px]">
                       <div className="line-clamp-1 font-medium">{c.titulo}</div>
