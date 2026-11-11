@@ -411,12 +411,12 @@ export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Pro
 
         <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
           {/* Toggle */}
-          <label className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none">
+          <label htmlFor="novo-aluno-senha-personalizada" className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none">
             <div className="flex items-center gap-2.5">
               <KeyRound className="size-4 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-sm font-medium leading-tight">Definir senha personalizada</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p id="novo-aluno-senha-personalizada-ajuda" className="text-xs text-muted-foreground mt-0.5">
                   {usarSenhaPersonalizada
                     ? "O aluno deverá trocar esta senha no primeiro acesso."
                     : "Por padrão, o sistema usa a senha temporária configurada pelo administrador."}
@@ -424,9 +424,11 @@ export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Pro
               </div>
             </div>
             <button
+              id="novo-aluno-senha-personalizada"
               type="button"
               role="switch"
               aria-checked={usarSenhaPersonalizada}
+              aria-describedby="novo-aluno-senha-personalizada-ajuda"
               onClick={() => {
                 setUsarSenhaPersonalizada((v) => !v);
                 if (!usarSenhaPersonalizada) setSenhaInicial("");
