@@ -158,7 +158,7 @@ export default function AdminChamadosPage() {
     <div className="space-y-6">
       {/* Toolbar / Filtros */}
       <div className="rounded-xl border border-[var(--border)] bg-card p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           {/* Esquerda: busca */}
           <div className="relative sm:w-[360px]">
             <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
@@ -171,8 +171,8 @@ export default function AdminChamadosPage() {
           </div>
 
           {/* Direita: filtros + toggle de visão */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-wrap gap-2">
               <div className="relative">
                 <Filter className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <select
