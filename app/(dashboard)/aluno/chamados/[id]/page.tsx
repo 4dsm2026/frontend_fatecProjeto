@@ -21,6 +21,7 @@ import type { TicketAttachment } from "../../../../../utils/ticket-attachments";
 import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
+import { rotuloProtocolo } from "../../../../../utils/protocolo";
 
 /* ================= Constantes ================= */
 
@@ -629,7 +630,7 @@ export default function ChamadoDetalhePage() {
       <div>
         <h1 className="text-xl sm:text-2xl font-bold mb-1">{chamado.titulo}</h1>
         <p className="text-sm text-muted-foreground mb-4">
-          Protocolo: {chamado.protocolo ?? `#${chamado.id}`}
+          {chamado.protocolo ? `Protocolo: ${chamado.protocolo}` : rotuloProtocolo(chamado.protocolo)}
         </p>
         <div className="space-y-2 text-sm border-t border-b py-4">
           <p>

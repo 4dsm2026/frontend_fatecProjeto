@@ -17,6 +17,7 @@ import { cx } from '../../../../../utils/cx'
 import TicketStatusBadge from "../../../../components/shared/TicketStatusBadge";
 import KpiCard from "../../../../components/shared/KpiCard";
 import FormAlunoEdit from "../../_components/FormAlunoEdit";
+import { rotuloProtocolo } from "../../../../../utils/protocolo";
 
 /* ===================== Tipos ===================== */
 type Papel = "USUARIO" | "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR";
@@ -457,7 +458,7 @@ export default function PageAlunoDetalhe() {
             <tbody>
               {filtrados.map((c) => (
                 <tr key={c.id} className="border-t border-[var(--border)]">
-                  <td className="px-4 py-3 font-medium">{c.protocolo ?? `#${c.id}`}</td>
+                  <td className="px-4 py-3 font-medium">{rotuloProtocolo(c.protocolo)}</td>
                   <td className="px-4 py-3 max-w-[360px]"><div className="line-clamp-1">{c.titulo}</div></td>
                   <td className="px-4 py-3 hidden md:table-cell">{c.setor ?? "—"}</td>
                   <td className="px-4 py-3 hidden lg:table-cell">{c.nivel}</td>
