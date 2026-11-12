@@ -14,6 +14,7 @@ import {
   Mail,
   RotateCcw,
 } from "lucide-react";
+import { isEmailAddress } from "../../../../utils/email";
 
 const COURSES = [
   { key: "DSM",   sigla: "DSM",   nome: "Desenvolvimento de Software Multiplataforma" },
@@ -44,20 +45,7 @@ const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
 
-export function isEmailAddress(value: string): boolean {
-  const parts = value.split("@");
-  if (parts.length !== 2) return false;
-  const [local, domain] = parts;
-  const dotIndex = domain.indexOf(".", 1);
-  return Boolean(
-    local &&
-      domain &&
-      !/\s/.test(local) &&
-      !/\s/.test(domain) &&
-      dotIndex > 0 &&
-      dotIndex < domain.length - 1,
-  );
-}
+export { isEmailAddress };
 
 type PayloadValue = string | boolean | undefined;
 

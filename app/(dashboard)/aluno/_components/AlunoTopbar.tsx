@@ -6,6 +6,7 @@ import { Bell, Loader2, Moon, Sun, User } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
+import { textoBadgeNaoLidas } from "../../../../utils/notificacoes";
 
 type Props = {
   notificationsHref?: string;
@@ -94,8 +95,7 @@ export default function AlunoTopbar({
     return () => window.removeEventListener("notificacoes-lidas", handler);
   }, [fetchUnread]);
 
-  const badgeText =
-    unread === null ? "" : unread > 99 ? "99+" : unread > 0 ? String(unread) : "";
+  const badgeText = textoBadgeNaoLidas(unread);
   const hasUnread = !loadingUnread && !!unread && unread > 0;
 
   return (
@@ -137,15 +137,16 @@ export default function AlunoTopbar({
           title={hasUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
         >
           <Bell className={cx("size-4", hasUnread && "text-red-500 dark:text-red-400")} />
-          {loadingUnread ? (
+          {loadingUnread && (
             <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
               <Loader2 className="size-3 animate-spin" />
             </span>
-          ) : hasUnread ? (
+          )}
+          {hasUnread && (
             <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
               {badgeText}
             </span>
-          ) : null}
+          )}
         </Link>
 
         {/* Profile */}
