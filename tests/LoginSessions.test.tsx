@@ -31,8 +31,9 @@ function respond(status: number, body: unknown, headers: Record<string, string> 
   return fetchMock;
 }
 
-async function entrar(identifier = "joao@example.com") {
+async function entrar(identifier = "joao@example.com", aba?: RegExp) {
   render(<LoginContent />);
+  if (aba) await userEvent.click(screen.getByRole("button", { name: aba }));
   fireEvent.change(document.getElementById("identifier") as HTMLInputElement, {
     target: { value: identifier },
   });
@@ -46,6 +47,23 @@ async function expectFailure(description: string): Promise<void> {
   expect(storeSession).not.toHaveBeenCalled();
   expect(window.location.href).toBe(LOGIN_URL);
 }
+
+describe("abas de login", () => {
+  it("não troca de aba sozinha enquanto se digita um e-mail sem @", async () => {
+    render(<LoginContent />);
+    await userEvent.type(document.getElementById("identifier") as HTMLInputElement, "ana.costa");
+    expect(screen.getByLabelText(/email institucional/i)).toBeInTheDocument();
+    expect((document.getElementById("identifier") as HTMLInputElement).value).toBe("ana.costa");
+  });
+
+  it("trocar de aba limpa o campo", async () => {
+    render(<LoginContent />);
+    await userEvent.type(document.getElementById("identifier") as HTMLInputElement, "ana.costa");
+    await userEvent.click(screen.getByRole("button", { name: /aluno \(ra\)/i }));
+    expect(screen.getByLabelText(/registro de aluno/i)).toBeInTheDocument();
+    expect((document.getElementById("identifier") as HTMLInputElement).value).toBe("");
+  });
+});
 
 describe("login via POST /sessions", () => {
   it("envia POST /sessions com credenciais e inclui cookies", async () => {
@@ -68,10 +86,10 @@ describe("login via POST /sessions", () => {
     await expectFailure("Credenciais inválidas");
   });
 
-  it("envia o RA no corpo quando o identificador não é e-mail", async () => {
+  it("envia o RA no corpo na aba Aluno (RA)", async () => {
     const fetchMock = respond(401, { title: "Credenciais inválidas", status: 401 }, problemHeaders);
 
-    await entrar("1234567");
+    await entrar("1234567", /aluno \(ra\)/i);
 
     const call = fetchMock.mock.calls[0];
     expect(call).toBeDefined();
