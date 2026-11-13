@@ -275,7 +275,7 @@ describe("Página da secretaria", () => {
     expect(screen.getByText("R.A. 123")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Exportar CSV/ })).toBeInTheDocument();
 
-    const url = new URL(String(api.fetchMock.mock.calls[0][0]), "http://x");
+    const url = new URL(String(api.fetchMock.mock.calls[0][0]), "https://x");
     expect(url.searchParams.get("ativos")).toBe("true");
     expect(url.searchParams.get("ano")).toBe(String(ano));
   });
