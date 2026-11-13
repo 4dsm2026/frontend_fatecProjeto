@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Search, Plus, Building2, Users, Pencil, Trash2, X, Check,
@@ -10,12 +10,21 @@ import { toast } from "sonner";
 import { cx } from '../../../../utils/cx'
 import { apiFetch } from "../../../../utils/api";
 import { collectPages, followLink, hasLink } from "../../../../utils/hal";
-import type { HalResource } from "../../../../utils/hal";
+import type { HalCollection, HalResource } from "../../../../utils/hal";
 import ConfirmDialog, { type ConfirmDialogProps } from "../../../components/ui/ConfirmDialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
 type DialogConfig = Omit<ConfirmDialogProps, "open" | "onClose">;
+
+/** Recusa resultados parciais: collectPages pode terminar quando uma página seguinte falha. */
+async function collectCompletePages<T>(first: HalCollection<T>, rel: string): Promise<T[]> {
+  const items = await collectPages<T>(first, rel);
+  if ((first.page && items.length !== first.page.totalElements) || (!first.page && hasLink(first, "next"))) {
+    throw new Error("Não foi possível carregar todos os resultados paginados.");
+  }
+  return items;
+}
 
 /* ===================== Tipos alinhados ao schema ===================== */
 type PapelCatalogo = {
@@ -76,8 +85,15 @@ export default function SetoresPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [membros, setMembros] = useState<Membro[]>([]);
 
+  const membrosRequestId = useRef(0);
   const [loadingSetores, setLoadingSetores] = useState(true);
   const [loadingMembros, setLoadingMembros] = useState(false);
+  const [erroSetores, setErroSetores] = useState<string | null>(null);
+  const [erroMembros, setErroMembros] = useState<string | null>(null);
+  const [erroPapeis, setErroPapeis] = useState<string | null>(null);
+  const [erroUsuarios, setErroUsuarios] = useState<string | null>(null);
+  const [loadingPapeis, setLoadingPapeis] = useState(true);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(true);
   const [busy, setBusy] = useState(false);
 
   const [qSetor, setQSetor] = useState("");
@@ -90,16 +106,19 @@ export default function SetoresPage() {
   /* ── Carga inicial: setores, papéis e funcionários ── */
   const carregarSetores = useCallback(async (selecionar?: string) => {
     setLoadingSetores(true);
+    setErroSetores(null);
     try {
       const res = await apiFetch(`${API_URL}/admin/sectors?size=100`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Falha ao carregar setores (${res.status})`);
       const json = await res.json();
+      const lista = await collectCompletePages<Setor>(json, "sectors");
       setSetoresCollection(json);
-      const lista = await collectPages<Setor>(json, "sectors");
       setSetores(lista);
       setCurrentSetorId(prev => selecionar ?? (lista.some(s => s.id === prev) ? prev : lista[0]?.id ?? ""));
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao carregar setores");
+      const mensagem = e instanceof Error ? e.message : "Erro ao carregar setores";
+      setErroSetores(mensagem);
+      toast.error(mensagem);
     } finally {
       setLoadingSetores(false);
     }
@@ -109,34 +128,57 @@ export default function SetoresPage() {
     carregarSetores();
 
     apiFetch(`${API_URL}/admin/roles`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : []))
-      .then(async (data) => setPapeis(await collectPages<PapelCatalogo>(data, "roles")))
-      .catch(() => {});
+      .then((r) => {
+        if (!r.ok) throw new Error(`Falha ao carregar papéis (${r.status})`);
+        return r.json();
+      })
+      .then(async (data) => setPapeis(await collectCompletePages<PapelCatalogo>(data, "roles")))
+      .catch((e: unknown) => {
+        const mensagem = e instanceof Error ? e.message : "Erro ao carregar papéis";
+        setErroPapeis(mensagem);
+        toast.error(mensagem);
+      })
+      .finally(() => setLoadingPapeis(false));
 
     // Candidatos para atribuição: apenas contas de equipe (não-aluno) e ativas.
     apiFetch(`${API_URL}/users?size=100&ativo=true`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error(`Falha ao carregar funcionários (${r.status})`);
+        return r.json();
+      })
       .then(async (json) => {
-        const items = json ? await collectPages<Usuario>(json, "users") : [];
+        const items = await collectCompletePages<Usuario>(json, "users");
         setUsuarios(items.filter((u) => u.ativo && u.papel && u.papel !== "USUARIO"));
       })
-      .catch(() => {});
+      .catch((e: unknown) => {
+        const mensagem = e instanceof Error ? e.message : "Erro ao carregar funcionários";
+        setErroUsuarios(mensagem);
+        toast.error(mensagem);
+      })
+      .finally(() => setLoadingUsuarios(false));
   }, [carregarSetores]);
 
   /* ── Membros do setor selecionado ── */
   const carregarMembros = useCallback(async (setorId: string) => {
-    if (!setorId) { setMembros([]); return; }
+    const requestId = ++membrosRequestId.current;
+    if (!setorId) { setMembros([]); setLoadingMembros(false); setErroMembros(null); return; }
     setLoadingMembros(true);
+    setErroMembros(null);
     try {
       const res = await apiFetch(`${API_URL}/admin/sectors/${setorId}/users?size=100`, { cache: "no-store" });
       if (!res.ok) throw new Error(`Falha ao carregar membros (${res.status})`);
       const json = await res.json();
-      setMembros(await collectPages<Membro>(json, "users"));
+      const lista = await collectCompletePages<Membro>(json, "users");
+      if (requestId !== membrosRequestId.current) return;
+      setMembros(lista);
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "Erro ao carregar membros do setor");
+      if (requestId !== membrosRequestId.current) return;
+      const mensagem = e instanceof Error ? e.message : "Erro ao carregar membros do setor";
+      setErroMembros(mensagem);
+      toast.error(mensagem);
       setMembros([]);
     } finally {
-      setLoadingMembros(false);
+      if (requestId === membrosRequestId.current) setLoadingMembros(false);
     }
   }, []);
 
@@ -335,11 +377,16 @@ export default function SetoresPage() {
             <div className="px-3 py-10 flex items-center justify-center text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
             </div>
-          ) : (
+          ) : null}
+          {!loadingSetores && erroSetores && (
+            <p role="alert" className="px-3 py-8 text-sm text-destructive">{erroSetores}</p>
+          )}
+          {!loadingSetores && !erroSetores && (
             <ul className="mt-2 space-y-1">
               {setoresFiltrados.map((s) => (
                 <li key={s.id}>
                   <button type="button"
+                    disabled={busy}
                     className={cx(
                       "w-full text-left rounded-lg px-3 py-2 transition flex items-center justify-between",
                       currentSetorId === s.id ? "bg-primary text-primary-foreground shadow-sm" : "hover:bg-[var(--muted)]/70"
@@ -352,7 +399,7 @@ export default function SetoresPage() {
                     </span>
                     {currentSetorId === s.id && (
                       <span className="inline-flex items-center gap-1 text-xs rounded-md border bg-background/20 px-1.5 py-0.5">
-                        <Users className="size-3" /> {membros.length}
+                        <Users className="size-3" /> {erroMembros ? "—" : membros.length}
                       </span>
                     )}
                   </button>
@@ -368,7 +415,7 @@ export default function SetoresPage() {
           <div className="mt-3 flex items-center justify-between px-2">
             <button type="button"
               onClick={criarSetor}
-              disabled={busy || !hasLink(setoresCollection, "create")}
+              disabled={busy || loadingSetores || !!erroSetores || !hasLink(setoresCollection, "create")}
               className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"
             >
               <Plus className="size-4" /> Novo setor
@@ -376,14 +423,14 @@ export default function SetoresPage() {
             <div className="flex items-center gap-2">
               <button type="button"
                 onClick={renomearSetor}
-                disabled={busy || !hasLink(currentSetor, "update")}
+                disabled={busy || loadingSetores || !!erroSetores || !hasLink(currentSetor, "update")}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 <Pencil className="size-4" /> Renomear
               </button>
               <button type="button"
                 onClick={removerSetor}
-                disabled={busy || !hasLink(currentSetor, "delete")}
+                disabled={busy || loadingSetores || !!erroSetores || loadingMembros || !!erroMembros || !hasLink(currentSetor, "delete")}
                 className="inline-flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] text-sm hover:bg-[var(--muted)] disabled:opacity-50"
               >
                 <Trash2 className="size-4" /> Remover
@@ -401,9 +448,13 @@ export default function SetoresPage() {
 
       {/* Painel de detalhes do setor selecionado */}
       <section className="xl:col-span-8">
-        {!currentSetor ? (
+        {erroPapeis && <p role="alert" className="text-sm text-destructive">{erroPapeis}</p>}
+        {erroUsuarios && <p role="alert" className="text-sm text-destructive">{erroUsuarios}</p>}
+        {!currentSetor || erroSetores || loadingSetores ? (
           <div className="rounded-xl border border-[var(--border)] bg-card p-6 text-center text-muted-foreground">
-            {loadingSetores ? "Carregando…" : "Nenhum setor cadastrado. Crie o primeiro à esquerda."}
+            {loadingSetores && "Carregando…"}
+            {!loadingSetores && erroSetores && "Não foi possível carregar os setores."}
+            {!loadingSetores && !erroSetores && "Nenhum setor cadastrado. Crie o primeiro à esquerda."}
           </div>
         ) : (
           <div className="space-y-4">
@@ -416,7 +467,7 @@ export default function SetoresPage() {
               <div className="flex items-center gap-2">
                 <button type="button"
                   onClick={() => setDrawerOpen(true)}
-                  disabled={busy}
+                  disabled={busy || loadingMembros || !!erroMembros || loadingPapeis || !!erroPapeis || loadingUsuarios || !!erroUsuarios}
                   className="inline-flex items-center gap-2 h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:brightness-95 disabled:opacity-50"
                 >
                   <Plus className="size-4" /> Atribuir funcionários
@@ -428,7 +479,7 @@ export default function SetoresPage() {
             <div className="rounded-xl border border-[var(--border)] bg-card overflow-hidden">
               <div className="px-4 py-3 bg-[var(--muted)] text-sm font-semibold flex items-center justify-between">
                 <span>Membros do setor</span>
-                <span className="text-muted-foreground font-normal">{membros.length} membro(s)</span>
+                <span className="text-muted-foreground font-normal">{erroMembros ? "Membros indisponíveis" : `${membros.length} membro(s)`}</span>
               </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full text-sm">
@@ -447,7 +498,11 @@ export default function SetoresPage() {
                           <Loader2 className="size-5 animate-spin inline" />
                         </td>
                       </tr>
-                    ) : membrosOrdenados.map((m) => (
+                    ) : null}
+                    {!loadingMembros && erroMembros && (
+                      <tr><td colSpan={4} role="alert" className="px-4 py-10 text-center text-destructive">{erroMembros}</td></tr>
+                    )}
+                    {!loadingMembros && !erroMembros && membrosOrdenados.map((m) => (
                       <tr key={m.id} className="border-t border-[var(--border)]">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2">
@@ -468,7 +523,7 @@ export default function SetoresPage() {
                             <select
                               className="h-9 px-2 rounded-md border border-[var(--border)] bg-background text-sm disabled:opacity-50"
                               value={m.papelId ?? ""}
-                              disabled={busy || !hasLink(m, "update")}
+                              disabled={busy || loadingPapeis || !!erroPapeis || !hasLink(m, "update")}
                               onChange={(e) => trocarPapel(m.id, e.target.value)}
                             >
                               <option value="">— sem papel —</option>
@@ -488,7 +543,7 @@ export default function SetoresPage() {
                         </td>
                       </tr>
                     ))}
-                    {!loadingMembros && membrosOrdenados.length === 0 && (
+                    {!loadingMembros && !erroMembros && membrosOrdenados.length === 0 && (
                       <tr>
                         <td colSpan={4} className="px-4 py-10 text-center text-muted-foreground">
                           Nenhum membro neste setor.
@@ -517,7 +572,7 @@ export default function SetoresPage() {
       </section>
 
       {/* Drawer de atribuição */}
-      {drawerOpen && currentSetor && (
+      {drawerOpen && currentSetor && !loadingSetores && !erroSetores && (
         <AssignDrawer
           onClose={() => setDrawerOpen(false)}
           usuarios={usuarios}
