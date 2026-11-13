@@ -12,6 +12,7 @@ import {
   Building2,
   LogOut,
   BusFront,
+  ClipboardList,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -99,6 +100,12 @@ export default function SidebarAdmin({
         href: "/admin/passe-escolar",
         label: "Passe Escolar",
         icon: <BusFront className="size-4" />,
+        badge: "Beta",
+      },
+      {
+        href: "/admin/pesquisas",
+        label: "Pesquisa CPA",
+        icon: <ClipboardList className="size-4" />,
         badge: "Beta",
       },
       {

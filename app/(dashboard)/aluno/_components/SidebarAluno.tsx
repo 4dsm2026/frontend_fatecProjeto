@@ -11,6 +11,7 @@ import {
   LogOut,
   MessageSquarePlus,
   BusFront,
+  ClipboardList,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SidebarNav, {
@@ -50,6 +51,12 @@ export default function SidebarAluno({
       href: "/aluno/passe-escolar",
       label: "Passe Escolar",
       icon: <BusFront className="size-4" />,
+      badge: "Beta",
+    },
+    {
+      href: "/aluno/pesquisas",
+      label: "Pesquisa CPA",
+      icon: <ClipboardList className="size-4" />,
       badge: "Beta",
     },
     {
