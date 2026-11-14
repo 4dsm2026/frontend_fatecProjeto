@@ -13,6 +13,7 @@ import {
   BusFront,
   ClipboardList,
   PauseCircle,
+  Map as MapIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SidebarNav, {
@@ -52,6 +53,12 @@ export default function SidebarAluno({ onClose }: { onClose?: () => void }) {
       href: "/aluno/pesquisas",
       label: "Pesquisa CPA",
       icon: <ClipboardList className="size-4" />,
+      badge: "Beta",
+    },
+    {
+      href: "/aluno/mapa-de-salas",
+      label: "Mapa de salas",
+      icon: <MapIcon className="size-4" />,
       badge: "Beta",
     },
     {
