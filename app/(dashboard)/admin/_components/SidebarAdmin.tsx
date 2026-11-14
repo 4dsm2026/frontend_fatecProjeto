@@ -13,6 +13,7 @@ import {
   LogOut,
   BusFront,
   ClipboardList,
+  PauseCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -79,6 +80,12 @@ export default function SidebarAdmin({
         label: "Gerenciar Alunos",
         icon: <Users className="size-4" />,
         badge: pendenciasCount || undefined,
+      },
+      {
+        href: "/admin/matricula",
+        label: "Trancamentos",
+        icon: <PauseCircle className="size-4" />,
+        badge: "Beta",
       },
       {
         href: "/admin/funcionarios",
