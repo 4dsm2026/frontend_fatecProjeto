@@ -26,6 +26,7 @@ import { apiFetch } from "../../../../../utils/api";
 import { uploadTicketAttachment } from "../../../../../utils/ticket-attachments";
 import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
+import { ehServicoDeTrancamento } from "../../../../../utils/matricula";
 
 type ServicoComCategoria = ServicoCatalogo & { categoriaNome: string };
 type DadosAcademicos = {
@@ -373,6 +374,13 @@ export default function SolicitacaoCatalogoPage() {
           <Link href="/aluno/catalogo" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"><ArrowLeft className="size-4" /> Voltar ao catálogo</Link>
           <h1 className="font-grotesk text-2xl font-semibold tracking-tight mt-3">Nova solicitação acadêmica</h1>
           <p className="text-xs text-muted-foreground mt-2">Preencha as etapas abaixo. O ticket será criado somente após a revisão final.</p>
+          {ehServicoDeTrancamento(servico) && (
+            <p className="mt-3 rounded-lg border border-[var(--info)]/40 bg-[var(--info)]/10 px-3 py-2 text-sm text-[var(--info)]">
+              Para <strong>trancar ou cancelar</strong> a matrícula, use a seção{" "}
+              <Link href="/aluno/matricula" className="font-medium underline">Trancamento e cancelamento</Link> (beta), que mostra cada etapa do pedido.
+              Use este formulário para destrancamento ou dúvidas.
+            </p>
+          )}
         </div>
         <MobileSidebarTriggerAluno />
       </div>
