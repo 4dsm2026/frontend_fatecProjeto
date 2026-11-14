@@ -14,6 +14,7 @@ import {
   BusFront,
   ClipboardList,
   PauseCircle,
+  Map as MapIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -80,6 +81,12 @@ export default function SidebarAdmin({
         label: "Gerenciar Alunos",
         icon: <Users className="size-4" />,
         badge: pendenciasCount || undefined,
+      },
+      {
+        href: "/admin/mapa-de-salas",
+        label: "Mapa de salas",
+        icon: <MapIcon className="size-4" />,
+        badge: "Beta",
       },
       {
         href: "/admin/matricula",
