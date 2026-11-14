@@ -113,7 +113,7 @@ export default function RegrasRoteamento({ regras, setores, categorias, onMudou 
           className="mb-4 grid gap-3 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 p-4 sm:grid-cols-2"
           onSubmit={(e) => {
             e.preventDefault();
-            salvar();
+            void salvar();
           }}
         >
           <label className="block space-y-1 text-sm sm:col-span-2">
@@ -173,7 +173,7 @@ export default function RegrasRoteamento({ regras, setores, categorias, onMudou 
           </label>
           <label className="flex items-center gap-2 self-end pb-2 text-sm">
             <input type="checkbox" className="size-4" checked={form.ativo} onChange={(e) => mudar("ativo", e.target.checked)} />
-            Regra ativa
+            <span>Regra ativa</span>
           </label>
           <div className="flex justify-end gap-2 sm:col-span-2">
             <Button type="button" variant="ghost" onClick={() => setEditando(null)}>
@@ -210,8 +210,8 @@ export default function RegrasRoteamento({ regras, setores, categorias, onMudou 
                 </p>
               </div>
               <label className="flex items-center gap-1.5 text-xs">
-                <input type="checkbox" className="size-4" checked={r.ativo} onChange={() => alternar(r)} aria-label={`Regra ${r.nome} ativa`} />
-                Ativa
+                <input type="checkbox" className="size-4" checked={r.ativo} onChange={() => void alternar(r)} aria-label={`Regra ${r.nome} ativa`} />
+                <span>Ativa</span>
               </label>
               <Button size="icon" variant="ghost" aria-label={`Editar ${r.nome}`} onClick={() => abrir(r)} disabled={editando !== null}>
                 <Pencil className="size-4" />

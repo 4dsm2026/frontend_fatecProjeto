@@ -83,8 +83,8 @@ export default function SimularRoteamento({ categorias }: Readonly<{ categorias:
       </div>
 
       {resultado && (
-        <div role="status" className="mt-4 space-y-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 p-3 text-sm">
-          <p>
+        <output className="mt-4 block space-y-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 p-3 text-sm">
+          <span className="block">
             Vai para <b>{resultado.setor?.nome ?? "nenhum setor"}</b>
             {resultado.setorCopia && (
               <>
@@ -92,23 +92,23 @@ export default function SimularRoteamento({ categorias }: Readonly<{ categorias:
               </>
             )}
             .
-          </p>
-          <p className="text-muted-foreground">{resultado.motivo}</p>
+          </span>
+          <span className="block text-muted-foreground">{resultado.motivo}</span>
           {resultado.setor?.prazoEscalonamentoHoras ? (
-            <p className="text-muted-foreground">Escalona ao 2º nível depois de {resultado.setor.prazoEscalonamentoHoras} h úteis sem responsável.</p>
+            <span className="block text-muted-foreground">Escalona ao 2º nível depois de {resultado.setor.prazoEscalonamentoHoras} h úteis sem responsável.</span>
           ) : null}
           {resultado.emails.length ? (
-            <ul className="list-inside list-disc">
+            <span className="block">
               {resultado.emails.map((e) => (
-                <li key={e.email}>
-                  {e.nome} &lt;{e.email}&gt;{e.emCopia ? " (cópia)" : ""}
-                </li>
+                <span key={e.email} className="block">
+                  {`• ${e.nome} <${e.email}>${e.emCopia ? " (cópia)" : ""}`}
+                </span>
               ))}
-            </ul>
+            </span>
           ) : (
-            <p className="text-[var(--warning)]">Ninguém recebe e-mail na chegada: cadastre o 1º nível desse setor.</p>
+            <span className="block text-[var(--warning)]">Ninguém recebe e-mail na chegada: cadastre o 1º nível desse setor.</span>
           )}
-        </div>
+        </output>
       )}
     </Card>
   );

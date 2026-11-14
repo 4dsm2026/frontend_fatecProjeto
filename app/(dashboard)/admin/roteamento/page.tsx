@@ -41,7 +41,7 @@ export default function AdminRoteamentoPage() {
   }, []);
 
   useEffect(() => {
-    carregarRegras();
+    void carregarRegras();
     json<HalCollection<SetorRef>>("/admin/sectors?page=0&size=100", "Não foi possível carregar os setores.")
       .then((r) => setSetores(embedded<SetorRef>(r, "sectors").map((s) => ({ id: s.id, nome: s.nome })).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"))))
       .catch(() => {});
@@ -55,7 +55,7 @@ export default function AdminRoteamentoPage() {
     ).then((listas) => {
       const porId = new Map(listas.flat().map((u) => [u.id, u]));
       setEquipe([...porId.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")));
-    });
+    }).catch(() => {});
   }, [carregarRegras]);
 
   return (
