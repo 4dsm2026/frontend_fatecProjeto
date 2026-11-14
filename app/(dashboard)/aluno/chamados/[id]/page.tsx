@@ -22,12 +22,21 @@ import type { HalResource } from "../../../../../utils/hal";
 import { getCurrentUser } from "../../../../../utils/current-user";
 import type { Chamado, Status } from "../../../../../utils/types";
 import { rotuloProtocolo } from "../../../../../utils/protocolo";
+import {
+  ETAPAS_CHAMADO,
+  ORIENTACAO_CHAMADO,
+  etapaDoChamado,
+  tituloHistoricoChamado,
+  type HistoricoChamado,
+} from "../../../../../utils/chamado-etapas";
+import LinhaDeEtapas from "../../../../components/shared/LinhaDeEtapas";
+import HistoricoEtapas from "../../../../components/shared/HistoricoEtapas";
 
 /* ================= Constantes ================= */
 
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
-type ChamadoHal = Chamado & HalResource & { arquivadoEm?: string | null };
+type ChamadoHal = Chamado & HalResource & { arquivadoEm?: string | null; historico?: HistoricoChamado[] };
 
 function textoDeBloqueio(c: ChamadoHal, podeReabrir: boolean): string {
   if (c.arquivadoEm) return "🔒 Solicitação arquivada. Disponível apenas para consulta.";
@@ -45,14 +54,6 @@ const ALLOWED_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   "text/plain",
 ]);
-
-const STATUS_LABELS: Record<Status, string> = {
-  ABERTO: "Solicitação recebida pela Fatec.",
-  EM_ATENDIMENTO: "Em análise pelo setor responsável.",
-  AGUARDANDO_USUARIO: "Aguardando documento ou resposta do aluno.",
-  RESOLVIDO: "Solicitação respondida.",
-  ENCERRADO: "Atendimento finalizado.",
-};
 
 /* ================= Tipos ================= */
 
@@ -638,14 +639,35 @@ export default function ChamadoDetalhePage() {
             <span className="whitespace-pre-wrap">{chamado.descricao || "—"}</span>
           </p>
           <p>
-            <strong>Status:</strong> {STATUS_LABELS[chamado.status] ?? chamado.status}
-          </p>
-          <p>
             <strong>Criado em:</strong>{" "}
             {new Date(chamado.criadoEm).toLocaleString("pt-BR")}
           </p>
         </div>
       </div>
+
+      {/* Em que etapa está e de quem é a vez */}
+      <section aria-labelledby="andamento-titulo" className="space-y-4">
+        <h2 id="andamento-titulo" className="text-sm font-semibold">Andamento</h2>
+        <LinhaDeEtapas etapas={ETAPAS_CHAMADO} {...etapaDoChamado(chamado.status)} aria-label="Etapas da solicitação" />
+        <p className={chamado.status === "AGUARDANDO_USUARIO" ? "text-sm font-medium text-[var(--warning)]" : "text-sm text-muted-foreground"}>
+          {ORIENTACAO_CHAMADO[chamado.status]}
+        </p>
+        {(chamado.historico?.length ?? 0) > 0 && (
+          <details className="rounded-lg border border-[var(--border)] px-4 py-3">
+            <summary className="cursor-pointer text-sm font-medium">Histórico de status</summary>
+            <div className="mt-3">
+              <HistoricoEtapas
+                itens={(chamado.historico ?? []).map((h) => ({
+                  id: h.id,
+                  titulo: tituloHistoricoChamado(h),
+                  criadoEm: h.criadoEm,
+                  autor: h.porUsuarioId && h.porUsuarioId === chamado.criadoPorId ? "Você" : h.porUsuario?.nome,
+                }))}
+              />
+            </div>
+          </details>
+        )}
+      </section>
 
       {/* Dados acadêmicos básicos */}
       {dadosAcademicos && (dadosAcademicos.ra || dadosAcademicos.curso) && (
