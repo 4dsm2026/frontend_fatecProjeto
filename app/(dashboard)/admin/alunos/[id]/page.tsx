@@ -18,6 +18,8 @@ import TicketStatusBadge from "../../../../components/shared/TicketStatusBadge";
 import KpiCard from "../../../../components/shared/KpiCard";
 import FormAlunoEdit from "../../_components/FormAlunoEdit";
 import { rotuloProtocolo } from "../../../../../utils/protocolo";
+import { SituacaoBadge, SolicitacaoStatusBadge } from "../../../../components/shared/MatriculaBadges";
+import { MAX_TRANCAMENTOS, TIPO_LABEL, rotuloMotivo, type Solicitacao } from "../../../../../utils/matricula";
 
 /* ===================== Tipos ===================== */
 type Papel = "USUARIO" | "BACKOFFICE" | "TECNICO" | "ADMINISTRADOR";
@@ -68,7 +70,8 @@ type Chamado = {
   status: StatusChamado;
   prioridade: Prioridade;
   nivel: Nivel;
-  setor?: string | null;
+  /** A API devolve o setor como objeto ({ id, nome, … }); dados antigos podem vir como texto. */
+  setor?: { nome?: string | null } | string | null;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -128,6 +131,7 @@ export default function PageAlunoDetalhe() {
   const [loading, setLoading] = useState(true);
   const [aluno, setAluno] = useState<Usuario | null>(null);
   const [chamados, setChamados] = useState<Chamado[]>([]);
+  const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<StatusChamado | "ALL">("ALL");
@@ -164,7 +168,11 @@ export default function PageAlunoDetalhe() {
         // GET /tickets responde em HAL: os chamados ficam em _embedded.tickets.
         const cs = embedded<Chamado>(json as HalCollection<Chamado>, "tickets");
 
-        if (active) { setAluno(u); setChamados(cs); }
+        // Pedidos de trancamento/cancelamento: falha aqui não derruba a ficha.
+        const sRes = await apiFetch(`${API_URL}/enrollment-requests?usuarioId=${encodeURIComponent(u.id)}&page=0&size=50`, { cache: "no-store" }).catch(() => null);
+        const ss = sRes?.ok ? embedded<Solicitacao>((await sRes.json()) as HalCollection<Solicitacao>, "enrollment-requests") : [];
+
+        if (active) { setAluno(u); setChamados(cs); setSolicitacoes(ss); }
       } catch (e) {
         console.error(e);
         if (active) toast("Erro ao carregar dados do usuário.");
@@ -322,6 +330,7 @@ export default function PageAlunoDetalhe() {
                 <Pill><Badge className="size-3" /> RA: {aluno.ra ?? "—"}</Pill>
                 <Pill><Shield className="size-3" /> {aluno.papel}</Pill>
                 <Pill>{aluno.ativo ? <><Dot /> Ativo</> : <><Dot tone="muted" /> Inativo</>}</Pill>
+                {aluno.papel === "USUARIO" && <SituacaoBadge situacao={aluno.situacaoAcademica} />}
               </div>
             </div>
           </div>
@@ -379,6 +388,35 @@ export default function PageAlunoDetalhe() {
           </div>
         </SectionCard>
       </div>
+
+      {/* Trancamento e cancelamento */}
+      {aluno.papel === "USUARIO" && (
+        <div className="rounded-xl border border-[var(--border)] bg-card p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="font-medium text-sm">Trancamento e cancelamento</h3>
+            <span className="text-xs text-muted-foreground">
+              Trancamentos deferidos: {solicitacoes.filter((s) => s.tipo === "TRANCAMENTO" && s.status === "DEFERIDO").length} de {MAX_TRANCAMENTOS}
+            </span>
+          </div>
+          {solicitacoes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum pedido.</p>
+          ) : (
+            <ul className="divide-y divide-[var(--border)]">
+              {solicitacoes.map((s) => (
+                <li key={s.id}>
+                  <Link href={`/admin/matricula/${s.id}`} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm hover:underline">
+                    <span>
+                      <span className={s.tipo === "CANCELAMENTO" ? "font-medium text-destructive" : "font-medium"}>{TIPO_LABEL[s.tipo]}</span>
+                      {" "}· {s.semestre} · <span className="text-muted-foreground">{rotuloMotivo(s.motivo)}</span>
+                    </span>
+                    <SolicitacaoStatusBadge status={s.status} />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -460,7 +498,7 @@ export default function PageAlunoDetalhe() {
                 <tr key={c.id} className="border-t border-[var(--border)]">
                   <td className="px-4 py-3 font-medium">{rotuloProtocolo(c.protocolo)}</td>
                   <td className="px-4 py-3 max-w-[360px]"><div className="line-clamp-1">{c.titulo}</div></td>
-                  <td className="px-4 py-3 hidden md:table-cell">{c.setor ?? "—"}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">{(typeof c.setor === "string" ? c.setor : c.setor?.nome) ?? "—"}</td>
                   <td className="px-4 py-3 hidden lg:table-cell">{c.nivel}</td>
                   <td className="px-4 py-3"><TicketStatusBadge status={c.status} /></td>
                   <td className="px-4 py-3 hidden lg:table-cell">{c.prioridade}</td>
