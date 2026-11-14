@@ -24,14 +24,16 @@ export function useIndicadoresAluno(pathname: string) {
 
   useEffect(() => {
     let ativo = true;
-    const atualizar = () =>
-      Promise.all([contar(["AGUARDANDO_USUARIO"]), contar([])])
+    // Não devolve a promise: quem chama (efeito e setInterval) não espera o resultado.
+    const atualizar = () => {
+      void Promise.all([contar(["AGUARDANDO_USUARIO"]), contar([])])
         .then(([a, t]) => {
           if (!ativo) return;
           setAguardando(a);
           setTotal(t);
         })
         .catch(() => {}); // indicador é auxiliar: falha de rede não pode quebrar a barra lateral
+    };
     atualizar();
     const intervalo = setInterval(atualizar, 60_000);
     return () => {
