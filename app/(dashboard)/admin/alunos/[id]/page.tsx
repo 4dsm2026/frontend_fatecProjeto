@@ -68,7 +68,8 @@ type Chamado = {
   status: StatusChamado;
   prioridade: Prioridade;
   nivel: Nivel;
-  setor?: string | null;
+  /** A API devolve o setor como objeto ({ id, nome, … }); dados antigos podem vir como texto. */
+  setor?: { nome?: string | null } | string | null;
 };
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
@@ -460,7 +461,7 @@ export default function PageAlunoDetalhe() {
                 <tr key={c.id} className="border-t border-[var(--border)]">
                   <td className="px-4 py-3 font-medium">{rotuloProtocolo(c.protocolo)}</td>
                   <td className="px-4 py-3 max-w-[360px]"><div className="line-clamp-1">{c.titulo}</div></td>
-                  <td className="px-4 py-3 hidden md:table-cell">{c.setor ?? "—"}</td>
+                  <td className="px-4 py-3 hidden md:table-cell">{(typeof c.setor === "string" ? c.setor : c.setor?.nome) ?? "—"}</td>
                   <td className="px-4 py-3 hidden lg:table-cell">{c.nivel}</td>
                   <td className="px-4 py-3"><TicketStatusBadge status={c.status} /></td>
                   <td className="px-4 py-3 hidden lg:table-cell">{c.prioridade}</td>

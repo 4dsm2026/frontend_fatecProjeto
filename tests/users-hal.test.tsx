@@ -282,6 +282,29 @@ describe("users HAL integration", () => {
     expect(api.calls.some((call) => call.key === "GET /tickets")).toBe(false);
   });
 
+  it("shows the ticket sector name on the student page (the API sends the sector as an object)", async () => {
+    stubApi({
+      "GET /api": () => json(apiEntry),
+      "GET /users/admin-1": () => json(userResource("admin-1")),
+      "GET /tickets": () =>
+        json({
+          _embedded: {
+            tickets: [
+              {
+                id: "t1", protocolo: "TCK-1", titulo: "Declaração", status: "ABERTO", prioridade: "MEDIA", nivel: "N1",
+                criadoEm: "2026-11-01T00:00:00.000Z",
+                setor: { id: "s1", organizacaoId: "o1", nome: "Secretaria Acadêmica", descricao: null },
+              },
+            ],
+          },
+        }),
+    });
+
+    render(<PageAlunoDetalhe />);
+
+    expect(await screen.findByText("Secretaria Acadêmica")).toBeInTheDocument();
+  });
+
   it("creates through the collection create link and uses the returned HAL resource", async () => {
     const created = {
       id: "created-1",
