@@ -69,6 +69,10 @@ const SETOR_PROVAVEL: Record<string, string> = {
   biblioteca: "Biblioteca",
   "diretoria-administrativo": "Diretoria / Administrativo",
   "apoio-academico": "Apoio Acadêmico",
+  manutencao: "Manutenção",
+  // Por serviço, quando a categoria atende mais de um setor (o roteamento do backend decide).
+  "manutencao-equipamento": "Auxiliares Docentes",
+  "manutencao-predial": "Administração",
 };
 
 const DOCUMENTOS_NECESSARIOS: Record<string, string[]> = {
@@ -88,6 +92,8 @@ const DOCUMENTOS_NECESSARIOS: Record<string, string[]> = {
   "estagio-termo-aditivo": ["Termo aditivo assinado"],
   "estagio-relatorio": ["Relatório de estágio assinado", "Avaliação do supervisor, quando aplicável"],
   "estagio-rescisao": ["Documento de rescisão ou encerramento, quando disponível"],
+  "manutencao-equipamento": ["Foto do equipamento ou da mensagem de erro, quando possível"],
+  "manutencao-predial": ["Foto do problema, quando possível"],
 };
 
 function campo(id: string, label: string, tipo: CampoWizard["tipo"], obrigatorio: boolean, placeholder?: string, opcoes?: string[]): CampoWizard {
@@ -105,6 +111,14 @@ function camposEstagio(): CampoWizard[] {
     campo("dataTermino", "Data de término (previsto)", "texto", false, "DD/MM/AAAA"),
     campo("cargaHorariaSemanal", "Carga horária semanal", "texto", false, "Ex.: 30h"),
     campo("tipoDocumento", "Tipo de documento solicitado", "select", true, undefined, ["Termo de compromisso", "Termo aditivo", "Relatório de estágio", "Rescisão"]),
+  ];
+}
+
+/** Onde está o problema: igual nos dois serviços de manutenção. */
+function camposLocal(): CampoWizard[] {
+  return [
+    campo("bloco", "Bloco / prédio", "texto", true, "Ex.: Bloco B"),
+    campo("sala", "Sala ou ambiente", "texto", true, "Ex.: Laboratório 3, sala 12, banheiro do 1º andar"),
   ];
 }
 
@@ -154,6 +168,17 @@ const CAMPOS_ESPECIFICOS: Record<string, CampoWizard[]> = {
   "sistemas-dados-divergentes-siga": camposSIGA(),
   "sistemas-email-institucional": camposEmailSenha(),
   "sistemas-redefinicao-senha-institucional": camposEmailSenha(),
+  "manutencao-equipamento": [
+    ...camposLocal(),
+    campo("tipoEquipamento", "Tipo de equipamento", "select", true, undefined, ["Computador", "Monitor", "Projetor", "Impressora", "Rede / internet", "Equipamento de laboratório", "Outro"]),
+    campo("patrimonio", "Número de patrimônio", "texto", false, "Etiqueta no equipamento, se houver"),
+    campo("descricaoProblema", "O que está acontecendo?", "textarea", true, "Ex.: o projetor não liga desde a aula de ontem"),
+  ],
+  "manutencao-predial": [
+    ...camposLocal(),
+    campo("tipoProblema", "Tipo de problema", "select", true, undefined, ["Elétrica / iluminação", "Ar-condicionado / ventilação", "Hidráulica / vazamento", "Porta, janela ou fechadura", "Mobiliário", "Limpeza", "Acessibilidade", "Outro"]),
+    campo("descricaoProblema", "O que está acontecendo?", "textarea", true, "Ex.: lâmpada queimada no fundo da sala"),
+  ],
 };
 
 function normalizeCatalog(data: CatalogResponse): CatalogResponse {
@@ -255,7 +280,7 @@ export default function SolicitacaoCatalogoPage() {
   }, []);
 
   const servico = useMemo(() => findServico(catalog, servicoId), [catalog, servicoId]);
-  const setorProvavel = servico ? SETOR_PROVAVEL[servico.categoriaId] ?? servico.categoriaNome : "Setor responsável";
+  const setorProvavel = servico ? SETOR_PROVAVEL[servico.id] ?? SETOR_PROVAVEL[servico.categoriaId] ?? servico.categoriaNome : "Setor responsável";
   const campos = useMemo<CampoWizard[]>(() => {
     if (!servico) return [];
     if (servico.formulario?.disponivel && servico.formulario.campos?.length) return servico.formulario.campos;

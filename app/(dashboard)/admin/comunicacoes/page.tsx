@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Search, Mail, Eye, Send, Download, Upload, Save, Check, X,
+  Search, Mail, Send, Download, Upload, Save, Check, X,
   ToggleLeft, ToggleRight, FileText
 } from "lucide-react";
 import { toast } from "sonner";
@@ -177,6 +177,36 @@ const DEFAULT_TEMPLATES: Template[] = [
       Veja no portal: {{links.portalAlunoChamado}}`,
     variaveis: ["aluno.nome", "chamado.protocolo", "anexo.nomeArquivo", "anexo.tamanhoBytes", "links.portalAlunoChamado"],
   },
+  {
+    id: "tpl-09",
+    key: "TICKET_ROUTED",
+    nome: "Chamado chegou ao setor (roteamento)",
+    descricao: "Enviado ao 1º nível e às cópias do setor quando um chamado chega (Roteamento).",
+    habilitado: true,
+    assunto: "Novo chamado {{chamado.protocolo}} para {{setor.nome}}",
+    corpo:
+      `Olá {{destinatario.nome}},<br/><br/>
+      Chegou um chamado para <b>{{setor.nome}}</b>{{destinatario.emCopia}}.<br/>
+      <b>{{chamado.protocolo}}</b> — {{chamado.titulo}}<br/>
+      Serviço: {{chamado.servico}} — Prioridade: {{chamado.prioridade}}<br/>
+      Aberto por: {{chamado.solicitante}}<br/><br/>
+      Abrir no sistema: <a href="{{links.chamadoAdmin}}">{{links.chamadoAdmin}}</a>`,
+    variaveis: ["destinatario.nome", "destinatario.emCopia", "setor.nome", "chamado.protocolo", "chamado.titulo", "chamado.servico", "chamado.prioridade", "chamado.solicitante", "links.chamadoAdmin"],
+  },
+  {
+    id: "tpl-10",
+    key: "TICKET_ESCALATED",
+    nome: "Chamado sem atendimento (escalonamento)",
+    descricao: "Enviado ao 2º nível quando o chamado passa do prazo do setor sem ninguém assumir.",
+    habilitado: true,
+    assunto: "Chamado {{chamado.protocolo}} sem atendimento há {{prazo.horas}} h úteis",
+    corpo:
+      `Olá {{destinatario.nome}},<br/><br/>
+      O chamado <b>{{chamado.protocolo}}</b> — {{chamado.titulo}} — chegou em <b>{{setor.nome}}</b>
+      e ninguém o assumiu dentro do prazo de {{prazo.horas}} h úteis.<br/><br/>
+      Abrir no sistema: <a href="{{links.chamadoAdmin}}">{{links.chamadoAdmin}}</a>`,
+    variaveis: ["destinatario.nome", "setor.nome", "chamado.protocolo", "chamado.titulo", "prazo.horas", "links.chamadoAdmin"],
+  },
 ];
 
 /** Mock data para pré-visualização (substitui {{chaves}}) */
@@ -195,6 +225,12 @@ const MOCK_DATA: Record<string, string> = {
   "chamado.nivel": "N2",
   "chamado.prioridade": "ALTA",
   "setor.nome": "Secretaria",
+  "destinatario.nome": "Coordenação de TI",
+  "destinatario.emCopia": " (você está em cópia)",
+  "chamado.servico": "Equipamento com defeito",
+  "chamado.solicitante": "João da Silva",
+  "links.chamadoAdmin": "https://portal.exemplo/admin/chamados/abc123",
+  "prazo.horas": "24",
   "historico.observacao": "Encaminhado ao setor responsável.",
   "autor.nome": "Atendente Ana",
   "mensagem.conteudo": "Poderia anexar seu histórico?",
