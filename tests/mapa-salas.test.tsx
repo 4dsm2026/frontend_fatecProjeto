@@ -30,7 +30,8 @@ const VERSAO = {
   publicadoEm: "2026-11-14T09:00:00.000Z",
   _links: { file: { href: "/room-maps/versions/v1/file" } },
 };
-const pdf = () => new Response(new Blob(["%PDF-1.4"], { type: "application/pdf" }), { headers: { "content-type": "application/pdf" } });
+// Bytes comuns, não Blob: no Node 20 (CI) a Response não aceita o Blob do jsdom ("object.stream is not a function").
+const pdf = () => new Response(new TextEncoder().encode("%PDF-1.4"), { headers: { "content-type": "application/pdf" } });
 
 describe("utils/mapa-salas", () => {
   it("formata o tamanho do arquivo", () => {
