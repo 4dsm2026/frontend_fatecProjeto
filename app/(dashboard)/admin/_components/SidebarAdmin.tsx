@@ -11,6 +11,7 @@ import {
   MessageSquarePlus,
   Building2,
   LogOut,
+  BusFront,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -93,6 +94,12 @@ export default function SidebarAdmin({
         href: "/admin/sugestoes",
         label: "Caixa de Sugestões",
         icon: <MessageSquarePlus className="size-4" />,
+      },
+      {
+        href: "/admin/passe-escolar",
+        label: "Passe Escolar",
+        icon: <BusFront className="size-4" />,
+        badge: "Beta",
       },
       {
         href: "/admin/relatorios",

@@ -10,6 +10,7 @@ import {
   Bell,
   LogOut,
   MessageSquarePlus,
+  BusFront,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SidebarNav, {
@@ -44,6 +45,12 @@ export default function SidebarAluno({
       href: "/aluno/catalogo",
       label: "Catálogo de serviços",
       icon: <BookOpen className="size-4" />,
+    },
+    {
+      href: "/aluno/passe-escolar",
+      label: "Passe Escolar",
+      icon: <BusFront className="size-4" />,
+      badge: "Beta",
     },
     {
       href: "/aluno/dados",
