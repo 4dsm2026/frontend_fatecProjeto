@@ -295,6 +295,28 @@ export const CATALOGO_INSTITUCIONAL: CatalogResponse = {
       servicos: [],
     },
     {
+      id: "manutencao",
+      nome: "Manutenção",
+      descricao: "Equipamentos com defeito e problemas no prédio: salas, laboratórios, banheiros e áreas comuns.",
+      palavrasChave: ["manutenção", "conserto", "defeito", "quebrado", "estragado", ...fatecKeywords],
+      servicos: [
+        servico(
+          "manutencao",
+          "manutencao-equipamento",
+          "Equipamento com defeito",
+          "Computador, projetor, impressora, rede ou equipamento de laboratório que não funciona.",
+          ["computador", "projetor", "impressora", "internet", "wi-fi", "rede", "laboratório", "monitor", "equipamento"]
+        ),
+        servico(
+          "manutencao",
+          "manutencao-predial",
+          "Manutenção predial",
+          "Lâmpada queimada, vazamento, porta ou fechadura, mobiliário e outros problemas no prédio.",
+          ["lâmpada", "luz", "ar-condicionado", "vazamento", "banheiro", "porta", "fechadura", "cadeira", "carteira", "mesa", "limpeza", "acessibilidade", "prédio"]
+        ),
+      ],
+    },
+    {
       id: "apoio-academico",
       nome: "Apoio Acadêmico",
       descricao: "Acolhimento, acompanhamento acadêmico e suporte complementar à permanência estudantil.",
