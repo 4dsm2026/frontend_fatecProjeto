@@ -175,7 +175,7 @@ describe("users HAL integration", () => {
     expect(initialUrl.searchParams.get("papel")).toBe("USUARIO");
     expect(initialUrl.searchParams.has("ativo")).toBe(false);
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "INATIVO" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Filtrar por status" }), { target: { value: "INATIVO" } });
     expect(await screen.findByText("Nenhum aluno encontrado com os filtros atuais.")).toBeInTheDocument();
     const userRequests = api.fetchMock.mock.calls.filter(([input]) =>
       new URL(String(input), "http://localhost").pathname === "/users",
