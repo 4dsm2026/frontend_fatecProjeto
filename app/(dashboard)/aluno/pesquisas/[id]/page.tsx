@@ -108,7 +108,7 @@ export default function ResponderPesquisaPage() {
 
   useEffect(() => {
     if (!id) return;
-    (async () => {
+    void (async () => {
       try {
         const res = await apiFetch(`${API_BASE}/surveys/${encodeURIComponent(id)}`, { cache: "no-store" });
         if (!res.ok) {

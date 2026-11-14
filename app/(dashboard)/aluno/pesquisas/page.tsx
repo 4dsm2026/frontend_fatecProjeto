@@ -17,7 +17,7 @@ export default function PesquisasAlunoPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const res = await apiFetch(`${API_BASE}/surveys`, { cache: "no-store" });
         if (!res.ok) throw new Error(await extractApiError(res, "Não foi possível carregar as pesquisas."));
