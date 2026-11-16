@@ -10,7 +10,7 @@ import SugestaoEditor, { type SugestaoEditorValor } from "../../../components/sh
 import SugestaoDocumentoView from "../../../components/shared/SugestaoDocumentoView";
 import type { JSONContent } from "@tiptap/react";
 
-const RESPOSTA_MAX = 500;
+const RESPOSTA_MAX = 1000; // mesmo limite da API (SUGESTAO_RESPOSTA_MAX)
 
 type StatusSugestao = "NAO_RESPONDIDO" | "RESPONDIDO";
 

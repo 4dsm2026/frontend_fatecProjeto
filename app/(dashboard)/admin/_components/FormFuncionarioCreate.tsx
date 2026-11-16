@@ -93,6 +93,8 @@ export default function FormFuncionarioCreate({ onSuccess, onCancel }: Props) {
     navigator.clipboard.writeText(valor).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error("Não foi possível copiar a senha. Copie manualmente.");
     });
   }
 

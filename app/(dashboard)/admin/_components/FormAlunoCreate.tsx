@@ -241,6 +241,8 @@ export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Pro
     navigator.clipboard.writeText(senha).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      toast.error("Não foi possível copiar a senha. Copie manualmente.");
     });
   }
 
