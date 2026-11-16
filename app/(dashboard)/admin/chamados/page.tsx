@@ -17,6 +17,7 @@ import NivelBadge from "../../../components/shared/NivelBadge";
 import SetorChip from "../../../components/shared/SetorChip";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
 import type { Chamado, Nivel, Prioridade, Status } from "../../../../utils/types";
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 /* ===== Tipos ===== */
 
@@ -158,7 +159,7 @@ export default function AdminChamadosPage() {
     <div className="space-y-6">
       {/* Toolbar / Filtros */}
       <div className="rounded-xl border border-[var(--border)] bg-card p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           {/* Esquerda: busca */}
           <div className="relative sm:w-[360px]">
             <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
@@ -171,8 +172,8 @@ export default function AdminChamadosPage() {
           </div>
 
           {/* Direita: filtros + toggle de visão */}
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="flex flex-wrap gap-2">
               <div className="relative">
                 <Filter className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <select
@@ -299,7 +300,7 @@ function Lista({ dados, sortDesc, setSortDesc }: {
           <tbody>
             {dados.map((c) => (
               <tr key={c.id} className="border-t border-[var(--border)]">
-                <td className="px-4 py-3 font-medium">{c.protocolo ?? `#${c.id}`}</td>
+                <td className="px-4 py-3 font-medium">{rotuloProtocolo(c.protocolo)}</td>
                 <td className="px-4 py-3 max-w-[380px]">
                   <div className="line-clamp-1">{c.titulo}</div>
                   {(c.curso || c.unidadeFatec) && (
@@ -398,7 +399,7 @@ function CardKanban({ c }: { c: ChamadoUI }) {
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="text-xs text-muted-foreground">
-            {c.protocolo ?? `#${c.id}`}
+            {rotuloProtocolo(c.protocolo)}
           </div>
           <div className="font-medium leading-tight line-clamp-2">
             {c.titulo}

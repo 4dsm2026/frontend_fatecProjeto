@@ -11,6 +11,11 @@ import {
   MessageSquarePlus,
   Building2,
   LogOut,
+  BusFront,
+  ClipboardList,
+  PauseCircle,
+  Map as MapIcon,
+  Route,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -79,6 +84,18 @@ export default function SidebarAdmin({
         badge: pendenciasCount || undefined,
       },
       {
+        href: "/admin/mapa-de-salas",
+        label: "Mapa de salas",
+        icon: <MapIcon className="size-4" />,
+        badge: "Beta",
+      },
+      {
+        href: "/admin/matricula",
+        label: "Trancamentos",
+        icon: <PauseCircle className="size-4" />,
+        badge: "Beta",
+      },
+      {
         href: "/admin/funcionarios",
         label: "Gerenciar Funcionários",
         icon: <UserPlus className="size-4" />,
@@ -95,6 +112,18 @@ export default function SidebarAdmin({
         icon: <MessageSquarePlus className="size-4" />,
       },
       {
+        href: "/admin/passe-escolar",
+        label: "Passe Escolar",
+        icon: <BusFront className="size-4" />,
+        badge: "Beta",
+      },
+      {
+        href: "/admin/pesquisas",
+        label: "Pesquisa CPA",
+        icon: <ClipboardList className="size-4" />,
+        badge: "Beta",
+      },
+      {
         href: "/admin/relatorios",
         label: "Relatórios",
         icon: <FileChartColumn className="size-4" />,
@@ -103,6 +132,12 @@ export default function SidebarAdmin({
         href: "/admin/setores",
         label: "Setores",
         icon: <Building2 className="size-4" />,
+      },
+      {
+        href: "/admin/roteamento",
+        label: "Roteamento",
+        icon: <Route className="size-4" />,
+        badge: "Beta",
       },
       {
         href: "/admin/configuracoes",

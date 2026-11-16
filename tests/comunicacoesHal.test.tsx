@@ -119,8 +119,9 @@ describe("communications HAL screen", () => {
     render(<ComunicacoesPage />);
 
     expect(await screen.findByText("Bem-vindo — Primeiro acesso")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Enviar teste" }));
-    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+    // Espera os botões: no CI (mais lento) eles aparecem depois do texto.
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar teste" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Enviar" }));
 
     await waitFor(() => expect(api.calls).toContainEqual({
       key: "POST /mail-test-link",

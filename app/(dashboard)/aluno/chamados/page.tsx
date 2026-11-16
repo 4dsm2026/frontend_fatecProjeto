@@ -16,6 +16,7 @@ import EmptyState from "../../../components/ui/EmptyState";
 import Alert from "../../../components/ui/Alert";
 import { SkeletonTable } from "../../../components/ui/Skeleton";
 import type { Chamado, Status } from "../../../../utils/types";
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 type PageResp = HalCollection<Chamado>;
 
@@ -196,7 +197,7 @@ export default function MeusChamadosPage() {
                     {filtrados.map((c) => (
                       <tr key={c.id} className="hover:bg-[var(--muted)]/20 transition">
                         <td className="px-4 py-3 text-xs font-medium text-muted-foreground">
-                          {c.protocolo ?? `#${c.id.slice(0, 8)}`}
+                          {rotuloProtocolo(c.protocolo)}
                         </td>
                         <td className="px-4 py-3 max-w-[340px]">
                           <span className="line-clamp-1 font-medium">{c.titulo}</span>
@@ -222,7 +223,7 @@ export default function MeusChamadosPage() {
                   <div key={c.id} className="p-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <p className="text-[11px] text-muted-foreground">{c.protocolo ?? `#${c.id.slice(0, 8)}`}</p>
+                        <p className="text-[11px] text-muted-foreground">{rotuloProtocolo(c.protocolo)}</p>
                         <p className="font-medium truncate">{c.titulo}</p>
                       </div>
                       <TicketStatusBadge status={c.status} />

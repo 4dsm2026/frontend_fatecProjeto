@@ -258,8 +258,8 @@ export default function ConfiguracoesPermissoesPage() {
           <div className="space-y-1.5 text-muted-foreground">
             <p>
               Para alunos (papel <b>Usuário</b>), o backend restringe as ações de chamado aos
-              próprios registros (verificação de posse por <code>criadoPorId</code>), e o
-              <code> PATCH /users/:id</code> permite editar apenas o próprio cadastro, sem os
+              próprios registros (verificação de posse por <code>criadoPorId</code>), e o{" "}
+              <code>PATCH /users/:id</code> permite editar apenas o próprio cadastro, sem os
               campos privilegiados (papel, ativo, senha).
             </p>
             <p>

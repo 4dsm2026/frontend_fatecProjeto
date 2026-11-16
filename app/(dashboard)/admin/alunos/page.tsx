@@ -23,6 +23,8 @@ import { getEntry } from "../../../../utils/entry";
 import { embedded, followLink, getLink, hasLink } from "../../../../utils/hal";
 import type { HalCollection, HalPage, HalResource } from "../../../../utils/hal";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { SituacaoBadge } from "../../../components/shared/MatriculaBadges";
+import { SITUACOES, type Situacao } from "../../../../utils/matricula";
 
 import { cx } from '../../../../utils/cx'
 
@@ -39,6 +41,9 @@ type Usuario = HalResource & {
   ativo: boolean;
   criadoEm: string;
   papel?: Papel | null;
+  cursoNome?: string | null;
+  curso?: string | null;
+  situacaoAcademica?: string | null;
 };
 
 type AlunoRow = {
@@ -49,6 +54,8 @@ type AlunoRow = {
   nome?: string | null;
   status: StatusAtivo;
   criadoEm: string;
+  curso: string | null;
+  situacaoAcademica: string | null;
 };
 
 type UsersCollection = HalCollection<Usuario> & {
@@ -61,7 +68,14 @@ const ALUNO_DETAIL_PREFIX = "/admin/alunos/";
 
 const PAGE_SIZE = 20;
 
-async function requestUsersPage(query: string, page: number, status: StatusAtivo | "ALL"): Promise<UsersCollection> {
+type FiltrosAcademicos = { curso: string; situacao: "" | Situacao };
+
+async function requestUsersPage(
+  query: string,
+  page: number,
+  status: StatusAtivo | "ALL",
+  filtros: FiltrosAcademicos = { curso: "", situacao: "" },
+): Promise<UsersCollection> {
   const entry = await getEntry();
   const usersHref = getLink(entry, "users")?.href;
   if (!usersHref) throw new Error("A lista de usuários não está disponível para esta conta.");
@@ -72,6 +86,8 @@ async function requestUsersPage(query: string, page: number, status: StatusAtivo
   url.searchParams.set("papel", "USUARIO");
   if (status !== "ALL") url.searchParams.set("ativo", String(status === "ATIVO"));
   if (query.trim()) url.searchParams.set("q", query.trim());
+  if (filtros.curso) url.searchParams.set("curso", filtros.curso);
+  if (filtros.situacao) url.searchParams.set("situacao", filtros.situacao);
 
   const response = await apiFetch(url.toString(), { cache: "no-store" });
   if (!response.ok) {
@@ -90,6 +106,8 @@ function toAlunoRows(usuarios: Usuario[]): AlunoRow[] {
       nome: u.nome,
       status: u.ativo ? ("ATIVO" as const) : ("INATIVO" as const),
       criadoEm: u.criadoEm,
+      curso: u.cursoNome?.trim() || u.curso?.trim() || null,
+      situacaoAcademica: u.situacaoAcademica ?? null,
     }));
 }
 
@@ -187,6 +205,8 @@ function AlunoRowsTable({
             <th className="text-left font-medium px-4 py-3 hidden xl:table-cell">RA</th>
             <th className="text-left font-medium px-4 py-3">E-mail educacional</th>
             <th className="text-left font-medium px-4 py-3 hidden md:table-cell">Nome</th>
+            <th className="text-left font-medium px-4 py-3 hidden lg:table-cell">Curso</th>
+            <th className="text-left font-medium px-4 py-3">Situação</th>
             <th className="text-left font-medium px-4 py-3">Status</th>
             <th className="text-left font-medium px-4 py-3 hidden lg:table-cell">Criado em</th>
             <th className="text-right font-medium px-4 py-3">Ações</th>
@@ -195,7 +215,7 @@ function AlunoRowsTable({
         <tbody>
           {loading && Array.from({ length: 6 }).map((_, rowIndex) => (
             <tr key={`sk-${rowIndex}`} className="border-t border-[var(--border)]">
-              {Array.from({ length: 7 }).map((__, columnIndex) => (
+              {Array.from({ length: 9 }).map((__, columnIndex) => (
                 <td key={columnIndex} className="px-4 py-3"><Skeleton className="h-3.5 w-full" /></td>
               ))}
             </tr>
@@ -234,6 +254,10 @@ function AlunoRowsTable({
                   <span>{aluno.nome || "—"}</span>
                 </div>
               </td>
+              <td className="px-4 py-3 hidden lg:table-cell">
+                <span className="line-clamp-2 max-w-[16rem]">{aluno.curso ?? <span className="text-muted-foreground">Não informado</span>}</span>
+              </td>
+              <td className="px-4 py-3"><SituacaoBadge situacao={aluno.situacaoAcademica} /></td>
               <td className="px-4 py-3"><StatusBadge status={aluno.status} /></td>
               <td className="px-4 py-3 hidden lg:table-cell">
                 {new Date(aluno.criadoEm).toLocaleDateString("pt-BR", {
@@ -249,7 +273,7 @@ function AlunoRowsTable({
           ))}
           {!loading && rows.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+              <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                 {error ? "Falha ao carregar dados." : "Nenhum aluno encontrado com os filtros atuais."}
               </td>
             </tr>
@@ -267,6 +291,9 @@ export default function AdminAlunosPage() {
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<StatusAtivo | "ALL">("ALL");
+  const [curso, setCurso] = useState("");
+  const [situacao, setSituacao] = useState<"" | Situacao>("");
+  const [cursos, setCursos] = useState<{ curso: string; alunos: number }[]>([]);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<AlunoRow[]>([]);
   const [collection, setCollection] = useState<UsersCollection | null>(null);
@@ -282,7 +309,7 @@ export default function AdminAlunosPage() {
     try {
       setLoading(true);
       setError(null);
-      const result = await requestUsersPage(q, requestedPage, status);
+      const result = await requestUsersPage(q, requestedPage, status, { curso, situacao });
       setCollection(result);
       setPage(result.page.number);
       setRows(toAlunoRows(embedded(result, "users")));
@@ -301,7 +328,15 @@ export default function AdminAlunosPage() {
   useEffect(() => {
     void fetchAlunos(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, status]);
+  }, [q, status, curso, situacao]);
+
+  // Cursos do cadastro dos alunos ativos (mesma lista da Pesquisa CPA).
+  useEffect(() => {
+    apiFetch(`${API_BASE}/surveys/courses`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { cursos?: { curso: string; alunos: number }[] } | null) => setCursos(d?.cursos ?? []))
+      .catch(() => {});
+  }, []);
 
   async function movePage(rel: "prev" | "next") {
     if (!collection || !hasLink(collection, rel)) return;
@@ -471,7 +506,7 @@ export default function AdminAlunosPage() {
                 )}
               </div>
 
-              <div className="flex w-full sm:w-auto flex-col gap-2 sm:flex-row">
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
                 <div className="relative sm:w-[320px]">
                   <Search className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
@@ -484,6 +519,7 @@ export default function AdminAlunosPage() {
                 <div className="relative">
                   <Filter className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <select
+                    aria-label="Filtrar por status"
                     className="h-10 w-[160px] pl-9 pr-8 rounded-lg border border-[var(--border)] bg-background focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
                     value={status}
                     onChange={(e) => {
@@ -496,6 +532,30 @@ export default function AdminAlunosPage() {
                     <option value="INATIVO">Inativos</option>
                   </select>
                 </div>
+                <select
+                  aria-label="Filtrar por situação acadêmica"
+                  className="h-10 w-full sm:w-[150px] px-3 rounded-lg border border-[var(--border)] bg-background focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                  value={situacao}
+                  onChange={(e) => { setPage(0); setSituacao(e.target.value as "" | Situacao); }}
+                >
+                  <option value="">Toda situação</option>
+                  {SITUACOES.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+                {cursos.length > 0 && (
+                  <select
+                    aria-label="Filtrar por curso"
+                    className="h-10 w-full sm:w-[200px] px-3 rounded-lg border border-[var(--border)] bg-background focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                    value={curso}
+                    onChange={(e) => { setPage(0); setCurso(e.target.value); }}
+                  >
+                    <option value="">Todos os cursos</option>
+                    {cursos.map((c) => (
+                      <option key={c.curso} value={c.curso}>{c.curso} ({c.alunos})</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>

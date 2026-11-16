@@ -39,7 +39,7 @@ export default function SidebarNavItem({
       </span>
 
       {badge != null && (
-        <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)]">
+        <span className="ml-2 rounded-md bg-background px-1.5 py-0.5 text-xs border border-[var(--border)] text-foreground">
           {badge}
         </span>
       )}

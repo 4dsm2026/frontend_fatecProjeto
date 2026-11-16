@@ -246,7 +246,15 @@ export default function FormAlunoEdit({ aluno, onClose, onSaved }: Props) {
               </div>
               <div>
                 <label htmlFor="aluno-situacao" className={labelCls}>Situação acadêmica</label>
-                <input id="aluno-situacao" className={inputCls} placeholder="Ex.: Regular, Trancado…" value={situacaoAcademica} onChange={(e) => setSituacaoAcademica(e.target.value)} maxLength={128} />
+                <select id="aluno-situacao" className={inputCls} value={situacaoAcademica} onChange={(e) => setSituacaoAcademica(e.target.value)}>
+                  <option value="">Não informada (regular)</option>
+                  {["Regular", "Trancada", "Cancelada"].map((s) => <option key={s} value={s}>{s}</option>)}
+                  {/* Valor antigo, digitado à mão: continua selecionável até ser trocado. */}
+                  {situacaoAcademica && !["Regular", "Trancada", "Cancelada"].includes(situacaoAcademica) && (
+                    <option value={situacaoAcademica}>{situacaoAcademica}</option>
+                  )}
+                </select>
+                <p className="mt-1 text-xs text-muted-foreground">Trancamento e cancelamento deferidos atualizam este campo sozinhos. Use para destrancar (voltar a Regular).</p>
               </div>
               <div className="sm:col-span-2">
                 <label htmlFor="aluno-coordenador" className={labelCls}>Coordenador do curso</label>

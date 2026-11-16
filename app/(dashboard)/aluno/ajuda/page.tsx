@@ -21,7 +21,7 @@ const FAQS: FAQ[] = [
     pergunta: "Esqueci minha senha. Como redefinir?",
     resposta:
       "Use a opção “Esqueci a senha” na tela de login. Você receberá um e-mail com instruções. Se não encontrar, verifique a caixa de spam e confirme se seu e-mail educacional está correto em Meus Dados.",
-    links: [{ label: "Recuperar Senha", href: "/recuperar-senha" }],
+    links: [{ label: "Recuperar Senha", href: "/esqueci-senha" }],
   },
   {
     id: "faq-2",
@@ -36,8 +36,8 @@ const FAQS: FAQ[] = [
     categoria: "Acadêmico",
     pergunta: "Como peço revisão de nota?",
     resposta:
-      "Acesse Catálogo → Secretaria → ‘Revisão de nota’. Abra uma solicitação acadêmica com a disciplina, avaliação e justificativa. Anexe documentos se necessário.",
-    links: [{ label: "Abrir solicitação acadêmica (Revisão de nota)", href: "/aluno/novo-chamado?servicoId=revisao-nota" }],
+      "No Catálogo, escolha ‘Revisão de nota’ se o serviço estiver disponível; se não estiver, abra uma Solicitação geral. Informe a disciplina, a avaliação e a justificativa, e anexe documentos se necessário.",
+    links: [{ label: "Abrir solicitação geral (Revisão de nota)", href: "/aluno/catalogo/outros" }],
   },
   {
     id: "faq-4",

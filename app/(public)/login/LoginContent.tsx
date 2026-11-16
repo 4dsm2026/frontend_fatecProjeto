@@ -19,6 +19,7 @@ import { storeSession } from "../../../utils/session";
 import { safeRedirect } from "../../../utils/safe-redirect";
 import { extractApiError } from "../../../utils/api";
 import { activationTokenFromProblem, isPasswordChangeRequired } from "../../../utils/activation-link";
+import { isEmailAddress } from "../../../utils/email";
 
 type Mode = "email" | "ra";
 
@@ -61,15 +62,21 @@ export default function LoginContent() {
     const id = identifier.trim();
     const senhaOk = password.trim().length >= 8;
     const idOk = mode === "email"
-      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)
+      ? isEmailAddress(id)
       : raRegex.test(id);
     return senhaOk && idOk;
   }, [identifier, password, mode]);
 
+  // A aba só muda quando a pessoa clica nela. Antes, um e-mail ainda sem "@"
+  // (ex.: "ana.costa") era confundido com RA e a tela trocava sozinha.
   function handleIdentifierChange(v: string) {
     setIdentifier(v);
-    const t = v.trim();
-    if (!t.includes("@") && /^[A-Za-z0-9._/-]+$/.test(t)) setMode("ra");
+  }
+
+  function trocarModo(novo: Mode) {
+    if (novo === mode) return;
+    setMode(novo);
+    setIdentifier(""); // e-mail e RA têm formatos diferentes: não reaproveita o que foi digitado
   }
 
   function storeAuthTokens(data: Record<string, unknown>) {
@@ -161,7 +168,7 @@ export default function LoginContent() {
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-[var(--muted)] p-1">
             <button
               type="button"
-              onClick={() => setMode("email")}
+              onClick={() => trocarModo("email")}
               className={[
                 "flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition",
                 mode === "email"
@@ -174,7 +181,7 @@ export default function LoginContent() {
             </button>
             <button
               type="button"
-              onClick={() => setMode("ra")}
+              onClick={() => trocarModo("ra")}
               className={[
                 "flex items-center justify-center gap-2 h-9 rounded-lg text-sm font-medium transition",
                 mode === "ra"

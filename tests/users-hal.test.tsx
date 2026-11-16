@@ -175,7 +175,7 @@ describe("users HAL integration", () => {
     expect(initialUrl.searchParams.get("papel")).toBe("USUARIO");
     expect(initialUrl.searchParams.has("ativo")).toBe(false);
 
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "INATIVO" } });
+    fireEvent.change(screen.getByRole("combobox", { name: "Filtrar por status" }), { target: { value: "INATIVO" } });
     expect(await screen.findByText("Nenhum aluno encontrado com os filtros atuais.")).toBeInTheDocument();
     const userRequests = api.fetchMock.mock.calls.filter(([input]) =>
       new URL(String(input), "http://localhost").pathname === "/users",
@@ -280,6 +280,29 @@ describe("users HAL integration", () => {
 
     expect(await screen.findByText("Este cadastro não é de aluno")).toBeInTheDocument();
     expect(api.calls.some((call) => call.key === "GET /tickets")).toBe(false);
+  });
+
+  it("shows the ticket sector name on the student page (the API sends the sector as an object)", async () => {
+    stubApi({
+      "GET /api": () => json(apiEntry),
+      "GET /users/admin-1": () => json(userResource("admin-1")),
+      "GET /tickets": () =>
+        json({
+          _embedded: {
+            tickets: [
+              {
+                id: "t1", protocolo: "TCK-1", titulo: "Declaração", status: "ABERTO", prioridade: "MEDIA", nivel: "N1",
+                criadoEm: "2026-11-01T00:00:00.000Z",
+                setor: { id: "s1", organizacaoId: "o1", nome: "Secretaria Acadêmica", descricao: null },
+              },
+            ],
+          },
+        }),
+    });
+
+    render(<PageAlunoDetalhe />);
+
+    expect(await screen.findByText("Secretaria Acadêmica")).toBeInTheDocument();
   });
 
   it("creates through the collection create link and uses the returned HAL resource", async () => {

@@ -21,6 +21,7 @@ import MobileSidebarTriggerAluno from "../_components/MobileSidebarTriggerAluno"
 import { logoutAndRedirect } from "../../../../utils/auth";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
+import { isEmailAddress } from "../../../../utils/email";
 
 type Usuario = {
   id: string;
@@ -63,7 +64,7 @@ function getErrorMessage(error: unknown) {
 function LoadingCard() {
   return (
     <div className="rounded-xl border border-[var(--border)] bg-card p-8 flex items-center justify-center gap-2 text-muted-foreground">
-      <Loader2 className="size-4 animate-spin" />
+      <Loader2 className="size-4 animate-spin" />{" "}
       Carregando dados…
     </div>
   );
@@ -173,7 +174,7 @@ export default function MeusDadosPage() {
     ] as const;
     const changed = campos.some(([atual, original]) => atual !== (original ?? ""));
     const acessivelMudou = necessitaAtendimentoAcessivel !== Boolean(user.necessitaAtendimentoAcessivel);
-    const emailOk = !emailPessoal || /\S+@\S+\.\S+/.test(emailPessoal);
+    const emailOk = !emailPessoal || isEmailAddress(emailPessoal);
     const nomeOk = nome.trim().length > 0;
     return (changed || acessivelMudou) && nomeOk && emailOk;
   }, [
@@ -423,7 +424,7 @@ export default function MeusDadosPage() {
                     className="size-4 rounded border-[var(--border)]"
                     checked={necessitaAtendimentoAcessivel}
                     onChange={(e) => setNecessitaAtendimentoAcessivel(e.target.checked)}
-                  />
+                  />{" "}
                   Necessito de atendimento acessível
                 </label>
                 <p className="text-xs text-muted-foreground">

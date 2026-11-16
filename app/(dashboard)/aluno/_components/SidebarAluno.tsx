@@ -10,23 +10,21 @@ import {
   Bell,
   LogOut,
   MessageSquarePlus,
+  BusFront,
+  ClipboardList,
+  PauseCircle,
+  Map as MapIcon,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SidebarNav, {
   type SidebarNavItemData,
 } from "../../../components/shared/SidebarNav";
 import { useSidebarLogout } from "../../../components/shared/useSidebarLogout";
+import { useIndicadoresAluno } from "./useIndicadoresAluno";
 
-export default function SidebarAluno({
-  aguardandoCount = 0,
-  meusChamadosCount = 0,
-  onClose,
-}: {
-  aguardandoCount?: number;
-  meusChamadosCount?: number;
-  onClose?: () => void;
-}) {
+export default function SidebarAluno({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
+  const { aguardando, total } = useIndicadoresAluno(pathname);
   const handleLogout = useSidebarLogout(onClose);
 
   const items: SidebarNavItemData[] = [
@@ -44,6 +42,30 @@ export default function SidebarAluno({
       href: "/aluno/catalogo",
       label: "Catálogo de serviços",
       icon: <BookOpen className="size-4" />,
+    },
+    {
+      href: "/aluno/passe-escolar",
+      label: "Passe Escolar",
+      icon: <BusFront className="size-4" />,
+      badge: "Beta",
+    },
+    {
+      href: "/aluno/pesquisas",
+      label: "Pesquisa CPA",
+      icon: <ClipboardList className="size-4" />,
+      badge: "Beta",
+    },
+    {
+      href: "/aluno/mapa-de-salas",
+      label: "Mapa de salas",
+      icon: <MapIcon className="size-4" />,
+      badge: "Beta",
+    },
+    {
+      href: "/aluno/matricula",
+      label: "Trancar/cancelar",
+      icon: <PauseCircle className="size-4" />,
+      badge: "Beta",
     },
     {
       href: "/aluno/dados",
@@ -116,11 +138,11 @@ export default function SidebarAluno({
           <ul className="space-y-2 text-sm">
             <li className="flex items-center justify-between">
               <span>Aguardando resposta</span>
-              <span className="font-medium">{aguardandoCount}</span>
+              <span className="font-medium">{aguardando ?? "—"}</span>
             </li>
             <li className="flex items-center justify-between">
               <span>Minhas solicitações</span>
-              <span className="font-medium">{meusChamadosCount}</span>
+              <span className="font-medium">{total ?? "—"}</span>
             </li>
           </ul>
         </div>

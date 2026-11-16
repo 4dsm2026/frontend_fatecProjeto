@@ -8,6 +8,7 @@ import {
 import { cx } from '../../../../utils/cx';
 import { apiFetch } from '../../../../utils/api';
 import { embedded } from '../../../../utils/hal';
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
@@ -610,7 +611,7 @@ function DataTable({ dados }: { dados: Chamado[] }) {
           <tbody>
             {dados.map((c) => (
               <tr key={c.id} className="border-t border-[var(--border)]">
-                <td className="px-4 py-3 font-medium">{c.protocolo ?? `#${c.id.slice(0, 8)}`}</td>
+                <td className="px-4 py-3 font-medium">{rotuloProtocolo(c.protocolo)}</td>
                 <td className="px-4 py-3 max-w-[380px]"><div className="line-clamp-1">{c.titulo}</div></td>
                 <td className="px-4 py-3 hidden md:table-cell">{c.setor ?? "—"}</td>
                 <td className="px-4 py-3">{c.nivel}</td>

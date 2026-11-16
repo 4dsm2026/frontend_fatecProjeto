@@ -13,6 +13,7 @@ import {
 
 import { cx } from '../../../../utils/cx'
 import TicketStatusBadge from "../../../components/shared/TicketStatusBadge";
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -328,7 +329,7 @@ export default function AdminMensagensPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <div className="text-xs text-muted-foreground">
-                            {c.protocolo ?? `#${c.id}`}
+                            {rotuloProtocolo(c.protocolo)}
                           </div>
                           <div className="font-medium line-clamp-1">{c.titulo}</div>
                           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
@@ -463,7 +464,7 @@ function ChatHeader({ conversas, currentId }: { conversas: ChamadoSummary[]; cur
   if (!c) return null;
   return (
     <div className="min-w-0">
-      <div className="text-xs text-muted-foreground">{c.protocolo ?? `#${c.id}`}</div>
+      <div className="text-xs text-muted-foreground">{rotuloProtocolo(c.protocolo)}</div>
       <div className="font-medium leading-tight line-clamp-1">{c.titulo}</div>
       <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1">

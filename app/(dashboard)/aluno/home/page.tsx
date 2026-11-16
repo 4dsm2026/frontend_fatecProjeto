@@ -13,6 +13,7 @@ import Button from "../../../components/ui/Button";
 import { apiFetch } from "../../../../utils/api";
 import { embedded, followLink, hasLink } from "../../../../utils/hal";
 import type { HalCollection } from "../../../../utils/hal";
+import { rotuloProtocolo } from "../../../../utils/protocolo";
 
 type Status = "ABERTO" | "EM_ATENDIMENTO" | "AGUARDANDO_USUARIO" | "RESOLVIDO" | "ENCERRADO";
 type Prioridade = "BAIXA" | "MEDIA" | "ALTA" | "URGENTE";
@@ -134,7 +135,7 @@ export default function AlunoHomePage() {
               <tbody className="divide-y divide-[var(--border)]">
                 {chamadosVisiveis.map((c) => (
                   <tr key={c.id} className="hover:bg-[var(--muted)]/30 transition">
-                    <td className="px-4 py-3 font-medium text-xs text-muted-foreground">{c.protocolo ?? `#${c.id.slice(0, 8)}`}</td>
+                    <td className="px-4 py-3 font-medium text-xs text-muted-foreground">{rotuloProtocolo(c.protocolo)}</td>
                     <td className="px-4 py-3 max-w-[280px]">
                       <span className="line-clamp-1">{c.titulo}</span>
                     </td>

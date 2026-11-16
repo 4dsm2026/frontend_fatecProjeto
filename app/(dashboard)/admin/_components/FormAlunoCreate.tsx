@@ -14,6 +14,7 @@ import {
   Mail,
   RotateCcw,
 } from "lucide-react";
+import { isEmailAddress } from "../../../../utils/email";
 
 const COURSES = [
   { key: "DSM",   sigla: "DSM",   nome: "Desenvolvimento de Software Multiplataforma" },
@@ -44,20 +45,7 @@ const inputCls =
   "mt-1 w-full h-10 rounded-lg border border-[var(--border)] bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--ring)]";
 const labelCls = "block text-sm text-muted-foreground";
 
-export function isEmailAddress(value: string): boolean {
-  const parts = value.split("@");
-  if (parts.length !== 2) return false;
-  const [local, domain] = parts;
-  const dotIndex = domain.indexOf(".", 1);
-  return Boolean(
-    local &&
-      domain &&
-      !/\s/.test(local) &&
-      !/\s/.test(domain) &&
-      dotIndex > 0 &&
-      dotIndex < domain.length - 1,
-  );
-}
+export { isEmailAddress };
 
 type PayloadValue = string | boolean | undefined;
 
@@ -411,12 +399,12 @@ export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Pro
 
         <div className="rounded-lg border border-[var(--border)] divide-y divide-[var(--border)]">
           {/* Toggle */}
-          <label className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none">
+          <label htmlFor="novo-aluno-senha-personalizada" className="flex items-center justify-between gap-3 px-4 py-3 cursor-pointer select-none">
             <div className="flex items-center gap-2.5">
               <KeyRound className="size-4 text-muted-foreground shrink-0" />
               <div>
                 <p className="text-sm font-medium leading-tight">Definir senha personalizada</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
+                <p id="novo-aluno-senha-personalizada-ajuda" className="text-xs text-muted-foreground mt-0.5">
                   {usarSenhaPersonalizada
                     ? "O aluno deverá trocar esta senha no primeiro acesso."
                     : "Por padrão, o sistema usa a senha temporária configurada pelo administrador."}
@@ -424,9 +412,11 @@ export default function FormAlunoCreate({ collection, onSuccess, onCancel }: Pro
               </div>
             </div>
             <button
+              id="novo-aluno-senha-personalizada"
               type="button"
               role="switch"
               aria-checked={usarSenhaPersonalizada}
+              aria-describedby="novo-aluno-senha-personalizada-ajuda"
               onClick={() => {
                 setUsarSenhaPersonalizada((v) => !v);
                 if (!usarSenhaPersonalizada) setSenhaInicial("");

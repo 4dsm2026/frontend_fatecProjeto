@@ -6,6 +6,7 @@ import { Bell, Loader2, Moon, Sun } from "lucide-react";
 import { apiFetch } from "../../../../utils/api";
 import { getCurrentUser } from "../../../../utils/current-user";
 import { cx } from "../../../../utils/cx";
+import { textoBadgeNaoLidas } from "../../../../utils/notificacoes";
 
 type Props = {
   notificationsHref?: string;
@@ -19,13 +20,6 @@ function getInitialTheme(): "light" | "dark" {
 
 function applyThemeClass(theme: "light" | "dark") {
   document.documentElement.classList.toggle("dark", theme === "dark");
-}
-
-function getBadgeText(unread: number | null) {
-  if (unread === null) return "";
-  if (unread > 99) return "99+";
-  if (unread > 0) return String(unread);
-  return "";
 }
 
 function UserHeading({
@@ -109,15 +103,16 @@ function NotificationLink({
       title={titleUnread ? `${unread} notificação(ões) não lida(s)` : "Notificações"}
     >
       <Bell className={cx("size-4", hasUnread ? "text-red-500 dark:text-red-400" : "")} />
-      {loadingUnread ? (
+      {loadingUnread && (
         <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] grid place-items-center">
           <Loader2 className="size-3 animate-spin" />
         </span>
-      ) : titleUnread ? (
+      )}
+      {!loadingUnread && titleUnread && (
         <span className="absolute -top-1 -right-1 min-w-4 h-4 rounded-full bg-red-500 text-white text-[10px] grid place-items-center px-1">
           {badgeText}
         </span>
-      ) : null}
+      )}
     </Link>
   );
 }
@@ -209,7 +204,7 @@ export default function SistemaTopbar({
           href={notificationsHref}
           unread={unread}
           loadingUnread={loadingUnread}
-          badgeText={getBadgeText(unread)}
+          badgeText={textoBadgeNaoLidas(unread)}
         />
       </div>
     </div>
