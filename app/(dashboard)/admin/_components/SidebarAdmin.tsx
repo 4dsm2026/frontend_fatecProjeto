@@ -15,6 +15,7 @@ import {
   ClipboardList,
   PauseCircle,
   Map as MapIcon,
+  Route,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -131,6 +132,12 @@ export default function SidebarAdmin({
         href: "/admin/setores",
         label: "Setores",
         icon: <Building2 className="size-4" />,
+      },
+      {
+        href: "/admin/roteamento",
+        label: "Roteamento",
+        icon: <Route className="size-4" />,
+        badge: "Beta",
       },
       {
         href: "/admin/configuracoes",

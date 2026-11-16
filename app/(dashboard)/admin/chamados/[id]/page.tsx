@@ -90,6 +90,8 @@ type Ticket = {
   catalogoCategoriaId?: string | null;
   catalogoCategoriaNome?: string | null;
   setorProvavel?: string | null;
+  roteamentoMotivo?: string | null;
+  escalonadoEm?: string | null;
   dadosAcademicos?: Record<string, string> | null;
   camposEspecificos?: Record<string, string> | null;
   origem?: string | null;
@@ -451,7 +453,8 @@ export default function AdminChamadoPage() {
   const camposEspecificosEntries = nonEmptyEntries(ticket.camposEspecificos);
   const dadosAcademicosEntries = nonEmptyEntries(ticket.dadosAcademicos);
 
-  const isWizardTicket = ticket.origem === "catalogo_wizard_aluno";
+  // O card de roteamento aparece para chamados do wizard e para os que passaram por uma regra.
+  const isWizardTicket = ticket.origem === "catalogo_wizard_aluno" || !!ticket.roteamentoMotivo?.startsWith("Regra:");
 
   const podeEditar = hasLink(ticket, "update");
   const podeResponder = hasLink(ticket, "reply");
@@ -566,6 +569,18 @@ export default function AdminChamadoPage() {
               <div>
                 <div className="text-xs text-muted-foreground mb-0.5">Setor atribuído (atual)</div>
                 <div className="font-medium text-green-700 dark:text-green-400">{ticket.setor.nome}</div>
+              </div>
+            )}
+            {ticket.roteamentoMotivo && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-0.5">Por que foi para esse setor</div>
+                <div className="font-medium">{ticket.roteamentoMotivo}</div>
+              </div>
+            )}
+            {ticket.escalonadoEm && (
+              <div>
+                <div className="text-xs text-muted-foreground mb-0.5">Escalonado ao 2º nível</div>
+                <div className="font-medium text-[var(--warning)]">{new Date(ticket.escalonadoEm).toLocaleString("pt-BR")}</div>
               </div>
             )}
           </div>
