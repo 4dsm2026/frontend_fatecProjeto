@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { apiFetch, extractApiError } from "../../../../utils/api";
+import { getCurrentUser } from "../../../../utils/current-user";
 import { collectPages, followLink, hasLink } from "../../../../utils/hal";
 import type { HalResource } from "../../../../utils/hal";
 import {
@@ -66,6 +67,8 @@ export default function NotificacoesAlunoPage() {
   const [notifs, setNotifs] = useState<Notificacao[]>([]);
   const [collection, setCollection] = useState<HalResource | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
+  const [user, setUser] = useState<(HalResource & { notificacoesEmail?: boolean }) | null>(null);
+  const [savingEmail, setSavingEmail] = useState(false);
   const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 
   // carregar notificações
@@ -90,6 +93,30 @@ export default function NotificacoesAlunoPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    let active = true;
+    getCurrentUser<HalResource & { notificacoesEmail?: boolean }>()
+      .then((data) => { if (active) setUser(data); })
+      .catch(() => { if (active) toast.error("Não foi possível carregar a preferência de e-mail."); });
+    return () => { active = false; };
+  }, []);
+
+  async function toggleEmail() {
+    if (!user || !hasLink(user, "update")) return;
+    const next = !user.notificacoesEmail;
+    try {
+      setSavingEmail(true);
+      const response = await followLink(user, "update", { body: JSON.stringify({ notificacoesEmail: next }) });
+      if (!response.ok) throw new Error(await extractApiError(response, "Falha ao salvar a preferência de e-mail."));
+      setUser({ ...user, notificacoesEmail: next });
+      toast.success("Preferência de e-mail salva.");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Falha ao salvar a preferência de e-mail.");
+    } finally {
+      setSavingEmail(false);
+    }
+  }
 
   // Marcar notificação como lida
   async function markAsRead(id: string) {
@@ -128,6 +155,18 @@ export default function NotificacoesAlunoPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--border)] bg-card p-4">
+        <div>
+          <div className="font-medium">Notificações por e-mail</div>
+          <p className="text-sm text-muted-foreground">Receba por e-mail atualizações sobre chamados e outras solicitações.</p>
+        </div>
+        <button type="button" role="switch" aria-label="Notificações por e-mail"
+          aria-checked={Boolean(user?.notificacoesEmail)} disabled={!user || !hasLink(user, "update") || savingEmail}
+          onClick={() => void toggleEmail()}
+          className="rounded-md border border-[var(--border)] px-3 py-2 text-sm disabled:opacity-50">
+          {user?.notificacoesEmail ? "Ativadas" : "Desativadas"}
+        </button>
+      </div>
       {/* Botão de "Marcar todas como lidas" */}
       <div className="mb-4">
         <button type="button"

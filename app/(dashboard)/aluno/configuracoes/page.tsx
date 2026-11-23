@@ -21,12 +21,13 @@ function getInitialTheme(): "light" | "dark" {
   return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function Toggle({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: () => void; label: string }) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
+      aria-label={label}
       onClick={onChange}
       className={cx(
         "relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full transition-colors",
@@ -47,14 +48,16 @@ export default function ConfiguracoesAlunoPage() {
   const [saving, setSaving] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(getInitialTheme);
   const [platNotif, setPlatNotif] = useState<boolean>(true);
+  const [emailNotif, setEmailNotif] = useState<boolean>(false);
   const [userId, setUserId] = useState<string | null>(null);
 
   // Preferência de notificações vem do backend (usuario.notificacoesInApp).
   useEffect(() => {
-    getCurrentUser<{ id?: string; notificacoesInApp?: boolean }>()
+    getCurrentUser<{ id?: string; notificacoesInApp?: boolean; notificacoesEmail?: boolean }>()
       .then((data) => {
         setUserId(data.id ?? null);
         if (typeof data.notificacoesInApp === "boolean") setPlatNotif(data.notificacoesInApp);
+        if (typeof data.notificacoesEmail === "boolean") setEmailNotif(data.notificacoesEmail);
       })
       .catch(() => {});
   }, []);
@@ -73,6 +76,7 @@ export default function ConfiguracoesAlunoPage() {
     const defaultTheme = window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
     setTheme(defaultTheme);
     setPlatNotif(true);
+    setEmailNotif(false);
     toast.info("Preferências restauradas. Clique em Salvar para aplicar as notificações.");
   }
 
@@ -85,7 +89,7 @@ export default function ConfiguracoesAlunoPage() {
       const res = await apiFetch(`${API}/users/${userId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificacoesInApp: platNotif }),
+        body: JSON.stringify({ notificacoesInApp: platNotif, notificacoesEmail: emailNotif }),
       });
       if (!res.ok) throw new Error(await extractApiError(res, `Erro ${res.status}`));
       toast.success("Configurações salvas!");
@@ -122,7 +126,7 @@ export default function ConfiguracoesAlunoPage() {
               <div className="text-sm text-muted-foreground">Alterna entre o modo claro e escuro da interface.</div>
             </div>
           </div>
-          <Toggle checked={theme === "dark"} onChange={() => setTheme((t) => t === "dark" ? "light" : "dark")} />
+          <Toggle label="Tema escuro" checked={theme === "dark"} onChange={() => setTheme((t) => t === "dark" ? "light" : "dark")} />
         </div>
 
         {/* Idioma */}
@@ -149,10 +153,20 @@ export default function ConfiguracoesAlunoPage() {
             <div>
               <div className="font-medium">Notificações na plataforma</div>
               <div className="text-sm text-muted-foreground">Receba alertas sobre atualizações de solicitações e mensagens diretamente aqui no sistema.</div>
-              <div className="text-xs text-muted-foreground mt-1">Envio de e-mail é gerenciado pela instituição e não é configurável aqui.</div>
             </div>
           </div>
-          <Toggle checked={platNotif} onChange={() => setPlatNotif((v) => !v)} />
+          <Toggle label="Notificações na plataforma" checked={platNotif} onChange={() => setPlatNotif((v) => !v)} />
+        </div>
+
+        <div className="flex items-center justify-between border-b border-[var(--border)] pb-5">
+          <div className="flex items-center gap-3">
+            <Bell className="size-5 text-muted-foreground" />
+            <div>
+              <div className="font-medium">Notificações por e-mail</div>
+              <div className="text-sm text-muted-foreground">Receba por e-mail atualizações sobre chamados e outras solicitações.</div>
+            </div>
+          </div>
+          <Toggle label="Notificações por e-mail" checked={emailNotif} onChange={() => setEmailNotif((v) => !v)} />
         </div>
 
         {/* Restaurar preferências */}
