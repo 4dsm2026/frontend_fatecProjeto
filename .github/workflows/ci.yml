@@ -37,12 +37,8 @@ jobs:
       - name: Install deps
         run: pnpm install --frozen-lockfile
 
-      # Ainda não bloqueia o PR: há erros de lint acumulados (principalmente
-      # no-explicit-any). Remover o continue-on-error quando a issue #237
-      # (limpeza do lint) for concluída.
       - name: Lint
         run: pnpm lint
-        continue-on-error: true
 
       - name: Test
         run: pnpm test

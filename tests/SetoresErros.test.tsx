@@ -396,7 +396,7 @@ describe("Setores: falhas de carregamento", () => {
       await waitFor(() => expect(removeBtn).toBeEnabled());
       fireEvent.click(removeBtn);
 
-      let dialog = await screen.findByRole("dialog");
+      const dialog = await screen.findByRole("dialog");
       fireEvent.click(within(dialog).getByRole("button", { name: "Remover" }));
       await waitFor(() => expect(errorToast).toHaveBeenCalledWith("Falha ao remover membro (500)"));
       expect(dialog).toBeInTheDocument();
